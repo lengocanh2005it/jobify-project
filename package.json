@@ -21,7 +21,11 @@
     "start:dev:api-gateway": "nest start api-gateway --watch",
     "start:dev:users": "nest start users --watch",
     "start:dev:notifications": "nest start notifications --watch",
-    "start:dev:all": "concurrently -n API-Gateway,Users,Notifications -c red,blue,yellow \"npm run start:dev:api-gateway\" \"npm run start:dev:users\" \"npm run start:dev:notifications\""
+    "start:dev:all": "concurrently -n API-Gateway,Users,Notifications -c red,blue,yellow \"npm run start:dev:api-gateway\" \"npm run start:dev:users\" \"npm run start:dev:notifications\"",
+    "typeorm": "npm run build && npx typeorm -d dist/database/typeorm.config.js",
+    "migration:generate": "npm run typeorm -- migration:generate",
+    "migration:run": "npm run typeorm -- migration:run",
+    "migration:revert": "npm run typeorm -- migration:revert"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

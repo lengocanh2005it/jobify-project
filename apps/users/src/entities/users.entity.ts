@@ -12,7 +12,7 @@ export class User {
   readonly id!: string;
 
   @Column()
-  readonly username!: string;
+  readonly email!: string;
 
   @Column()
   readonly password!: string;
