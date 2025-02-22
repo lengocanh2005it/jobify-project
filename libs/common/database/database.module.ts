@@ -1,24 +1,29 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CustomConfigModule } from 'libs/common/config/config.module';
 
+@Global()
 @Module({
   imports: [
-    ConfigModule,
+    CustomConfigModule,
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: () => ({
+      useFactory: (configService: ConfigService) => ({
         type: 'mysql',
-        username: 'root',
-        password: 'Lengocanh2005',
-        database: 'jobify_db',
-        port: 3306,
-        host: 'localhost',
+        username: configService.get<string>('database.username'),
+        password: configService.get<string>('database.password'),
+        database: configService.get<string>('database.name'),
+        port: configService.get<number>('database.port'),
+        host: configService.get<string>('database.host'),
         autoLoadEntities: true,
         synchronize: true,
+        logging: false,
       }),
     }),
   ],
+  controllers: [],
+  providers: [],
 })
 export class DatabaseModule {}
