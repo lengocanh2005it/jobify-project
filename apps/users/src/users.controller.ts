@@ -8,8 +8,8 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @MessagePattern({ cmd: 'get-users' })
-  getUsers() {
-    return this.usersService.getUsers();
+  async getUsers() {
+    return await this.usersService.getUsers();
   }
 
   @MessagePattern({ cmd: 'create-user' })

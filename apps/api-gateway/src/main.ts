@@ -1,8 +1,7 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
-import { CustomValidationPipe } from 'libs/common/pipe/validation.pipe';
+import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -10,8 +9,6 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   const PORT = configService.get<number>('port');
-
-  app.useGlobalPipes(new CustomValidationPipe());
 
   const config = new DocumentBuilder()
     .setTitle('JOBIFY BACKEND')
