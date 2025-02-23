@@ -4,7 +4,7 @@
   "sourceRoot": "apps/api-gateway/src",
   "compilerOptions": {
     "deleteOutDir": true,
-    "webpack": true,
+    "webpack": false,
     "tsConfigPath": "apps/api-gateway/tsconfig.app.json"
   },
   "monorepo": true,
@@ -17,6 +17,15 @@
       "sourceRoot": "apps/api-gateway/src",
       "compilerOptions": {
         "tsConfigPath": "apps/api-gateway/tsconfig.app.json"
+      }
+    },
+    "applications": {
+      "type": "application",
+      "root": "apps/applications",
+      "entryFile": "main",
+      "sourceRoot": "apps/applications/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/applications/tsconfig.app.json"
       }
     },
     "auth": {
@@ -37,6 +46,24 @@
         "tsConfigPath": "libs/common/tsconfig.lib.json"
       }
     },
+    "jobs": {
+      "type": "application",
+      "root": "apps/jobs",
+      "entryFile": "main",
+      "sourceRoot": "apps/jobs/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/jobs/tsconfig.app.json"
+      }
+    },
+    "messages": {
+      "type": "application",
+      "root": "apps/messages",
+      "entryFile": "main",
+      "sourceRoot": "apps/messages/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/messages/tsconfig.app.json"
+      }
+    },
     "notifications": {
       "type": "application",
       "root": "apps/notifications",
@@ -44,6 +71,15 @@
       "sourceRoot": "apps/notifications/src",
       "compilerOptions": {
         "tsConfigPath": "apps/notifications/tsconfig.app.json"
+      }
+    },
+    "reviews": {
+      "type": "application",
+      "root": "apps/reviews",
+      "entryFile": "main",
+      "sourceRoot": "apps/reviews/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/reviews/tsconfig.app.json"
       }
     },
     "users": {
