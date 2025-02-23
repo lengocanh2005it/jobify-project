@@ -33,13 +33,13 @@ import { CommonService } from './common.service';
         database: configService.get<string>('database.name'),
         port: configService.get<number>('database.port'),
         host: configService.get<string>('database.host'),
-        autoLoadEntities: true,
-        synchronize: true,
+        entities: ['dist/**/*.entity.js'],
+        synchronize: false,
         logging: false,
       }),
     }),
   ],
   providers: [CommonService, CustomValidationPipe, JwtStrategy],
-  exports: [CommonService, JwtModule, ConfigModule, TypeOrmModule],
+  exports: [JwtModule, ConfigModule, TypeOrmModule],
 })
 export class CommonModule {}
