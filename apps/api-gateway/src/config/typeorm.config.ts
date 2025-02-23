@@ -11,6 +11,9 @@ const AppDataSource = new DataSource({
   port: Number(process.env.DB_PORT) || 3306,
   host: process.env.DB_HOST || 'localhost',
   entities: ['dist/**/*.entity.js'],
+  migrations: [
+    'dist/apps/api-gateway/apps/api-gateway/src/config/migrations/*.js',
+  ],
   synchronize: false,
   logging: false,
 });

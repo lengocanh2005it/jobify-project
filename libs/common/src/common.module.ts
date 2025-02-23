@@ -34,6 +34,9 @@ import { CommonService } from './common.service';
         port: configService.get<number>('database.port'),
         host: configService.get<string>('database.host'),
         entities: ['dist/**/*.entity.js'],
+        migrations: [
+          'dist/apps/api-gateway/apps/api-gateway/src/config/migrations/*.js',
+        ],
         synchronize: false,
         logging: false,
       }),

@@ -22,7 +22,7 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   readonly id!: string;
 
-  @Column()
+  @Column({ unique: true })
   readonly email!: string;
 
   @Column()

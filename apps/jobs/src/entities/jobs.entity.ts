@@ -1,10 +1,12 @@
 import { Application } from 'apps/applications/src/entities/applications.entity';
+import { Requirement } from 'apps/jobs/src/entities/requirements.entity';
 import { User } from 'apps/users/src/entities/users.entity';
 import {
   Column,
   CreateDateColumn,
   Entity,
   JoinColumn,
+  ManyToMany,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -34,9 +36,6 @@ export class Job {
   @Column({ type: 'text' })
   readonly description!: string;
 
-  @Column({ type: 'json' })
-  readonly requirements!: string;
-
   @Column({ type: 'enum', enum: ['open', 'closed'] })
   readonly status!: string;
 
@@ -57,6 +56,9 @@ export class Job {
     cascade: true,
   })
   readonly applications!: Application[];
+
+  @ManyToMany(() => Requirement, (requirement) => requirement.jobs)
+  readonly requirements!: Requirement[];
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;
