@@ -13,7 +13,10 @@ export class AuthService {
   public handleLogin = async (loginDto: LoginDto) => {
     const user = await this.usersService.handleVerifyUser(loginDto);
 
-    const accessToken = this.jwtService.sign({ userId: user.id });
+    const accessToken = this.jwtService.sign({
+      userId: user.id,
+      role: user.role?.name,
+    });
 
     return { accessToken };
   };

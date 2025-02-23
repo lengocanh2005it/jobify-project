@@ -1,6 +1,12 @@
-import { Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { CreateUserDto } from 'libs/common/dtos/create-user.dto';
+import { catchError } from 'rxjs';
 
 @Injectable()
 export class UsersService {
@@ -13,6 +19,20 @@ export class UsersService {
   };
 
   public createUser = (createUserDto: CreateUserDto) => {
-    return this.rabbitMqUsersClient.send({ cmd: 'create-user' }, createUserDto);
+    return this.rabbitMqUsersClient
+      .send({ cmd: 'create-user' }, createUserDto)
+      .pipe(
+        catchError((err: Error) => {
+          if (err.message.includes('Role Not Found'))
+            throw new NotFoundException('Role Not Found.');
+
+          console.log(err.name);
+
+          if (err.message.includes('Email has been existed.'))
+            throw new BadRequestException('Email has been existed.');
+
+          throw new BadRequestException('Error from Users Service');
+        }),
+      );
   };
 }
