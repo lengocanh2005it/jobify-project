@@ -6,11 +6,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Company } from 'apps/jobs/src/entities/companies.entity';
 import { Job } from 'apps/jobs/src/entities/jobs.entity';
 import { Requirement } from 'apps/jobs/src/entities/requirements.entity';
+import { User } from 'apps/users/src/entities/users.entity';
 
 @Module({
   imports: [
     CommonModule,
-    TypeOrmModule.forFeature([Company, Job, Requirement]),
+    TypeOrmModule.forFeature([Company, Job, Requirement, User]),
   ],
   controllers: [JobsController],
   providers: [JobsService],
