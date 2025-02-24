@@ -5,6 +5,7 @@ import { Message } from 'apps/messages/src/entities/messages.entity';
 import { Notification } from 'apps/notifications/src/entities/notifications.entity';
 import { Review } from 'apps/reviews/src/entities/reviews.entity';
 import { Role } from 'apps/users/src/entities/roles.entity';
+import { Exclude } from 'class-transformer';
 import {
   Column,
   CreateDateColumn,
@@ -44,7 +45,7 @@ export class User {
   @JoinColumn({ name: 'role_id' })
   readonly role!: Role;
 
-  @OneToMany(() => Job, (job) => job.user, { cascade: true })
+  @OneToMany(() => Job, (job) => job.recruiter, { cascade: true })
   readonly jobs!: Job[];
 
   @ManyToOne(() => Company, (company) => company.recruiters, {
