@@ -28,4 +28,8 @@ export class CreateUserDto {
   @IsString()
   @IsIn(['candidate', 'recruiter'])
   readonly type!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  readonly full_name!: string;
 }

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { CreateUserDto } from 'libs/common/dtos/create-user.dto';
+import { UpdateUserDto } from 'libs/common/dtos/update-user.dto';
 import { catchError } from 'rxjs';
 
 @Injectable()
@@ -34,5 +35,20 @@ export class UsersService {
           throw new BadRequestException('Error from Users Service');
         }),
       );
+  };
+
+  public handleGetUser = (userId: string) => {
+    return this.rabbitMqUsersClient.send({ cmd: 'get-user' }, userId);
+  };
+
+  public handleUpdateUser = (userId: string, updateUserDto: UpdateUserDto) => {
+    return this.rabbitMqUsersClient.send(
+      { cmd: 'update-user' },
+      { updateUserDto, userId },
+    );
+  };
+
+  public handleDeleteUser = (userId: string) => {
+    return this.rabbitMqUsersClient.send({ cmd: 'delete-user' }, userId);
   };
 }

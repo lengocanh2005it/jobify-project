@@ -4,9 +4,10 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Role } from 'apps/users/src/entities/roles.entity';
 import { User } from 'apps/users/src/entities/users.entity';
 import * as bcrypt from 'bcrypt';
-import { CreateUserDto } from 'libs/common/dtos/create-user.dto';
-import { LoginDto } from 'libs/common/dtos/login.dto';
-import { handleEncodedPassword } from 'libs/common/utils/encoded-password.util';
+import { CreateUserDto } from 'libs/common/dtos';
+import { LoginDto } from 'libs/common/dtos';
+import { UpdateUserDto } from 'libs/common/dtos';
+import { handleEncodedPassword } from 'libs/common/utils';
 import { DataSource, Repository } from 'typeorm';
 
 @Injectable()
@@ -40,6 +41,8 @@ export class UsersService {
     const newUser = this.userRepository.create({
       ...createUserDto,
       password: handleEncodedPassword(password),
+      avatar_url:
+        'https://res.cloudinary.com/daiqcjyk9/image/upload/v1735465375/default_user_logo_b1f7pd.png',
     });
 
     await this.userRepository.save(newUser);
@@ -96,5 +99,56 @@ export class UsersService {
       ...res,
       role: user.role.name,
     };
+  };
+
+  public handleGetUser = async (userId: string) => {
+    try {
+      const user = await this.userRepository.findOne({ where: { id: userId } });
+
+      if (!user) throw new RpcException('User Not Found.');
+
+      const { password, ...res } = user;
+
+      return res;
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  public handleUpdateUser = async (
+    userId: string,
+    updateUserDto: UpdateUserDto,
+  ) => {
+    try {
+      const user = await this.userRepository.findOneBy({ id: userId });
+
+      if (!user) throw new RpcException('User Not Found.');
+
+      await this.userRepository.update({ id: userId }, updateUserDto);
+
+      const savedUser = (await this.userRepository.findOneBy({
+        id: userId,
+      })) as User;
+
+      const { password, ...res } = savedUser;
+
+      return res;
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  public handleDeleteUser = async (userId: string) => {
+    try {
+      const user = await this.userRepository.findOneBy({ id: userId });
+
+      if (!user) throw new RpcException('User Not Found.');
+
+      await this.userRepository.delete({ id: userId });
+
+      return { msg: 'User deleted successfully!' };
+    } catch (err) {
+      console.error(err);
+    }
   };
 }
