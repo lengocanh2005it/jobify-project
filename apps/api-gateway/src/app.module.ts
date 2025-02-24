@@ -1,6 +1,7 @@
 import { CommonModule } from '@app/common';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
+import { ApplicationsModule } from 'apps/api-gateway/src/applications/applications.module';
 import { AuthModule } from 'apps/api-gateway/src/auth/auth.module';
 import { JobsModule } from 'apps/api-gateway/src/jobs/jobs.module';
 import { UsersModule } from 'apps/api-gateway/src/users/users.module';
@@ -12,7 +13,13 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
 @Module({
-  imports: [UsersModule, CommonModule, AuthModule, JobsModule],
+  imports: [
+    UsersModule,
+    CommonModule,
+    AuthModule,
+    JobsModule,
+    ApplicationsModule,
+  ],
   controllers: [AppController],
   providers: [
     AppService,

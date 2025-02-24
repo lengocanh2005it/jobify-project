@@ -1,22 +1,17 @@
 import { Module } from '@nestjs/common';
-import { ApplicationsController } from './applications.controller';
-import { ApplicationsService } from './applications.service';
-import { CommonModule } from '@app/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Application } from 'apps/applications/src/entities/applications.entity';
 import { ClientsModule, Transport } from '@nestjs/microservices';
+import { ApplicationsController } from 'apps/api-gateway/src/applications/applications.controller';
+import { ApplicationsService } from 'apps/api-gateway/src/applications/applications.service';
 
 @Module({
   imports: [
-    CommonModule,
-    TypeOrmModule.forFeature([Application]),
     ClientsModule.register([
       {
-        name: 'JOBS_SERVICE',
+        name: 'APPLICATIONS_SERVICE',
         transport: Transport.RMQ,
         options: {
           urls: ['amqp://localhost:5672'],
-          queue: 'jobs_queue',
+          queue: 'applications_queue',
           queueOptions: {
             durable: false,
           },
