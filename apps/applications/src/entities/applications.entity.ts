@@ -21,7 +21,11 @@ export class Application {
   @Column({ type: 'text', nullable: true })
   readonly cover_letter_link?: string;
 
-  @Column({ type: 'enum', enum: ['pending', 'approved', 'rejected'] })
+  @Column({
+    type: 'enum',
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending',
+  })
   readonly status!: string;
 
   @Column({ type: 'timestamp' })
