@@ -10,7 +10,7 @@ import {
   IsString,
 } from 'class-validator';
 
-export class CreateJobDto {
+export class UpdateJobDto {
   @IsString()
   @IsNotEmpty()
   readonly title!: string;
@@ -38,11 +38,6 @@ export class CreateJobDto {
   @IsString()
   @IsIn(['open', 'closed'])
   readonly status!: string;
-
-  @Type(() => Date)
-  @IsDate()
-  @IsNotEmpty()
-  readonly posted_at!: Date;
 
   @Type(() => Date)
   @IsDate()

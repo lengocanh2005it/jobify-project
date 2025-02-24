@@ -5,9 +5,13 @@ import { CommonModule } from '@app/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Company } from 'apps/jobs/src/entities/companies.entity';
 import { Job } from 'apps/jobs/src/entities/jobs.entity';
+import { Requirement } from 'apps/jobs/src/entities/requirements.entity';
 
 @Module({
-  imports: [CommonModule, TypeOrmModule.forFeature([Company, Job])],
+  imports: [
+    CommonModule,
+    TypeOrmModule.forFeature([Company, Job, Requirement]),
+  ],
   controllers: [JobsController],
   providers: [JobsService],
 })

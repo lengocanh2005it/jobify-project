@@ -45,12 +45,15 @@ export class Job {
   @Column({ type: 'timestamp' })
   readonly expired_at!: Date;
 
+  @Column({ type: 'boolean', default: false })
+  readonly is_approved!: boolean;
+
   @ManyToOne(() => User, (user) => user.jobs, {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
   @JoinColumn({ name: 'recruiter_id' })
-  readonly user!: User;
+  readonly recruiter!: User;
 
   @OneToMany(() => Application, (application) => application.job, {
     cascade: true,
