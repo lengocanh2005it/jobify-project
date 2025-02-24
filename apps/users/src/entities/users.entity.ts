@@ -5,7 +5,6 @@ import { Message } from 'apps/messages/src/entities/messages.entity';
 import { Notification } from 'apps/notifications/src/entities/notifications.entity';
 import { Review } from 'apps/reviews/src/entities/reviews.entity';
 import { Role } from 'apps/users/src/entities/roles.entity';
-import { Exclude } from 'class-transformer';
 import {
   Column,
   CreateDateColumn,
@@ -37,6 +36,12 @@ export class User {
 
   @Column({ nullable: true, type: 'text' })
   readonly bio?: string;
+
+  @Column()
+  readonly full_name!: string;
+
+  @Column({ type: 'text' })
+  readonly avatar_url!: string;
 
   @ManyToOne(() => Role, (role) => role.users, {
     onDelete: 'CASCADE',

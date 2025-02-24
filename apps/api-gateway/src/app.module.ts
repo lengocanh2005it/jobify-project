@@ -1,15 +1,15 @@
 import { CommonModule } from '@app/common';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
-import { UsersModule } from 'apps/api-gateway/src/users/users.module';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { AuthModule } from 'apps/api-gateway/src/auth/auth.module';
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
+import { AuthModule } from 'apps/api-gateway/src/auth/auth.module';
+import { JobsModule } from 'apps/api-gateway/src/jobs/jobs.module';
+import { UsersModule } from 'apps/api-gateway/src/users/users.module';
 import { HttpExceptionFilter } from 'libs/common/filters';
-import { CustomValidationPipe } from 'libs/common/pipe';
 import { ApiResponseInterceptor } from 'libs/common/interceptors';
 import { LoggerMiddleware } from 'libs/common/middlewares';
-import { JobsModule } from 'apps/api-gateway/src/jobs/jobs.module';
+import { CustomValidationPipe } from 'libs/common/pipe';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 
 @Module({
   imports: [UsersModule, CommonModule, AuthModule, JobsModule],

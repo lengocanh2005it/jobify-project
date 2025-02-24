@@ -2,12 +2,9 @@ import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthService } from 'apps/api-gateway/src/auth/auth.service';
 import { Request } from 'express';
 import { Role } from 'libs/common/constants';
-import { ResponseMessage } from 'libs/common/decorators';
-import { Roles } from 'libs/common/decorators';
-import { CreateCompanyDto } from 'libs/common/dtos';
-import { LoginDto } from 'libs/common/dtos';
-import { JwtAuthGuard } from 'libs/common/guards';
-import { RoleAuthGuard } from 'libs/common/guards';
+import { ResponseMessage, Roles } from 'libs/common/decorators';
+import { CreateCompanyDto, LoginDto } from 'libs/common/dtos';
+import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 
 @Controller('auth')
 export class AuthController {
