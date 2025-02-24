@@ -52,4 +52,9 @@ export class JobsController {
   async handleGetJob(@Payload() jobId: string) {
     return await this.jobsService.handleGetJob(jobId);
   }
+
+  @MessagePattern({ cmd: 'get-company' })
+  async handleGetCompany(@Payload() companyId: string) {
+    return await this.jobsService.handleGetCompany(companyId);
+  }
 }

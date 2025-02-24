@@ -234,4 +234,18 @@ export class JobsService {
       console.error(err);
     }
   };
+
+  public handleGetCompany = async (companyId: string) => {
+    try {
+      const company = await this.companyRepository.findOneBy({ id: companyId });
+
+      if (!company)
+        throw new RpcException(`Company With ID: '${companyId}' Not Found.`);
+
+      return company;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
 }
