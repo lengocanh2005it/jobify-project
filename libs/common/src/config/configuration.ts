@@ -9,4 +9,8 @@ export default () => ({
   },
   jwt_secret_key: process.env.JWT_SECRET_KEY,
   access_token_life: process.env.ACCESS_TOKEN_LIFE,
+  redis: {
+    port: parseInt(process.env.REDIS_PORT as string, 10) || 6379,
+    host: process.env.REDIS_HOST || 'localhost',
+  },
 });
