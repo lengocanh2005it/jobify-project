@@ -7,13 +7,13 @@ import { NotificationsService } from './notifications.service';
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
-  @EventPattern('create-candidate-notification')
+  @EventPattern('create-notification')
   async handleCreateNotifications(
     @Payload('data') createNotificationDto: CreateNotificationDto,
-    @Payload('candidateIds') candidateIds: string[],
+    @Payload('userIds') userIds: string[],
   ) {
-    await this.notificationsService.handleCreateCandidateNotifications(
-      candidateIds,
+    await this.notificationsService.handleCreateNotifications(
+      userIds,
       createNotificationDto,
     );
   }

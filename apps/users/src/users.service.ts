@@ -62,13 +62,13 @@ export class UsersService {
 
     const { title, description, key } = ACCOUNT_REGISTRATION;
 
-    this.rabbitMqNotificationClient.emit('create-candidate-notification', {
+    this.rabbitMqNotificationClient.emit('create-notification', {
       data: {
         title,
         message: description,
         type: key,
       },
-      candidateIds: [newUser.id],
+      userIds: [newUser.id],
     });
 
     return res;
@@ -160,6 +160,17 @@ export class UsersService {
 
       const { password, ...res } = savedUser;
 
+      const { title, description, key } = NotificationTypes.PROFILE_UPDATE;
+
+      this.rabbitMqNotificationClient.emit('create-notification', {
+        data: {
+          title,
+          message: description,
+          type: key,
+        },
+        userIds: [savedUser.id],
+      });
+
       return res;
     } catch (err) {
       console.error(err);
@@ -217,13 +228,13 @@ export class UsersService {
 
       const { title, description, key } = PASSWORD_RESET;
 
-      this.rabbitMqNotificationClient.emit('create-candidate-notification', {
+      this.rabbitMqNotificationClient.emit('create-notification', {
         data: {
           title,
           message: description,
           type: key,
         },
-        candidateIds: [userId],
+        userIds: [userId],
       });
 
       return {

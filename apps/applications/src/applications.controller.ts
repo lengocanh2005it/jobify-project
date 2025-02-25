@@ -25,8 +25,14 @@ export class ApplicationsController {
   }
 
   @MessagePattern({ cmd: 'get-application' })
-  async getApplication(@Payload() applicationId: string) {
-    return await this.applicationsService.handleGetApplication(applicationId);
+  async getApplication(
+    @Payload('applicationId') applicationId: string,
+    @Payload('role') role: string,
+  ) {
+    return await this.applicationsService.handleGetApplication(
+      applicationId,
+      role,
+    );
   }
 
   @MessagePattern({ cmd: 'delete-application' })

@@ -72,6 +72,11 @@ export const NotificationTypes = {
     title: 'Offer Response Received',
     description: 'A candidate has responded to the job offer.',
   },
+  APPLICATION_DELETED: {
+    key: 'application_deleted',
+    title: 'Application Deleted',
+    description: 'A candidate has withdrawn their job application.',
+  },
 
   // System Notifications
   ACCOUNT_REGISTRATION: {
