@@ -14,7 +14,9 @@ import { ApplicationsService } from 'apps/api-gateway/src/applications/applicati
 import { Request } from 'express';
 import { Role } from 'libs/common/constants';
 import { Roles } from 'libs/common/decorators';
+import { ApproveApplicationsDto } from 'libs/common/dtos/approve-applications.dto';
 import { CreateApplicationDto } from 'libs/common/dtos/create-application.dto';
+import { RejectApplicationsDto } from 'libs/common/dtos/reject-applications.dto';
 import { UpdateApplicationDto } from 'libs/common/dtos/update-application.dto';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 
@@ -67,5 +69,23 @@ export class ApplicationsController {
     @Body() updateApplicationDto: UpdateApplicationDto,
   ) {
     return this.applicationsService.updateApplication(id, updateApplicationDto);
+  }
+
+  @Patch('approve')
+  @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @Roles(Role.RECRUITER, Role.ADMIN)
+  approveApplications(@Body() approveApplicationsDto: ApproveApplicationsDto) {
+    return this.applicationsService.handleApproveApplications(
+      approveApplicationsDto,
+    );
+  }
+
+  @Patch('reject')
+  @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @Roles(Role.RECRUITER, Role.ADMIN)
+  rejectApplications(@Body() rejectedApplicationsDto: RejectApplicationsDto) {
+    return this.applicationsService.handleRejectApplications(
+      rejectedApplicationsDto,
+    );
   }
 }

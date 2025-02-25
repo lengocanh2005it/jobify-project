@@ -3,6 +3,7 @@ import { Company } from 'apps/jobs/src/entities/companies.entity';
 import { Job } from 'apps/jobs/src/entities/jobs.entity';
 import { Message } from 'apps/messages/src/entities/messages.entity';
 import { Notification } from 'apps/notifications/src/entities/notifications.entity';
+import { UserNotification } from 'apps/notifications/src/entities/user-notification.entity';
 import { Review } from 'apps/reviews/src/entities/reviews.entity';
 import { Role } from 'apps/users/src/entities/roles.entity';
 import {
@@ -75,11 +76,12 @@ export class User {
   @OneToMany(() => Message, (message) => message.receiver, { cascade: true })
   readonly received_messages!: Message[];
 
-  @ManyToMany(
-    () => Notification,
-    (notification) => notification.userNotifications,
+  @OneToMany(
+    () => UserNotification,
+    (userNotification) => userNotification.user,
+    { cascade: true },
   )
-  readonly notifications!: Notification[];
+  readonly userNotifications!: UserNotification[];
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;

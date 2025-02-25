@@ -27,8 +27,6 @@ export class UsersService {
           if (err.message.includes('Role Not Found'))
             throw new NotFoundException('Role Not Found.');
 
-          console.log(err.name);
-
           if (err.message.includes('Email has been existed.'))
             throw new BadRequestException('Email has been existed.');
 

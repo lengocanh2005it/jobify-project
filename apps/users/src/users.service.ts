@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { RpcException } from '@nestjs/microservices';
+import { Inject, Injectable } from '@nestjs/common';
+import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Role } from 'apps/users/src/entities/roles.entity';
 import { User } from 'apps/users/src/entities/users.entity';
 import * as bcrypt from 'bcrypt';
+import { NotificationTypes } from 'libs/common/constants';
 import { CreateUserDto } from 'libs/common/dtos';
 import { LoginDto } from 'libs/common/dtos';
 import { UpdateUserDto } from 'libs/common/dtos';
@@ -16,6 +17,8 @@ export class UsersService {
     @InjectRepository(User) private readonly userRepository: Repository<User>,
     @InjectRepository(Role) private readonly roleRepository: Repository<Role>,
     @InjectDataSource() private readonly dataSource: DataSource,
+    @Inject('NOTIFICATIONS_SERVICE')
+    private readonly rabbitMqNotificationClient: ClientProxy,
   ) {}
 
   public getUsers = async () => {
@@ -55,6 +58,19 @@ export class UsersService {
 
     const { password: passwordUser, ...res } = newUser;
 
+    const { ACCOUNT_REGISTRATION } = NotificationTypes;
+
+    const { title, description, key } = ACCOUNT_REGISTRATION;
+
+    this.rabbitMqNotificationClient.emit('create-candidate-notification', {
+      data: {
+        title,
+        message: description,
+        type: key,
+      },
+      candidateIds: [newUser.id],
+    });
+
     return res;
   };
 
@@ -88,16 +104,28 @@ export class UsersService {
   public handleGetProfile = async (userId: string) => {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['role'],
+      relations: [
+        'role',
+        'userNotifications',
+        'userNotifications.notification',
+      ],
     });
 
     if (!user) throw new RpcException('User Not Found.');
 
-    const { password, ...res } = user;
+    const { password, userNotifications, ...res } = user;
 
     return {
       ...res,
       role: user.role.name,
+      notifications: userNotifications
+        .map((un) => un.notification)
+        .map((n) => ({
+          id: n.id,
+          title: n.title,
+          message: n.message,
+          is_read: n.is_read,
+        })),
     };
   };
 
@@ -184,6 +212,19 @@ export class UsersService {
           password: handleEncodedPassword(newPassword),
         },
       );
+
+      const { PASSWORD_RESET } = NotificationTypes;
+
+      const { title, description, key } = PASSWORD_RESET;
+
+      this.rabbitMqNotificationClient.emit('create-candidate-notification', {
+        data: {
+          title,
+          message: description,
+          type: key,
+        },
+        candidateIds: [userId],
+      });
 
       return {
         message: 'Password updated successfully.',
