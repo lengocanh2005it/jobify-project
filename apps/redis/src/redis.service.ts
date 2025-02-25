@@ -12,7 +12,7 @@ export class RedisService {
       port: configService.get<number>('redis.port'),
     };
 
-    this.redis = new Redis(redisOptions) as Redis;
+    this.redis = new Redis(redisOptions);
   }
 
   async setKey(key: string, value: string, ttl: number) {

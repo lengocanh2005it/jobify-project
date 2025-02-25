@@ -4,6 +4,8 @@ import { Request } from 'express';
 import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
 import { CreateCompanyDto, LoginDto } from 'libs/common/dtos';
+import { ForgetPasswordDto } from 'libs/common/dtos/forget-password.dto';
+import { UpdatePasswordDto } from 'libs/common/dtos/update-password.dto';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 
 @Controller('auth')
@@ -38,5 +40,25 @@ export class AuthController {
     return this.authService.handleGetProfile(
       (request?.user as Record<string, string | number>).userId as string,
     );
+  }
+
+  @Post('update-password')
+  @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  updatePassword(
+    @Body() updatePasswordDto: UpdatePasswordDto,
+    @Req() request: Request,
+  ) {
+    const userId = (request.user as Record<string, string | number>)
+      .userId as string;
+
+    return this.authService.handleUpdatePassword(updatePasswordDto, userId);
+  }
+
+  @Post('forget-password')
+  @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  forgetPassword(@Body() forgetPasswordDto: ForgetPasswordDto) {
+    return this.authService.handleForgetPassword(forgetPasswordDto);
   }
 }

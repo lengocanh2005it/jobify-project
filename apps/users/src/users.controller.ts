@@ -42,5 +42,20 @@ export class UsersController {
   }
 
   @MessagePattern({ cmd: 'delete-user' })
-  async deleteUser(@Payload() userId: string) {}
+  async deleteUser(@Payload() userId: string) {
+    return await this.usersService.handleDeleteUser(userId);
+  }
+
+  @MessagePattern({ cmd: 'get-password' })
+  async getPasswordOfUser(@Payload() userId: string) {
+    return await this.usersService.handleGetPasswordOfUser(userId);
+  }
+
+  @MessagePattern({ cmd: 'update-pw-user' })
+  async handleUpdatePasswordOfUser(
+    @Payload('newPassword') newPassword: string,
+    @Payload('userId') userId: string,
+  ) {
+    return await this.usersService.handleUpdatePassword(newPassword, userId);
+  }
 }

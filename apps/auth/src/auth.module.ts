@@ -1,15 +1,55 @@
+import { CommonModule } from '@app/common';
 import { Module } from '@nestjs/common';
+import { ClientsModule, Transport } from '@nestjs/microservices';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { Role } from 'apps/users/src/entities/roles.entity';
 import { User } from 'apps/users/src/entities/users.entity';
 import { UsersModule } from 'apps/users/src/users.module';
 import { UsersService } from 'apps/users/src/users.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { CommonModule } from '@app/common';
-import { Role } from 'apps/users/src/entities/roles.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Role]), UsersModule, CommonModule],
+  imports: [
+    ClientsModule.register([
+      {
+        name: 'USERS_SERVICE',
+        transport: Transport.RMQ,
+        options: {
+          urls: ['amqp://localhost:5672'],
+          queue: 'users_queue',
+          queueOptions: {
+            durable: false,
+          },
+        },
+      },
+      {
+        name: 'REDIS_SERVICE',
+        transport: Transport.RMQ,
+        options: {
+          urls: ['amqp://localhost:5672'],
+          queue: 'redis_queue',
+          queueOptions: {
+            durable: false,
+          },
+        },
+      },
+      {
+        name: 'EMAILS_SERVICE',
+        transport: Transport.RMQ,
+        options: {
+          urls: ['amqp://localhost:5672'],
+          queue: 'emails_queue',
+          queueOptions: {
+            durable: false,
+          },
+        },
+      },
+    ]),
+    TypeOrmModule.forFeature([User, Role]),
+    UsersModule,
+    CommonModule,
+  ],
   controllers: [AuthController],
   providers: [AuthService, UsersService],
 })

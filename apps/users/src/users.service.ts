@@ -151,4 +151,45 @@ export class UsersService {
       console.error(err);
     }
   };
+
+  public handleGetPasswordOfUser = async (userId: string) => {
+    try {
+      const user = await this.userRepository.findOne({
+        where: { id: userId },
+        select: {
+          id: true,
+          password: true,
+          email: true,
+        },
+      });
+
+      if (!user) throw new RpcException(`User With ID: '${userId}' Not Found.`);
+
+      return user;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  public handleUpdatePassword = async (newPassword: string, userId: string) => {
+    try {
+      const user = await this.userRepository.findOneBy({ id: userId });
+
+      if (!user) throw new RpcException(`User With ID: '${userId}' Not Found.`);
+
+      await this.userRepository.update(
+        { id: userId },
+        {
+          password: handleEncodedPassword(newPassword),
+        },
+      );
+
+      return {
+        message: 'Password updated successfully.',
+      };
+    } catch (err) {
+      console.error(err);
+    }
+  };
 }

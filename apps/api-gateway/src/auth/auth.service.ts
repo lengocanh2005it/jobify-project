@@ -5,8 +5,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { CreateCompanyDto } from 'libs/common/dtos';
-import { LoginDto } from 'libs/common/dtos';
+import { CreateCompanyDto, LoginDto } from 'libs/common/dtos';
+import { ForgetPasswordDto } from 'libs/common/dtos/forget-password.dto';
+import { UpdatePasswordDto } from 'libs/common/dtos/update-password.dto';
 import { catchError } from 'rxjs';
 
 @Injectable()
@@ -52,5 +53,27 @@ export class AuthService {
           throw new BadRequestException('Error from Users Service');
         }),
       );
+  };
+
+  public handleUpdatePassword = (
+    updatePasswordDto: UpdatePasswordDto,
+    userId: string,
+  ) => {
+    return this.rabbitMqAuthClient.send(
+      { cmd: 'update-password' },
+      { updatePasswordDto, userId },
+    );
+  };
+
+  public handleForgetPassword = (forgetPasswordDto: ForgetPasswordDto) => {
+    const { email, type } = forgetPasswordDto;
+
+    return this.rabbitMqAuthClient.send(
+      { cmd: 'forget-password' },
+      {
+        email,
+        type,
+      },
+    );
   };
 }
