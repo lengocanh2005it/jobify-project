@@ -26,10 +26,13 @@ export class ApplicationsService {
     return this.rabbitMqApplicationClient.send({ cmd: 'get-applications' }, {});
   };
 
-  public getApplication = (applicationId: string) => {
+  public getApplication = (applicationId: string, role: string) => {
     return this.rabbitMqApplicationClient.send(
       { cmd: 'get-application' },
-      applicationId,
+      {
+        applicationId,
+        role,
+      },
     );
   };
 

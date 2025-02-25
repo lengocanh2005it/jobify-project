@@ -50,8 +50,14 @@ export class ApplicationsController {
   @Get(':id')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.RECRUITER, Role.ADMIN, Role.CANDIDATE)
-  getApplication(@Param('id', ParseUUIDPipe) id: string) {
-    return this.applicationsService.getApplication(id);
+  getApplication(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
+  ) {
+    const role = (request.user as Record<string, string | number>)
+      .role as string;
+
+    return this.applicationsService.getApplication(id, role);
   }
 
   @Delete(':id')

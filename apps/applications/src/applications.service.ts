@@ -34,7 +34,7 @@ export class ApplicationsService {
       const { job_id: jobId } = createApplicationDto;
 
       const job = await lastValueFrom<Job | undefined>(
-        this.rabbitMqJobClient.send({ cmd: 'get-job' }, jobId),
+        this.rabbitMqJobClient.send({ cmd: 'get-jobs' }, jobId),
       );
 
       if (!job) throw new RpcException(`Job With ID: '${jobId}' Not Found.`);
@@ -44,7 +44,7 @@ export class ApplicationsService {
           candidate: { id: userId },
           job: { id: jobId },
         },
-        relations: ['candidate', 'job'],
+        relations: ['candidate', 'job', 'job.recruiter'],
       });
 
       if (application)
@@ -60,13 +60,40 @@ export class ApplicationsService {
         .of(application.id)
         .set(userId);
 
+      application = (await this.applicationRepository.findOne({
+        where: {
+          candidate: { id: userId },
+          job: { id: jobId },
+        },
+        relations: ['candidate', 'job', 'job.recruiter'],
+      })) as Application;
+
       const { candidate, ...res } = application;
 
       const { password, ...resData } = candidate;
 
+      const { password: recruiterPassword, ...resRecruiterData } =
+        res.job.recruiter;
+
+      const { title, description, key } =
+        NotificationTypes.NEW_APPLICATION_RECEIVED;
+
+      this.rabbitMqNotificationClient.emit('create-notification', {
+        data: {
+          title,
+          message: description,
+          type: key,
+        },
+        userIds: [res.job.recruiter.id],
+      });
+
       return {
         ...res,
         candidate: resData,
+        job: {
+          ...res.job,
+          recruiter: resRecruiterData,
+        },
       };
     } catch (err) {
       console.error(err);
@@ -94,16 +121,33 @@ export class ApplicationsService {
     }
   };
 
-  public handleGetApplication = async (applicationId: string) => {
+  public handleGetApplication = async (applicationId: string, role: string) => {
     try {
-      const application = await this.applicationRepository.findOneBy({
-        id: applicationId,
+      const application = await this.applicationRepository.findOne({
+        where: {
+          id: applicationId,
+        },
+        relations: ['candidate'],
       });
 
       if (!application)
         throw new RpcException(
           `Application With ID: '${applicationId}' Not Found.`,
         );
+
+      if (role === 'admin' || role === 'recruiter') {
+        const { title, description, key } =
+          NotificationTypes.JOB_APPLICATION_REVIEWED;
+
+        this.rabbitMqNotificationClient.emit('create-notification', {
+          data: {
+            title,
+            message: description,
+            type: key,
+          },
+          userIds: [application.candidate.id],
+        });
+      }
 
       return application;
     } catch (err) {
@@ -113,8 +157,11 @@ export class ApplicationsService {
 
   public handleDeleteApplication = async (applicationId: string) => {
     try {
-      const application = await this.applicationRepository.findOneBy({
-        id: applicationId,
+      const application = await this.applicationRepository.findOne({
+        where: {
+          id: applicationId,
+        },
+        relations: ['job', 'job.recruiter'],
       });
 
       if (!application)
@@ -122,9 +169,21 @@ export class ApplicationsService {
           `Application With ID: '${applicationId}' Not Found.`,
         );
 
+      const { title, description, key } = NotificationTypes.APPLICATION_DELETED;
+
+      this.rabbitMqNotificationClient.emit('create-notification', {
+        data: {
+          title,
+          message: description,
+          type: key,
+        },
+        userIds: [application.job.recruiter.id],
+      });
+
       return { msg: 'Application deleted successfully.' };
     } catch (error) {
       console.error(error);
+      throw error;
     }
   };
 
@@ -133,8 +192,11 @@ export class ApplicationsService {
     updateApplicationDto: UpdateApplicationDto,
   ) => {
     try {
-      const application = await this.applicationRepository.findOneBy({
-        id: applicationId,
+      const application = await this.applicationRepository.findOne({
+        where: {
+          id: applicationId,
+        },
+        relations: ['job', 'job.recruiter'],
       });
 
       if (!application)
@@ -146,6 +208,18 @@ export class ApplicationsService {
         { id: applicationId },
         updateApplicationDto,
       );
+
+      const { title, description, key } =
+        NotificationTypes.APPLICATION_STATUS_UPDATED;
+
+      this.rabbitMqNotificationClient.emit('create-notification', {
+        data: {
+          title,
+          message: description,
+          type: key,
+        },
+        userIds: [application.job.recruiter.id],
+      });
 
       return await this.applicationRepository.findOneBy({ id: applicationId });
     } catch (err) {
@@ -186,13 +260,13 @@ export class ApplicationsService {
 
       const { title, description, key } = JOB_APPLICATION_ACCEPTED;
 
-      this.rabbitMqNotificationClient.emit('create-candidate-notification', {
+      this.rabbitMqNotificationClient.emit('create-notification', {
         data: {
           title,
           message: description,
           type: key,
         },
-        candidateIds,
+        userIds: candidateIds,
       });
 
       return applications;
@@ -235,13 +309,13 @@ export class ApplicationsService {
 
       const { title, description, key } = JOB_APPLICATION_REJECTED;
 
-      this.rabbitMqNotificationClient.emit('create-candidate-notification', {
+      this.rabbitMqNotificationClient.emit('create-notification', {
         data: {
           title,
           message: description,
           type: key,
         },
-        candidateIds,
+        userIds: candidateIds,
       });
 
       return applications;

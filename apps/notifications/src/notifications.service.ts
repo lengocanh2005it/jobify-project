@@ -19,23 +19,21 @@ export class NotificationsService {
     private readonly userNotification: Repository<UserNotification>,
   ) {}
 
-  public handleCreateCandidateNotifications = async (
-    candidateIds: string[],
+  public handleCreateNotifications = async (
+    userIds: string[],
     data: CreateNotificationDto,
   ) => {
     try {
-      for (const candidateId of candidateIds) {
-        const candidate = await lastValueFrom<User | undefined>(
+      for (const userId of userIds) {
+        const user = await lastValueFrom<User | undefined>(
           this.rabbitMqUserClient.send(
             { cmd: 'get-profile' },
-            { userId: candidateId },
+            { userId: userId },
           ),
         );
 
-        if (!candidate)
-          throw new RpcException(
-            `Candidate With ID: '${candidateId}' Not Found.`,
-          );
+        if (!user)
+          throw new RpcException(`User With ID: '${userId}' Not Found.`);
 
         const { title } = data;
 
@@ -50,7 +48,7 @@ export class NotificationsService {
         }
 
         const newUserNotification = this.userNotification.create({
-          user: { id: candidateId },
+          user: { id: userId },
           notification: { id: newNotification.id },
         });
 
