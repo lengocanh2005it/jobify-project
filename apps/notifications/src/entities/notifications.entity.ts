@@ -1,3 +1,4 @@
+import { UserNotification } from 'apps/notifications/src/entities/user-notification.entity';
 import { User } from 'apps/users/src/entities/users.entity';
 import {
   Column,
@@ -5,6 +6,7 @@ import {
   Entity,
   JoinTable,
   ManyToMany,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -23,28 +25,15 @@ export class Notification {
   @Column({ type: 'boolean', default: false })
   readonly is_read!: boolean;
 
-  @Column({
-    type: 'enum',
-    enum: ['job_application', 'message', 'job_suggestion'],
-  })
+  @Column()
   readonly type!: string;
 
-  @ManyToMany(() => User, (user) => user.notifications, {
-    onDelete: 'CASCADE',
-    onUpdate: 'CASCADE',
-  })
-  @JoinTable({
-    name: 'user_notification',
-    joinColumn: {
-      name: 'notification_id',
-      referencedColumnName: 'id',
-    },
-    inverseJoinColumn: {
-      name: 'user_id',
-      referencedColumnName: 'id',
-    },
-  })
-  readonly userNotifications!: User[];
+  @OneToMany(
+    () => UserNotification,
+    (userNotification) => userNotification.notification,
+    { cascade: true },
+  )
+  readonly userNotifications!: UserNotification[];
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;

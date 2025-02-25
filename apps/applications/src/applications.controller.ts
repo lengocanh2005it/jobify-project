@@ -1,8 +1,8 @@
-import { Body, Controller } from '@nestjs/common';
-import { ApplicationsService } from './applications.service';
+import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { CreateApplicationDto } from 'libs/common/dtos/create-application.dto';
 import { UpdateApplicationDto } from 'libs/common/dtos/update-application.dto';
+import { ApplicationsService } from './applications.service';
 
 @Controller()
 export class ApplicationsController {
@@ -40,5 +40,28 @@ export class ApplicationsController {
   async updateApplication(
     @Payload('applicationId') applicationId: string,
     @Payload('updateApplicationDto') updateApplicationDto: UpdateApplicationDto,
-  ) {}
+  ) {
+    return await this.applicationsService.handleUpdateApplication(
+      applicationId,
+      updateApplicationDto,
+    );
+  }
+
+  @MessagePattern({ cmd: 'approve-applications' })
+  async approveApplications(
+    @Payload('applicationIds') applicationIds: string[],
+  ) {
+    return await this.applicationsService.handleApproveApplications(
+      applicationIds,
+    );
+  }
+
+  @MessagePattern({ cmd: 'reject-applications' })
+  async rejectApplications(
+    @Payload('applicationIds') applicationIds: string[],
+  ) {
+    return await this.applicationsService.handleRejectApplications(
+      applicationIds,
+    );
+  }
 }

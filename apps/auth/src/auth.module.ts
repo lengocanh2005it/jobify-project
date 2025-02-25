@@ -8,6 +8,7 @@ import { UsersModule } from 'apps/users/src/users.module';
 import { UsersService } from 'apps/users/src/users.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { Notification } from 'apps/notifications/src/entities/notifications.entity';
 
 @Module({
   imports: [
@@ -45,8 +46,19 @@ import { AuthService } from './auth.service';
           },
         },
       },
+      {
+        name: 'NOTIFICATIONS_SERVICE',
+        transport: Transport.RMQ,
+        options: {
+          urls: ['amqp://localhost:5672'],
+          queue: 'notifications_queue',
+          queueOptions: {
+            durable: false,
+          },
+        },
+      },
     ]),
-    TypeOrmModule.forFeature([User, Role]),
+    TypeOrmModule.forFeature([User, Role, Notification]),
     UsersModule,
     CommonModule,
   ],

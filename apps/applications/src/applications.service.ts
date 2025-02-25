@@ -8,6 +8,8 @@ import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Application } from 'apps/applications/src/entities/applications.entity';
 import { Job } from 'apps/jobs/src/entities/jobs.entity';
+import { NotificationTypes } from 'libs/common/constants';
+import { ApproveApplicationsDto } from 'libs/common/dtos/approve-applications.dto';
 import { CreateApplicationDto } from 'libs/common/dtos/create-application.dto';
 import { UpdateApplicationDto } from 'libs/common/dtos/update-application.dto';
 import { lastValueFrom } from 'rxjs';
@@ -20,6 +22,8 @@ export class ApplicationsService {
     private readonly applicationRepository: Repository<Application>,
     @Inject('JOBS_SERVICE') private readonly rabbitMqJobClient: ClientProxy,
     @InjectDataSource() private readonly dataSource: DataSource,
+    @Inject('NOTIFICATIONS_SERVICE')
+    private readonly rabbitMqNotificationClient: ClientProxy,
   ) {}
 
   public handleCreateApplication = async (
@@ -146,6 +150,104 @@ export class ApplicationsService {
       return await this.applicationRepository.findOneBy({ id: applicationId });
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  public handleApproveApplications = async (applicationIds: string[]) => {
+    try {
+      const applications: Application[] = [];
+      const candidateIds: string[] = [];
+
+      for (const applicationId of applicationIds) {
+        const application = await this.applicationRepository.findOne({
+          where: {
+            id: applicationId,
+          },
+          relations: ['candidate'],
+        });
+
+        if (!application)
+          throw new RpcException(
+            `Application With ID: '${applicationId}' Not Found.`,
+          );
+
+        await this.applicationRepository.update(
+          { id: applicationId },
+          {
+            status: 'approved',
+          },
+        );
+
+        candidateIds.push(application.candidate.id);
+        applications.push(application);
+      }
+
+      const { JOB_APPLICATION_ACCEPTED } = NotificationTypes;
+
+      const { title, description, key } = JOB_APPLICATION_ACCEPTED;
+
+      this.rabbitMqNotificationClient.emit('create-candidate-notification', {
+        data: {
+          title,
+          message: description,
+          type: key,
+        },
+        candidateIds,
+      });
+
+      return applications;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  public handleRejectApplications = async (applicationIds: string[]) => {
+    try {
+      const applications: Application[] = [];
+      const candidateIds: string[] = [];
+
+      for (const applicationId of applicationIds) {
+        const application = await this.applicationRepository.findOne({
+          where: {
+            id: applicationId,
+          },
+          relations: ['candidate'],
+        });
+
+        if (!application)
+          throw new RpcException(
+            `Application With ID: '${applicationId}' Not Found.`,
+          );
+
+        await this.applicationRepository.update(
+          { id: applicationId },
+          {
+            status: 'rejected',
+          },
+        );
+
+        candidateIds.push(application.candidate.id);
+        applications.push(application);
+      }
+
+      const { JOB_APPLICATION_REJECTED } = NotificationTypes;
+
+      const { title, description, key } = JOB_APPLICATION_REJECTED;
+
+      this.rabbitMqNotificationClient.emit('create-candidate-notification', {
+        data: {
+          title,
+          message: description,
+          type: key,
+        },
+        candidateIds,
+      });
+
+      return applications;
+    } catch (err) {
+      console.error(err);
+      throw err;
     }
   };
 }

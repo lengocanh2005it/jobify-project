@@ -18,7 +18,10 @@ export class AuthController {
     @Payload('updatePasswordDto') updatePasswordDto: UpdatePasswordDto,
     @Payload('userId') userId: string,
   ) {
-    return this.authService.handleUpdatePassword(updatePasswordDto, userId);
+    return await this.authService.handleUpdatePassword(
+      updatePasswordDto,
+      userId,
+    );
   }
 
   @MessagePattern({ cmd: 'forget-password' })
