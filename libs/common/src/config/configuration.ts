@@ -13,4 +13,8 @@ export default () => ({
     port: parseInt(process.env.REDIS_PORT as string, 10) || 6379,
     host: process.env.REDIS_HOST || 'localhost',
   },
+  nodemailer: {
+    email_password: process.env.EMAIL_PASSWORD,
+    email_send: process.env.EMAIL_SEND,
+  },
 });

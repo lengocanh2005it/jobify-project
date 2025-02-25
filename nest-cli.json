@@ -46,6 +46,15 @@
         "tsConfigPath": "libs/common/tsconfig.lib.json"
       }
     },
+    "emails": {
+      "type": "application",
+      "root": "apps/emails",
+      "entryFile": "main",
+      "sourceRoot": "apps/emails/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/emails/tsconfig.app.json"
+      }
+    },
     "jobs": {
       "type": "application",
       "root": "apps/jobs",
