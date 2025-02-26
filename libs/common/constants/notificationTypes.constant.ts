@@ -77,8 +77,18 @@ export const NotificationTypes = {
     title: 'Application Deleted',
     description: 'A candidate has withdrawn their job application.',
   },
+  NEW_REVIEW_RECEIVED: {
+    key: 'new_review_received',
+    title: 'New Company Review',
+    description: 'A new review has been posted for your company.',
+  },
+  REVIEW_DELETED: {
+    key: 'review_deleted',
+    title: 'Company Review Deleted',
+    description: 'A review for your company has been deleted.',
+  },
 
-  // System Notifications
+  // Systems Notifications
   ACCOUNT_REGISTRATION: {
     key: 'account_registration',
     title: 'Welcome Aboard!',
