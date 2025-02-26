@@ -3,6 +3,7 @@ import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Company } from 'apps/jobs/src/entities/companies.entity';
 import { Review } from 'apps/reviews/src/entities/reviews.entity';
+import { NotificationTypes } from 'libs/common/constants';
 import { CreateReviewDto } from 'libs/common/dtos/create-review.dto';
 import { UpdateReviewDto } from 'libs/common/dtos/update-review.dto';
 import { lastValueFrom } from 'rxjs';
@@ -15,6 +16,8 @@ export class ReviewsService {
     private readonly reviewRepository: Repository<Review>,
     @Inject('JOBS_SERVICE') private readonly rabbitMqJobClient: ClientProxy,
     @InjectDataSource() private readonly dataSource: DataSource,
+    @Inject('NOTIFICATIONS_SERVICE')
+    private readonly rabbitMQNotificationClient: ClientProxy,
   ) {}
 
   public handleCreateReview = async (
@@ -64,6 +67,17 @@ export class ReviewsService {
         .relation(Review, 'company')
         .of(newReview.id)
         .set(companyId);
+
+      const { title, description, key } = NotificationTypes.NEW_REVIEW_RECEIVED;
+
+      this.rabbitMQNotificationClient.emit('create-notification', {
+        data: {
+          title,
+          message: description,
+          type: key,
+        },
+        userIds: company.recruiters.map((re) => re.id),
+      });
 
       return await this.reviewRepository.findOne({
         where: { id: newReview.id },
@@ -168,10 +182,24 @@ export class ReviewsService {
 
   public handleDeleteReview = async (reviewId: string) => {
     try {
-      const review = await this.reviewRepository.findOneBy({ id: reviewId });
+      const review = await this.reviewRepository.findOne({
+        where: { id: reviewId },
+        relations: ['company', 'company.recruiters'],
+      });
 
       if (!review)
         throw new RpcException(`Review With ID: '${reviewId}' Not Found.`);
+
+      const { title, description, key } = NotificationTypes.REVIEW_DELETED;
+
+      this.rabbitMQNotificationClient.emit('create-notification', {
+        data: {
+          title,
+          message: description,
+          type: key,
+        },
+        userIds: review.company.recruiters.map((r) => r.id),
+      });
 
       await this.reviewRepository.delete({ id: reviewId });
 

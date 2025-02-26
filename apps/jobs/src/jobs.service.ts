@@ -237,12 +237,24 @@ export class JobsService {
 
   public handleGetCompany = async (companyId: string) => {
     try {
-      const company = await this.companyRepository.findOneBy({ id: companyId });
+      const company = await this.companyRepository.findOne({
+        where: { id: companyId },
+        relations: ['recruiters'],
+      });
 
       if (!company)
         throw new RpcException(`Company With ID: '${companyId}' Not Found.`);
 
-      return company;
+      return {
+        ...company,
+        recruiters: company.recruiters.map((re) => {
+          const { password, ...res } = re;
+
+          return {
+            ...res,
+          };
+        }),
+      };
     } catch (err) {
       console.error(err);
       throw err;
