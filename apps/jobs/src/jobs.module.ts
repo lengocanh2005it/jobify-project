@@ -8,6 +8,7 @@ import { Job } from 'apps/jobs/src/entities/jobs.entity';
 import { Requirement } from 'apps/jobs/src/entities/requirements.entity';
 import { User } from 'apps/users/src/entities/users.entity';
 import { ClientsModule, Transport } from '@nestjs/microservices';
+import { Notification } from 'apps/notifications/src/entities/notifications.entity';
 
 @Module({
   imports: [
@@ -23,9 +24,20 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
           },
         },
       },
+      {
+        name: 'USERS_SERVICE',
+        transport: Transport.RMQ,
+        options: {
+          urls: ['amqp://localhost:5672'],
+          queue: 'users_queue',
+          queueOptions: {
+            durable: false,
+          },
+        },
+      },
     ]),
     CommonModule,
-    TypeOrmModule.forFeature([Company, Job, Requirement, User]),
+    TypeOrmModule.forFeature([Company, Job, Requirement, User, Notification]),
   ],
   controllers: [JobsController],
   providers: [JobsService],

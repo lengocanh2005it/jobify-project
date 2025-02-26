@@ -9,6 +9,7 @@ import { UsersService } from 'apps/users/src/users.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { Notification } from 'apps/notifications/src/entities/notifications.entity';
+import { Skill } from 'apps/users/src/entities/skills.entity';
 
 @Module({
   imports: [
@@ -58,7 +59,7 @@ import { Notification } from 'apps/notifications/src/entities/notifications.enti
         },
       },
     ]),
-    TypeOrmModule.forFeature([User, Role, Notification]),
+    TypeOrmModule.forFeature([User, Role, Notification, Skill]),
     UsersModule,
     CommonModule,
   ],

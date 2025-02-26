@@ -58,4 +58,11 @@ export class UsersController {
   ) {
     return await this.usersService.handleUpdatePassword(newPassword, userId);
   }
+
+  @MessagePattern({ cmd: 'get-users-matched-requirements' })
+  async handleGetUsersMatchedRequirements(@Payload() requirements: string[]) {
+    return await this.usersService.handleGetUsersMatchedRequirements(
+      requirements,
+    );
+  }
 }

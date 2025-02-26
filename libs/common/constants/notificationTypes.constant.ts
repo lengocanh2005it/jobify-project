@@ -119,7 +119,7 @@ export const NotificationTypes = {
   RECOMMENDED_JOB: {
     key: 'recommended_job',
     title: 'New Job Suggestion',
-    description: 'A job that matches your profile has been recommended.',
+    description: 'A job that matches your skills profile has been recommended.',
   },
   SAVED_JOB_UPDATE: {
     key: 'saved_job_update',

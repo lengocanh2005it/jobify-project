@@ -2,12 +2,12 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Role } from 'apps/users/src/entities/roles.entity';
+import { Skill } from 'apps/users/src/entities/skills.entity';
 import { User } from 'apps/users/src/entities/users.entity';
 import * as bcrypt from 'bcrypt';
 import { NotificationTypes } from 'libs/common/constants';
-import { CreateUserDto } from 'libs/common/dtos';
-import { LoginDto } from 'libs/common/dtos';
-import { UpdateUserDto } from 'libs/common/dtos';
+import { SKILL_KEYWORDS } from 'libs/common/constants/skills.constant';
+import { CreateUserDto, LoginDto, UpdateUserDto } from 'libs/common/dtos';
 import { handleEncodedPassword } from 'libs/common/utils';
 import { DataSource, Repository } from 'typeorm';
 
@@ -19,6 +19,8 @@ export class UsersService {
     @InjectDataSource() private readonly dataSource: DataSource,
     @Inject('NOTIFICATIONS_SERVICE')
     private readonly rabbitMqNotificationClient: ClientProxy,
+    @InjectRepository(Skill)
+    private readonly skillRepository: Repository<Skill>,
   ) {}
 
   public getUsers = async () => {
@@ -35,6 +37,8 @@ export class UsersService {
   public createUser = async (createUserDto: CreateUserDto) => {
     const { password, type, email } = createUserDto;
 
+    const { skills, ...createUserData } = createUserDto;
+
     const userWithEmail = await this.userRepository.findOneBy({ email });
 
     if (userWithEmail) throw new RpcException('Email has been existed.');
@@ -42,13 +46,31 @@ export class UsersService {
     const role = await this.handleGetRoleByName(type);
 
     const newUser = this.userRepository.create({
-      ...createUserDto,
+      ...createUserData,
       password: handleEncodedPassword(password),
       avatar_url:
         'https://res.cloudinary.com/daiqcjyk9/image/upload/v1735465375/default_user_logo_b1f7pd.png',
     });
 
     await this.userRepository.save(newUser);
+
+    if (skills && skills.length) {
+      for (const skill of skills) {
+        let findSkill = await this.skillRepository.findOneBy({ name: skill });
+
+        if (!findSkill) {
+          findSkill = this.skillRepository.create({ name: skill });
+
+          await this.skillRepository.save(findSkill);
+        }
+
+        await this.dataSource
+          .createQueryBuilder()
+          .relation(Skill, 'users')
+          .of(findSkill.id)
+          .add(newUser.id);
+      }
+    }
 
     await this.dataSource
       .createQueryBuilder()
@@ -108,6 +130,7 @@ export class UsersService {
         'role',
         'userNotifications',
         'userNotifications.notification',
+        'skills',
       ],
     });
 
@@ -126,6 +149,8 @@ export class UsersService {
           message: n.message,
           is_read: n.is_read,
         })),
+      skills: user.skills.map((sk) => sk.name),
+      expected_salary: Number(res.expected_salary),
     };
   };
 
@@ -242,6 +267,28 @@ export class UsersService {
       };
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  public handleGetUsersMatchedRequirements = async (requirements: string[]) => {
+    try {
+      const skills = SKILL_KEYWORDS.filter((key) =>
+        requirements.some((req) =>
+          req.toLowerCase().includes(key.toLowerCase()),
+        ),
+      );
+
+      return (await this.userRepository.find({ relations: ['skills'] })).filter(
+        (user) =>
+          user.skills.some((userSkill) =>
+            skills.some(
+              (skill) => userSkill.name.toLowerCase() === skill.toLowerCase(),
+            ),
+          ),
+      );
+    } catch (err) {
+      console.error(err);
+      throw err;
     }
   };
 }
