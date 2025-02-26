@@ -6,6 +6,7 @@ import { Notification } from 'apps/notifications/src/entities/notifications.enti
 import { UserNotification } from 'apps/notifications/src/entities/user-notification.entity';
 import { Review } from 'apps/reviews/src/entities/reviews.entity';
 import { Role } from 'apps/users/src/entities/roles.entity';
+import { Skill } from 'apps/users/src/entities/skills.entity';
 import {
   Column,
   CreateDateColumn,
@@ -43,6 +44,14 @@ export class User {
 
   @Column({ type: 'text' })
   readonly avatar_url!: string;
+
+  @Column({
+    type: 'decimal',
+    scale: 2,
+    precision: 10,
+    nullable: true,
+  })
+  readonly expected_salary?: number;
 
   @ManyToOne(() => Role, (role) => role.users, {
     onDelete: 'CASCADE',
@@ -82,6 +91,9 @@ export class User {
     { cascade: true },
   )
   readonly userNotifications!: UserNotification[];
+
+  @ManyToMany(() => Skill, (skill) => skill.users)
+  readonly skills!: Skill[];
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;

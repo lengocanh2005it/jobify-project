@@ -4,9 +4,12 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Company } from 'apps/jobs/src/entities/companies.entity';
 import { Job } from 'apps/jobs/src/entities/jobs.entity';
 import { Requirement } from 'apps/jobs/src/entities/requirements.entity';
+import { User } from 'apps/users/src/entities/users.entity';
+import { NotificationTypes } from 'libs/common/constants';
 import { CreateJobDto } from 'libs/common/dtos';
 import { CreateCompanyDto } from 'libs/common/dtos/create-company.dto';
 import { UpdateJobDto } from 'libs/common/dtos/update-job.dto';
+import { lastValueFrom } from 'rxjs';
 import { DataSource, Repository } from 'typeorm';
 
 @Injectable()
@@ -18,6 +21,9 @@ export class JobsService {
     @InjectDataSource() private readonly dataSource: DataSource,
     @InjectRepository(Requirement)
     private readonly requirementRepository: Repository<Requirement>,
+    @Inject('NOTIFICATIONS_SERVICE')
+    private readonly rabbitMqNotificationClient: ClientProxy,
+    @Inject('USERS_SERVICE') private readonly rabbitMqUserClient: ClientProxy,
   ) {}
 
   public handleCreateCompany = async (
@@ -150,10 +156,47 @@ export class JobsService {
           },
         );
 
-        jobs.push((await this.jobRepository.findOneBy({ id: jobId })) as Job);
+        jobs.push(
+          (await this.jobRepository.findOne({
+            where: { id: jobId },
+            relations: [
+              'applications',
+              'applications.candidate',
+              'requirements',
+            ],
+          })) as Job,
+        );
       }
 
-      return jobs;
+      const { title, description, key } = NotificationTypes.RECOMMENDED_JOB;
+
+      for (const job of jobs) {
+        const requirements = job.requirements.map((re) => re.requirement);
+
+        const matchedUsers = await lastValueFrom<User[]>(
+          this.rabbitMqUserClient.send(
+            { cmd: 'get-users-matched-requirements' },
+            requirements,
+          ),
+        );
+
+        if (matchedUsers && matchedUsers.length) {
+          this.rabbitMqNotificationClient.emit('create-notification', {
+            data: {
+              title,
+              message: description,
+              type: key,
+            },
+            userIds: matchedUsers.map((user) => user.id),
+          });
+        }
+      }
+
+      return jobs.map((job) => {
+        const { applications, ...res } = job;
+
+        return res;
+      });
     } catch (err) {
       console.error(err);
     }

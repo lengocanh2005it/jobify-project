@@ -7,6 +7,7 @@ import { User } from 'apps/users/src/entities/users.entity';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 import { Notification } from 'apps/notifications/src/entities/notifications.entity';
+import { Skill } from 'apps/users/src/entities/skills.entity';
 
 @Module({
   imports: [
@@ -24,7 +25,7 @@ import { Notification } from 'apps/notifications/src/entities/notifications.enti
       },
     ]),
     CommonModule,
-    TypeOrmModule.forFeature([User, Role, Notification]),
+    TypeOrmModule.forFeature([User, Role, Notification, Skill]),
   ],
   controllers: [UsersController],
   providers: [UsersService],

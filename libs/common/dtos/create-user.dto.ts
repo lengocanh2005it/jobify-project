@@ -32,4 +32,10 @@ export class CreateUserDto {
   @IsString()
   @IsNotEmpty()
   readonly full_name!: string;
+
+  @IsOptional()
+  readonly expected_salary!: number;
+
+  @IsOptional()
+  readonly skills!: string[];
 }
