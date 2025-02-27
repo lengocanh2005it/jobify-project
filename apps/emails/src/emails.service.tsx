@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { ClientProxy } from '@nestjs/microservices';
 import { render } from '@react-email/render';
 import { OtpEmail } from 'libs/common/emails/templates';
+import PremiumSubscriptionSuccessEmail from 'libs/common/emails/templates/payment-successful.email';
 import { generateOTP } from 'libs/common/utils/generate-otp.util';
 import { Transporter } from 'nodemailer';
 import * as nodemailer from 'nodemailer';
@@ -26,22 +27,33 @@ export class EmailsService {
 
   public handleSendEmail = async (email: string, type: string) => {
     try {
-      const otp = generateOTP();
+      if (type === 'payment_successfully') {
+        const content = await render(<PremiumSubscriptionSuccessEmail />);
 
-      this.rabbitMqRedisClient.emit('set-key', {
-        key: `${email}:otp`,
-        data: otp,
-        ttl: 120,
-      });
+        await this.transporter.sendMail({
+          from: 'Jobify Support Team <jobify@supportteams.org>',
+          to: email,
+          subject: 'PAYMENT FOR SUBSCRIPTION SUCCESSFULLY!',
+          html: content,
+        });
+      } else if (type === 'verify-otp') {
+        const otp = generateOTP();
 
-      const content = await render(<OtpEmail otp={otp} />);
+        this.rabbitMqRedisClient.emit('set-key', {
+          key: `${email}:otp`,
+          data: otp,
+          ttl: 120,
+        });
 
-      await this.transporter.sendMail({
-        from: 'Jobify Support Team <jobify@supportteams.org>',
-        to: email,
-        subject: 'OTP VERIFICATION CODE',
-        html: content,
-      });
+        const content = await render(<OtpEmail otp={otp} />);
+
+        await this.transporter.sendMail({
+          from: 'Jobify Support Team <jobify@supportteams.org>',
+          to: email,
+          subject: 'OTP VERIFICATION CODE',
+          html: content,
+        });
+      }
     } catch (err) {
       console.error(err);
       throw err;
