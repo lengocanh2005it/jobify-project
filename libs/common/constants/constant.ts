@@ -3,3 +3,5 @@ export enum Role {
   ADMIN = 'admin',
   RECRUITER = 'recruiter',
 }
+
+export const PREMIUM_PRICE = 1200;

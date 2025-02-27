@@ -17,4 +17,8 @@ export default () => ({
     email_password: process.env.EMAIL_PASSWORD,
     email_send: process.env.EMAIL_SEND,
   },
+  stripe: {
+    secret_key: process.env.STRIPE_SECRET_KEY,
+    webhook_secret: process.env.STRIPE_WEBHOOK_SECRET,
+  },
 });

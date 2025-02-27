@@ -1,6 +1,7 @@
 import { Controller } from '@nestjs/common';
 import {
   Ctx,
+  EventPattern,
   MessagePattern,
   Payload,
   RmqContext,
@@ -64,5 +65,10 @@ export class UsersController {
     return await this.usersService.handleGetUsersMatchedRequirements(
       requirements,
     );
+  }
+
+  @EventPattern('update-premium')
+  async handleUpdatePremium(@Payload() userId: string) {
+    return await this.usersService.handleUpdatePremium(userId);
   }
 }

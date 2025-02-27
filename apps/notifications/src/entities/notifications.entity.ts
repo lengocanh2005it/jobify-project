@@ -1,11 +1,8 @@
 import { UserNotification } from 'apps/notifications/src/entities/user-notification.entity';
-import { User } from 'apps/users/src/entities/users.entity';
 import {
   Column,
   CreateDateColumn,
   Entity,
-  JoinTable,
-  ManyToMany,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,

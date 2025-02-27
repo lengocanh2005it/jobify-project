@@ -114,6 +114,12 @@ export const NotificationTypes = {
     title: 'New Message Received',
     description: 'You have received a new message from another user.',
   },
+  PREMIUM_PAID_SUCCESS: {
+    key: 'premium_paid_success',
+    title: 'Premium Paid Success',
+    description:
+      'You have successfully purchased the Premium Package, valid for 30 days from today!',
+  },
 
   // Job Suggestions
   RECOMMENDED_JOB: {

@@ -82,6 +82,15 @@
         "tsConfigPath": "apps/notifications/tsconfig.app.json"
       }
     },
+    "payments": {
+      "type": "application",
+      "root": "apps/payments",
+      "entryFile": "main",
+      "sourceRoot": "apps/payments/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/payments/tsconfig.app.json"
+      }
+    },
     "redis": {
       "type": "application",
       "root": "apps/redis",

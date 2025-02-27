@@ -291,4 +291,47 @@ export class UsersService {
       throw err;
     }
   };
+
+  public handleUpdatePremium = async (userId: string) => {
+    try {
+      const user = await this.userRepository.findOneBy({ id: userId });
+
+      if (!user) throw new RpcException(`User With ID: '${userId}' Not Found.`);
+
+      const now = new Date();
+
+      let premiumExpiry = new Date();
+
+      if (user.premium_expiry) {
+        premiumExpiry = new Date(
+          premiumExpiry.setDate(user.premium_expiry.getDate() + 30),
+        );
+      } else {
+        premiumExpiry.setDate(now.getDate() + 30);
+      }
+
+      const { title, key, description } =
+        NotificationTypes.PREMIUM_PAID_SUCCESS;
+
+      this.rabbitMqNotificationClient.emit('create-notification', {
+        data: {
+          title,
+          type: key,
+          message: description,
+        },
+        userIds: [userId],
+      });
+
+      await this.userRepository.update(
+        { id: userId },
+        {
+          is_premium: true,
+          premium_expiry: premiumExpiry,
+        },
+      );
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
 }
