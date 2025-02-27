@@ -9,6 +9,7 @@ import { User } from 'apps/users/src/entities/users.entity';
 import { NotificationTypes } from 'libs/common/constants';
 import { CreateJobDto } from 'libs/common/dtos';
 import { CreateCompanyDto } from 'libs/common/dtos/create-company.dto';
+import { SearchJobsDto } from 'libs/common/dtos/search-jobs.dto';
 import { UpdateJobDto } from 'libs/common/dtos/update-job.dto';
 import { lastValueFrom } from 'rxjs';
 import { DataSource, Repository } from 'typeorm';
@@ -205,11 +206,67 @@ export class JobsService {
     }
   };
 
-  public handleGetJobs = async () => {
+  public handleGetJobs = async (filters?: SearchJobsDto) => {
     try {
-      return await this.jobRepository.find({
-        relations: ['requirements'],
-      });
+      const query = this.jobRepository
+        .createQueryBuilder('job')
+        .leftJoinAndSelect('job.recruiter', 'recruiter')
+        .leftJoinAndSelect('recruiter.company', 'company')
+        .select([
+          'job',
+          'recruiter.id',
+          'recruiter.full_name',
+          'recruiter.email',
+          'recruiter.phone_number',
+          'company.name',
+        ]);
+
+      if (filters) {
+        if (filters.title) {
+          query.andWhere('LOWER(job.title) LIKE LOWER(:title)', {
+            title: `%${filters.title}%`,
+          });
+        }
+
+        if (filters.address) {
+          query.andWhere('LOWER(job.address) LIKE LOWER(:address)', {
+            address: `%${filters.address}%`,
+          });
+        }
+
+        if (filters.job_type) {
+          query.andWhere('LOWER(job.job_type) = LOWER(:job_type)', {
+            job_type: filters.job_type,
+          });
+        }
+
+        if (filters.salary_min) {
+          query.andWhere('job.salary_min >= :salary_min', {
+            salary_min: filters.salary_min,
+          });
+        }
+
+        if (filters.salary_max) {
+          query.andWhere('job.salary_max <= :salary_max', {
+            salary_max: filters.salary_max,
+          });
+        }
+      }
+
+      const jobs = await query.getMany();
+
+      return jobs.map(({ recruiter, ...job }) => ({
+        ...job,
+        recruiter: recruiter
+          ? {
+              id: recruiter.id,
+              full_name: recruiter.full_name,
+              email: recruiter.email,
+              phone_number: recruiter.phone_number,
+              company: recruiter?.company?.name ? recruiter.company.name : null,
+            }
+          : null,
+      }));
     } catch (err) {
       console.error(err);
     }

@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { CreateJobDto } from 'libs/common/dtos';
 import { SavedJobsDto } from 'libs/common/dtos/saved-jobs.dto';
+import { SearchJobsDto } from 'libs/common/dtos/search-jobs.dto';
 import { UpdateJobDto } from 'libs/common/dtos/update-job.dto';
 
 @Injectable()
@@ -21,8 +22,11 @@ export class JobsService {
     return this.rabbitMqJobsClient.send({ cmd: 'approve-jobs' }, jobIds);
   };
 
-  public handleGetJobs = () => {
-    return this.rabbitMqJobsClient.send({ cmd: 'get-jobs' }, {});
+  public handleGetJobs = (filters?: SearchJobsDto) => {
+    return this.rabbitMqJobsClient.send(
+      { cmd: 'get-jobs' },
+      filters ? filters : {},
+    );
   };
 
   public handleDeleteJob = (jobId: string) => {
