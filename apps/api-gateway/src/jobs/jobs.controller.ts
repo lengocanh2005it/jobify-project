@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -16,6 +17,7 @@ import { Roles } from 'libs/common/decorators';
 import { CreateJobDto } from 'libs/common/dtos';
 import { ApproveJobsDto } from 'libs/common/dtos/approve-jobs.dto';
 import { SavedJobsDto } from 'libs/common/dtos/saved-jobs.dto';
+import { SearchJobsDto } from 'libs/common/dtos/search-jobs.dto';
 import { UpdateJobDto } from 'libs/common/dtos/update-job.dto';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 
@@ -42,8 +44,8 @@ export class JobsController {
   @Get()
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.RECRUITER)
-  getJobs() {
-    return this.jobsService.handleGetJobs();
+  getJobs(@Query() filters: SearchJobsDto) {
+    return this.jobsService.handleGetJobs(filters);
   }
 
   @Delete(':id')

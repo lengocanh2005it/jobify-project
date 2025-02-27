@@ -4,6 +4,7 @@ import { MessagePattern, Payload } from '@nestjs/microservices';
 import { CreateCompanyDto } from 'libs/common/dtos/create-company.dto';
 import { CreateJobDto } from 'libs/common/dtos';
 import { UpdateJobDto } from 'libs/common/dtos/update-job.dto';
+import { SearchJobsDto } from 'libs/common/dtos/search-jobs.dto';
 
 @Controller()
 export class JobsController {
@@ -31,8 +32,8 @@ export class JobsController {
   }
 
   @MessagePattern({ cmd: 'get-jobs' })
-  async handleGetJobs() {
-    return await this.jobsService.handleGetJobs();
+  async handleGetJobs(@Payload() filters?: SearchJobsDto) {
+    return await this.jobsService.handleGetJobs(filters);
   }
 
   @MessagePattern({ cmd: 'delete-job' })
