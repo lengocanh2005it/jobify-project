@@ -29,8 +29,7 @@ export class ReviewsController {
     @Body() createReviewDto: CreateReviewDto,
     @Req() request: Request,
   ) {
-    const userId = (request.user as Record<string, string | number>)
-      .userId as string;
+    const userId = request.user?.id as string;
 
     return this.reviewsService.handleCreateReview(createReviewDto, userId);
   }

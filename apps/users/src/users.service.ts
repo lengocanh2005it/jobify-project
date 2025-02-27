@@ -157,7 +157,10 @@ export class UsersService {
 
   public handleGetUser = async (userId: string) => {
     try {
-      const user = await this.userRepository.findOne({ where: { id: userId } });
+      const user = await this.userRepository.findOne({
+        where: { id: userId },
+        relations: ['role'],
+      });
 
       if (!user) throw new RpcException('User Not Found.');
 

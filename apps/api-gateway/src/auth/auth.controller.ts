@@ -27,7 +27,7 @@ export class AuthController {
     @Req() request: Request,
   ) {
     return this.authService.handleCreateCompany(
-      (request?.user as Record<string, string | number>).userId as string,
+      request.user?.id as string,
       createCompanyDto,
     );
   }
@@ -37,9 +37,7 @@ export class AuthController {
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
   @ResponseMessage('Get profile successfully.')
   handleGetProfile(@Req() request: Request) {
-    return this.authService.handleGetProfile(
-      (request?.user as Record<string, string | number>).userId as string,
-    );
+    return this.authService.handleGetProfile(request.user?.id as string);
   }
 
   @Post('update-password')
@@ -49,8 +47,7 @@ export class AuthController {
     @Body() updatePasswordDto: UpdatePasswordDto,
     @Req() request: Request,
   ) {
-    const userId = (request.user as Record<string, string | number>)
-      .userId as string;
+    const userId = request.user?.id as string;
 
     return this.authService.handleUpdatePassword(updatePasswordDto, userId);
   }

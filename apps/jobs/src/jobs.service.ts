@@ -4,6 +4,7 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Company } from 'apps/jobs/src/entities/companies.entity';
 import { Job } from 'apps/jobs/src/entities/jobs.entity';
 import { Requirement } from 'apps/jobs/src/entities/requirements.entity';
+import { SavedJob } from 'apps/jobs/src/entities/saved-jobs.entity';
 import { User } from 'apps/users/src/entities/users.entity';
 import { NotificationTypes } from 'libs/common/constants';
 import { CreateJobDto } from 'libs/common/dtos';
@@ -24,6 +25,8 @@ export class JobsService {
     @Inject('NOTIFICATIONS_SERVICE')
     private readonly rabbitMqNotificationClient: ClientProxy,
     @Inject('USERS_SERVICE') private readonly rabbitMqUserClient: ClientProxy,
+    @InjectRepository(SavedJob)
+    private readonly savedJobRepository: Repository<SavedJob>,
   ) {}
 
   public handleCreateCompany = async (
@@ -297,6 +300,55 @@ export class JobsService {
             ...res,
           };
         }),
+      };
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  public handleSavedJobs = async (jobIds: string[], userId: string) => {
+    try {
+      for (const jobId of jobIds) {
+        const job = await this.jobRepository.findOneBy({ id: jobId });
+
+        if (!job) throw new RpcException(`Job With ID: '${jobId}' Not Found.`);
+
+        const newSavedJob = this.savedJobRepository.create({
+          user: { id: userId },
+          job: { id: job.id },
+        });
+
+        await this.savedJobRepository.save(newSavedJob);
+      }
+
+      return {
+        message: 'Saved these jobs successfully!',
+      };
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  public handleRemoveSavedJobs = async (jobIds: string[], userId: string) => {
+    try {
+      for (const jobId of jobIds) {
+        const job = await this.jobRepository.findOne({
+          where: { id: jobId },
+          relations: ['user', 'job'],
+        });
+
+        if (!job) throw new RpcException(`Job With ID: '${jobId}' Not Found.`);
+
+        await this.savedJobRepository.delete({
+          user: { id: userId },
+          job: { id: jobId },
+        });
+      }
+
+      return {
+        message: 'Remove these jobs successfully!',
       };
     } catch (err) {
       console.error(err);

@@ -31,8 +31,7 @@ export class ApplicationsController {
     @Body() createApplicationDto: CreateApplicationDto,
     @Req() request: Request,
   ) {
-    const userId = (request.user as Record<string, string | number>)
-      .userId as string;
+    const userId = request.user?.id as string;
 
     return this.applicationsService.createApplication(
       createApplicationDto,
@@ -54,8 +53,7 @@ export class ApplicationsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: Request,
   ) {
-    const role = (request.user as Record<string, string | number>)
-      .role as string;
+    const role = request.user?.role.name as string;
 
     return this.applicationsService.getApplication(id, role);
   }

@@ -1,6 +1,7 @@
 import { Application } from 'apps/applications/src/entities/applications.entity';
 import { Company } from 'apps/jobs/src/entities/companies.entity';
 import { Job } from 'apps/jobs/src/entities/jobs.entity';
+import { SavedJob } from 'apps/jobs/src/entities/saved-jobs.entity';
 import { Message } from 'apps/messages/src/entities/messages.entity';
 import { Notification } from 'apps/notifications/src/entities/notifications.entity';
 import { UserNotification } from 'apps/notifications/src/entities/user-notification.entity';
@@ -66,6 +67,12 @@ export class User {
   })
   readonly premium_expiry?: Date;
 
+  @Column({
+    nullable: true,
+    type: 'json',
+  })
+  readonly certifications?: string[];
+
   @OneToMany(() => Transaction, (transaction) => transaction.user, {
     cascade: true,
   })
@@ -112,6 +119,9 @@ export class User {
 
   @ManyToMany(() => Skill, (skill) => skill.users)
   readonly skills!: Skill[];
+
+  @OneToMany(() => SavedJob, (savedJob) => savedJob.user, { cascade: true })
+  readonly savedJobs!: SavedJob[];
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;
