@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtStrategy } from 'libs/common/guards/strategies/jwt.strategy';
 import { CustomValidationPipe } from 'libs/common/pipe/validation.pipe';
 import { CommonService } from './common.service';
+import { ClientsModule, Transport } from '@nestjs/microservices';
 
 @Global()
 @Module({
@@ -41,6 +42,19 @@ import { CommonService } from './common.service';
         logging: false,
       }),
     }),
+    ClientsModule.register([
+      {
+        name: 'USERS_SERVICE',
+        transport: Transport.RMQ,
+        options: {
+          urls: ['amqp://localhost:5672'],
+          queue: 'users_queue',
+          queueOptions: {
+            durable: false,
+          },
+        },
+      },
+    ]),
   ],
   providers: [CommonService, CustomValidationPipe, JwtStrategy],
   exports: [JwtModule, ConfigModule, TypeOrmModule],

@@ -15,6 +15,7 @@ import { Role } from 'libs/common/constants';
 import { Roles } from 'libs/common/decorators';
 import { CreateJobDto } from 'libs/common/dtos';
 import { ApproveJobsDto } from 'libs/common/dtos/approve-jobs.dto';
+import { SavedJobsDto } from 'libs/common/dtos/saved-jobs.dto';
 import { UpdateJobDto } from 'libs/common/dtos/update-job.dto';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 
@@ -26,8 +27,7 @@ export class JobsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.RECRUITER, Role.ADMIN)
   createJob(@Body() createJobDto: CreateJobDto, @Req() request: Request) {
-    const userId = (request?.user as Record<string, string | number>)
-      .userId as string;
+    const userId = request.user?.id as string;
 
     return this.jobsService.handleCreateJob(createJobDto, userId);
   }
@@ -65,5 +65,26 @@ export class JobsController {
   @Roles(Role.ADMIN, Role.CANDIDATE)
   getJob(@Param('id') jobId: string) {
     return this.jobsService.handleGetJob(jobId);
+  }
+
+  @Post('saved')
+  @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  savedJobs(@Body() savedJobDtos: SavedJobsDto, @Req() request: Request) {
+    const userId = request.user?.id as string;
+
+    return this.jobsService.handleSavedJobs(savedJobDtos, userId);
+  }
+
+  @Patch('saved/remove')
+  @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  removeSavedJobs(
+    @Body() removeSavedJobsDto: SavedJobsDto,
+    @Req() request: Request,
+  ) {
+    const userId = request.user?.id as string;
+
+    return this.jobsService.handleRemoveSavedJobs(removeSavedJobsDto, userId);
   }
 }

@@ -13,8 +13,7 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
   handleCreatePayment(@Req() request: Request) {
-    const userId = (request.user as Record<string, string | number>)
-      .userId as string;
+    const userId = request.user?.id as string;
 
     return this.paymentsService.handleCreatePayment(userId);
   }

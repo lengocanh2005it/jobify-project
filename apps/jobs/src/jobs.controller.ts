@@ -57,4 +57,20 @@ export class JobsController {
   async handleGetCompany(@Payload() companyId: string) {
     return await this.jobsService.handleGetCompany(companyId);
   }
+
+  @MessagePattern({ cmd: 'saved-jobs' })
+  async handleSavedJobs(
+    @Payload('jobIds') jobIds: string[],
+    @Payload('userId') userId: string,
+  ) {
+    return await this.jobsService.handleSavedJobs(jobIds, userId);
+  }
+
+  @MessagePattern({ cmd: 'remove-saved-jobs' })
+  async handleRemoveSavedJobs(
+    @Payload('jobIds') jobIds: string[],
+    @Payload('userId') userId: string,
+  ) {
+    return await this.jobsService.handleRemoveSavedJobs(jobIds, userId);
+  }
 }

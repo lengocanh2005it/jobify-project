@@ -9,6 +9,7 @@ import { Requirement } from 'apps/jobs/src/entities/requirements.entity';
 import { User } from 'apps/users/src/entities/users.entity';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { Notification } from 'apps/notifications/src/entities/notifications.entity';
+import { SavedJob } from 'apps/jobs/src/entities/saved-jobs.entity';
 
 @Module({
   imports: [
@@ -37,7 +38,14 @@ import { Notification } from 'apps/notifications/src/entities/notifications.enti
       },
     ]),
     CommonModule,
-    TypeOrmModule.forFeature([Company, Job, Requirement, User, Notification]),
+    TypeOrmModule.forFeature([
+      Company,
+      Job,
+      Requirement,
+      User,
+      Notification,
+      SavedJob,
+    ]),
   ],
   controllers: [JobsController],
   providers: [JobsService],
