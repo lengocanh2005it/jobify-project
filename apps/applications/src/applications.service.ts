@@ -1,15 +1,9 @@
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Application } from 'apps/applications/src/entities/applications.entity';
 import { Job } from 'apps/jobs/src/entities/jobs.entity';
 import { NotificationTypes } from 'libs/common/constants';
-import { ApproveApplicationsDto } from 'libs/common/dtos/approve-applications.dto';
 import { CreateApplicationDto } from 'libs/common/dtos/create-application.dto';
 import { UpdateApplicationDto } from 'libs/common/dtos/update-application.dto';
 import { lastValueFrom } from 'rxjs';
