@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { Company } from 'apps/jobs/src/entities/companies.entity';
 import { Role } from 'apps/users/src/entities/roles.entity';
 import { Skill } from 'apps/users/src/entities/skills.entity';
 import { User } from 'apps/users/src/entities/users.entity';
@@ -8,7 +9,9 @@ import * as bcrypt from 'bcrypt';
 import { NotificationTypes } from 'libs/common/constants';
 import { SKILL_KEYWORDS } from 'libs/common/constants/skills.constant';
 import { CreateUserDto, LoginDto, UpdateUserDto } from 'libs/common/dtos';
+import { AssignCompanyToRecruitersDto } from 'libs/common/dtos/assign-company-to-recruiters.dto';
 import { handleEncodedPassword } from 'libs/common/utils';
+import { lastValueFrom } from 'rxjs';
 import { DataSource, Repository } from 'typeorm';
 
 @Injectable()
@@ -22,6 +25,7 @@ export class UsersService {
     @InjectRepository(Skill)
     private readonly skillRepository: Repository<Skill>,
     @Inject('EMAILS_SERVICE') private readonly rabbitMqEmailClient: ClientProxy,
+    @Inject('JOBS_SERVICE') private readonly rabbitMqJobClient: ClientProxy,
   ) {}
 
   public getUsers = async () => {
@@ -337,6 +341,54 @@ export class UsersService {
         email: user.email,
         type: 'payment_successfully',
       });
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  public handleAssignCompanyToRecruiters = async (
+    assignCompanyToRecruitersDto: AssignCompanyToRecruitersDto,
+  ) => {
+    try {
+      const { recruiterIds, company_id: companyId } =
+        assignCompanyToRecruitersDto;
+
+      const company = await lastValueFrom<Company | null>(
+        this.rabbitMqJobClient.send({ cmd: 'get-company' }, companyId),
+      );
+
+      if (!company)
+        throw new RpcException(`Company With ID: '${companyId}' Not Found.`);
+
+      for (const recruiterId of recruiterIds) {
+        const recruiter = await this.userRepository.findOne({
+          where: {
+            id: recruiterId,
+          },
+          relations: ['company', 'role'],
+        });
+
+        if (!recruiter)
+          throw new RpcException(`User With ID: '${recruiterId}' Not Found.`);
+
+        if (recruiter.role.name !== 'recruiter')
+          throw new RpcException(
+            `Only recruiter can be assigned to the company.`,
+          );
+
+        if (!recruiter.company) {
+          await this.userRepository
+            .createQueryBuilder()
+            .relation(User, 'company')
+            .of(recruiter.id)
+            .set(company.id);
+        }
+      }
+
+      return {
+        message: 'Assigned these recruiters to this company successfully.',
+      };
     } catch (err) {
       console.error(err);
       throw err;
