@@ -4,6 +4,7 @@ import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ApplicationsModule } from 'apps/api-gateway/src/applications/applications.module';
 import { AuthModule } from 'apps/api-gateway/src/auth/auth.module';
 import { JobsModule } from 'apps/api-gateway/src/jobs/jobs.module';
+import { PaymentsModule } from 'apps/api-gateway/src/payments/payments.module';
 import { ReviewsModule } from 'apps/api-gateway/src/reviews/reviews.module';
 import { UsersModule } from 'apps/api-gateway/src/users/users.module';
 import { HttpExceptionFilter } from 'libs/common/filters';
@@ -21,6 +22,7 @@ import { AppService } from './app.service';
     JobsModule,
     ApplicationsModule,
     ReviewsModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [

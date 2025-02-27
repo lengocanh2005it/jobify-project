@@ -4,6 +4,7 @@ import { Job } from 'apps/jobs/src/entities/jobs.entity';
 import { Message } from 'apps/messages/src/entities/messages.entity';
 import { Notification } from 'apps/notifications/src/entities/notifications.entity';
 import { UserNotification } from 'apps/notifications/src/entities/user-notification.entity';
+import { Transaction } from 'apps/payments/src/entities/transactions.entity';
 import { Review } from 'apps/reviews/src/entities/reviews.entity';
 import { Role } from 'apps/users/src/entities/roles.entity';
 import { Skill } from 'apps/users/src/entities/skills.entity';
@@ -52,6 +53,23 @@ export class User {
     nullable: true,
   })
   readonly expected_salary?: number;
+
+  @Column({
+    type: 'boolean',
+    default: false,
+  })
+  readonly is_premium?: boolean;
+
+  @Column({
+    type: 'timestamp',
+    nullable: true,
+  })
+  readonly premium_expiry?: Date;
+
+  @OneToMany(() => Transaction, (transaction) => transaction.user, {
+    cascade: true,
+  })
+  readonly transactions!: Transaction[];
 
   @ManyToOne(() => Role, (role) => role.users, {
     onDelete: 'CASCADE',
