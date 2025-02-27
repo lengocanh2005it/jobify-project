@@ -11,11 +11,10 @@ import {
 } from '@nestjs/common';
 import { UsersService } from 'apps/api-gateway/src/users/users.service';
 import { Role } from 'libs/common/constants';
-import { Roles } from 'libs/common/decorators/roles.decorator';
-import { CreateUserDto } from 'libs/common/dtos/create-user.dto';
-import { UpdateUserDto } from 'libs/common/dtos/update-user.dto';
-import { JwtAuthGuard } from 'libs/common/guards/jwt.guard';
-import { RoleAuthGuard } from 'libs/common/guards/role.guard';
+import { Roles } from 'libs/common/decorators';
+import { CreateUserDto, UpdateUserDto } from 'libs/common/dtos';
+import { AssignCompanyToRecruitersDto } from 'libs/common/dtos/assign-company-to-recruiters.dto';
+import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 
 @Controller('users')
 export class UsersController {
@@ -55,5 +54,16 @@ export class UsersController {
   @Roles(Role.ADMIN)
   deleteUser(@Param('id', ParseUUIDPipe) userId: string) {
     return this.usersService.handleDeleteUser(userId);
+  }
+
+  @Patch('company/assign')
+  @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @Roles(Role.ADMIN)
+  assignCompanyToRecruiters(
+    @Body() assignCompanyToRecruitersDto: AssignCompanyToRecruitersDto,
+  ) {
+    return this.usersService.handleAssignCompanyToRecruiters(
+      assignCompanyToRecruitersDto,
+    );
   }
 }

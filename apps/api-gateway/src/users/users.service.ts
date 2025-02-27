@@ -5,8 +5,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { CreateUserDto } from 'libs/common/dtos/create-user.dto';
-import { UpdateUserDto } from 'libs/common/dtos/update-user.dto';
+import { CreateUserDto, UpdateUserDto } from 'libs/common/dtos';
+import { AssignCompanyToRecruitersDto } from 'libs/common/dtos/assign-company-to-recruiters.dto';
 import { catchError } from 'rxjs';
 
 @Injectable()
@@ -48,5 +48,14 @@ export class UsersService {
 
   public handleDeleteUser = (userId: string) => {
     return this.rabbitMqUsersClient.send({ cmd: 'delete-user' }, userId);
+  };
+
+  public handleAssignCompanyToRecruiters = (
+    assignCompanyToRecruitersDto: AssignCompanyToRecruitersDto,
+  ) => {
+    return this.rabbitMqUsersClient.send(
+      { cmd: 'assign-company' },
+      assignCompanyToRecruitersDto,
+    );
   };
 }

@@ -3,6 +3,7 @@ import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
 import { CreateUserDto } from 'libs/common/dtos/create-user.dto';
 import { UpdateUserDto } from 'libs/common/dtos/update-user.dto';
 import { UsersService } from './users.service';
+import { AssignCompanyToRecruitersDto } from 'libs/common/dtos/assign-company-to-recruiters.dto';
 
 @Controller()
 export class UsersController {
@@ -64,5 +65,15 @@ export class UsersController {
   @EventPattern('update-premium')
   async handleUpdatePremium(@Payload() userId: string) {
     return await this.usersService.handleUpdatePremium(userId);
+  }
+
+  @MessagePattern({ cmd: 'assign-company' })
+  async handleAssignCompanyToRecruiters(
+    @Payload()
+    assignCompanyToRecruitersDto: AssignCompanyToRecruitersDto,
+  ) {
+    return await this.usersService.handleAssignCompanyToRecruiters(
+      assignCompanyToRecruitersDto,
+    );
   }
 }

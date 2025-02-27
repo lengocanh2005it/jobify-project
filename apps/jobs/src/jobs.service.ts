@@ -211,6 +211,7 @@ export class JobsService {
       const query = this.jobRepository
         .createQueryBuilder('job')
         .leftJoinAndSelect('job.recruiter', 'recruiter')
+        .leftJoinAndSelect('job.requirements', 'requirements')
         .leftJoinAndSelect('recruiter.company', 'company')
         .select([
           'job',
@@ -219,6 +220,7 @@ export class JobsService {
           'recruiter.email',
           'recruiter.phone_number',
           'company.name',
+          'requirements',
         ]);
 
       if (filters) {
@@ -266,6 +268,7 @@ export class JobsService {
               company: recruiter?.company?.name ? recruiter.company.name : null,
             }
           : null,
+        requirements: job.requirements.map((re) => re.requirement),
       }));
     } catch (err) {
       console.error(err);
