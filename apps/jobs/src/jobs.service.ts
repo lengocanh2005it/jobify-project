@@ -415,4 +415,46 @@ export class JobsService {
       throw err;
     }
   };
+
+  public handleGetAllApplicationsOfJobs = async (recruiterId: string) => {
+    try {
+      const recruiter = await lastValueFrom<User | null>(
+        this.rabbitMqUserClient.send({ cmd: 'get-user' }, recruiterId),
+      );
+
+      if (!recruiter)
+        throw new RpcException(
+          `Recruiter with ID: '${recruiterId}' Not Found.`,
+        );
+
+      const jobs = await this.jobRepository.find({
+        where: { recruiter: { id: recruiterId } },
+        relations: [
+          'recruiter',
+          'applications',
+          'applications.candidate',
+          'applications.candidate.skills',
+        ],
+      });
+
+      return jobs.map(({ applications, recruiter, ...res }) => ({
+        ...res,
+        applications: applications.map(({ candidate, ...res }) => ({
+          ...res,
+          candidate: {
+            id: candidate.id,
+            full_name: candidate.full_name,
+            email: candidate.email,
+            bio: candidate.bio,
+            phone_number: candidate.phone_number,
+            skills: candidate.skills.map((skill) => skill.name),
+            certifications: candidate.certifications,
+          },
+        })),
+      }));
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
 }

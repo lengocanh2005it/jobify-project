@@ -50,7 +50,10 @@ export class ApplicationsService {
       if (application)
         throw new BadRequestException('You have applied for this position.');
 
-      application = this.applicationRepository.create(createApplicationDto);
+      application = this.applicationRepository.create({
+        ...createApplicationDto,
+        applied_at: new Date(),
+      });
 
       await this.applicationRepository.save(application);
 
@@ -60,10 +63,15 @@ export class ApplicationsService {
         .of(application.id)
         .set(userId);
 
+      await this.dataSource
+        .createQueryBuilder()
+        .relation(Application, 'job')
+        .of(application.id)
+        .set(jobId);
+
       application = (await this.applicationRepository.findOne({
         where: {
-          candidate: { id: userId },
-          job: { id: jobId },
+          id: application.id,
         },
         relations: ['candidate', 'job', 'job.recruiter'],
       })) as Application;
@@ -97,6 +105,7 @@ export class ApplicationsService {
       };
     } catch (err) {
       console.error(err);
+      throw err;
     }
   };
 
@@ -152,6 +161,7 @@ export class ApplicationsService {
       return application;
     } catch (err) {
       console.error(err);
+      throw err;
     }
   };
 
@@ -224,6 +234,7 @@ export class ApplicationsService {
       return await this.applicationRepository.findOneBy({ id: applicationId });
     } catch (err) {
       console.error(err);
+      throw err;
     }
   };
 
