@@ -66,4 +66,11 @@ export class JobsService {
       },
     );
   };
+
+  public handleGetAllApplicationsOfJobs = (recruiterId: string) => {
+    return this.rabbitMqJobsClient.send(
+      { cmd: 'get-jobs-recruiter' },
+      recruiterId,
+    );
+  };
 }

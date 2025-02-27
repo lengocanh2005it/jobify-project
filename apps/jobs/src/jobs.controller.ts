@@ -74,4 +74,9 @@ export class JobsController {
   ) {
     return await this.jobsService.handleRemoveSavedJobs(jobIds, userId);
   }
+
+  @MessagePattern({ cmd: 'get-jobs-recruiter' })
+  async handleGetAllApplicationsOfJobs(@Payload() recruiterId: string) {
+    return await this.jobsService.handleGetAllApplicationsOfJobs(recruiterId);
+  }
 }

@@ -89,4 +89,13 @@ export class JobsController {
 
     return this.jobsService.handleRemoveSavedJobs(removeSavedJobsDto, userId);
   }
+
+  @Get('/recruiters/me')
+  @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @Roles(Role.ADMIN, Role.RECRUITER)
+  getAllApplicationsOfJobs(@Req() request: Request) {
+    const userId = request.user?.id as string;
+
+    return this.jobsService.handleGetAllApplicationsOfJobs(userId);
+  }
 }
