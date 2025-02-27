@@ -21,6 +21,7 @@ export class UsersService {
     private readonly rabbitMqNotificationClient: ClientProxy,
     @InjectRepository(Skill)
     private readonly skillRepository: Repository<Skill>,
+    @Inject('EMAILS_SERVICE') private readonly rabbitMqEmailClient: ClientProxy,
   ) {}
 
   public getUsers = async () => {
@@ -299,19 +300,26 @@ export class UsersService {
       if (!user) throw new RpcException(`User With ID: '${userId}' Not Found.`);
 
       const now = new Date();
-
       let premiumExpiry = new Date();
 
       if (user.premium_expiry) {
-        premiumExpiry = new Date(
-          premiumExpiry.setDate(user.premium_expiry.getDate() + 30),
-        );
+        premiumExpiry = new Date(user.premium_expiry);
+
+        premiumExpiry.setDate(premiumExpiry.getDate() + 30);
       } else {
         premiumExpiry.setDate(now.getDate() + 30);
       }
 
       const { title, key, description } =
         NotificationTypes.PREMIUM_PAID_SUCCESS;
+
+      await this.userRepository.update(
+        { id: userId },
+        {
+          is_premium: true,
+          premium_expiry: premiumExpiry,
+        },
+      );
 
       this.rabbitMqNotificationClient.emit('create-notification', {
         data: {
@@ -322,13 +330,10 @@ export class UsersService {
         userIds: [userId],
       });
 
-      await this.userRepository.update(
-        { id: userId },
-        {
-          is_premium: true,
-          premium_expiry: premiumExpiry,
-        },
-      );
+      this.rabbitMqEmailClient.emit('send-email', {
+        email: user.email,
+        type: 'payment_successfully',
+      });
     } catch (err) {
       console.error(err);
       throw err;

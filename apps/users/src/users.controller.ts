@@ -1,14 +1,8 @@
 import { Controller } from '@nestjs/common';
-import {
-  Ctx,
-  EventPattern,
-  MessagePattern,
-  Payload,
-  RmqContext,
-} from '@nestjs/microservices';
+import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
 import { CreateUserDto } from 'libs/common/dtos/create-user.dto';
-import { UsersService } from './users.service';
 import { UpdateUserDto } from 'libs/common/dtos/update-user.dto';
+import { UsersService } from './users.service';
 
 @Controller()
 export class UsersController {

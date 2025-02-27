@@ -61,8 +61,8 @@ export class PaymentsService {
           },
         ],
         mode: 'payment',
-        success_url: 'https://ember-restaurant.vercel.app',
-        cancel_url: 'https://ember-restaurant.vercel.app',
+        success_url: 'http://localhost:3001',
+        cancel_url: 'http://localhost:3001',
         metadata: {
           userId,
         },
