@@ -3,6 +3,7 @@ import { MessagePattern, Payload } from '@nestjs/microservices';
 import { CreateApplicationDto } from 'libs/common/dtos/create-application.dto';
 import { UpdateApplicationDto } from 'libs/common/dtos/update-application.dto';
 import { ApplicationsService } from './applications.service';
+import { ProcessApplicationsDto } from 'libs/common/dtos/process-applications.dto';
 
 @Controller()
 export class ApplicationsController {
@@ -68,6 +69,15 @@ export class ApplicationsController {
   ) {
     return await this.applicationsService.handleRejectApplications(
       applicationIds,
+    );
+  }
+
+  @MessagePattern({ cmd: 'process-applications' })
+  async handleProcessApplications(
+    @Payload() processApplicationsDto: ProcessApplicationsDto,
+  ) {
+    return await this.applicationsService.handleProcessApplications(
+      processApplicationsDto,
     );
   }
 }

@@ -5,6 +5,7 @@ import { Application } from 'apps/applications/src/entities/applications.entity'
 import { Job } from 'apps/jobs/src/entities/jobs.entity';
 import { NotificationTypes } from 'libs/common/constants';
 import { CreateApplicationDto } from 'libs/common/dtos/create-application.dto';
+import { ProcessApplicationsDto } from 'libs/common/dtos/process-applications.dto';
 import { UpdateApplicationDto } from 'libs/common/dtos/update-application.dto';
 import { lastValueFrom } from 'rxjs';
 import { DataSource, Repository } from 'typeorm';
@@ -322,6 +323,46 @@ export class ApplicationsService {
         },
         userIds: candidateIds,
       });
+
+      return applications;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  public handleProcessApplications = async (
+    processApplicationsDto: ProcessApplicationsDto,
+  ) => {
+    try {
+      const { applicationIds, status } = processApplicationsDto;
+      const applications: Application[] = [];
+
+      for (const applicationId of applicationIds) {
+        const application = await this.applicationRepository.findOneBy({
+          id: applicationId,
+        });
+
+        if (!application)
+          throw new RpcException(
+            `Application With ID: '${applicationId}' Not Found.`,
+          );
+
+        await this.applicationRepository.update(
+          {
+            id: applicationId,
+          },
+          {
+            status,
+          },
+        );
+
+        applications.push(
+          (await this.applicationRepository.findOneBy({
+            id: applicationId,
+          })) as Application,
+        );
+      }
 
       return applications;
     } catch (err) {

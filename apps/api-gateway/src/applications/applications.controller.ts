@@ -13,9 +13,10 @@ import {
 import { ApplicationsService } from 'apps/api-gateway/src/applications/applications.service';
 import { Request } from 'express';
 import { Role } from 'libs/common/constants';
-import { Roles } from 'libs/common/decorators';
+import { ResponseMessage, Roles } from 'libs/common/decorators';
 import { ApproveApplicationsDto } from 'libs/common/dtos/approve-applications.dto';
 import { CreateApplicationDto } from 'libs/common/dtos/create-application.dto';
+import { ProcessApplicationsDto } from 'libs/common/dtos/process-applications.dto';
 import { RejectApplicationsDto } from 'libs/common/dtos/reject-applications.dto';
 import { UpdateApplicationDto } from 'libs/common/dtos/update-application.dto';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
@@ -90,6 +91,16 @@ export class ApplicationsController {
   rejectApplications(@Body() rejectedApplicationsDto: RejectApplicationsDto) {
     return this.applicationsService.handleRejectApplications(
       rejectedApplicationsDto,
+    );
+  }
+
+  @Patch('/recruiters/process')
+  @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @ResponseMessage('Processed applications successfully!')
+  @Roles(Role.RECRUITER, Role.ADMIN)
+  processApplications(@Body() processApplicationsDto: ProcessApplicationsDto) {
+    return this.applicationsService.handleProcessApplications(
+      processApplicationsDto,
     );
   }
 }
