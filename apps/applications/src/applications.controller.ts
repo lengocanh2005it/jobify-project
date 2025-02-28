@@ -1,10 +1,8 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import { CreateApplicationDto } from 'libs/common/dtos/create-application.dto';
-import { UpdateApplicationDto } from 'libs/common/dtos/update-application.dto';
-import { ApplicationsService } from './applications.service';
 import { ProcessApplicationsDto } from 'libs/common/dtos/process-applications.dto';
-import { CreateApplication } from 'libs/common/utils/types';
+import { CreateApplication, UpdateApplication } from 'libs/common/utils/types';
+import { ApplicationsService } from './applications.service';
 
 @Controller()
 export class ApplicationsController {
@@ -41,31 +39,9 @@ export class ApplicationsController {
   }
 
   @MessagePattern({ cmd: 'update-application' })
-  async updateApplication(
-    @Payload('applicationId') applicationId: string,
-    @Payload('updateApplicationDto') updateApplicationDto: UpdateApplicationDto,
-  ) {
+  async updateApplication(@Payload() updateApplication: UpdateApplication) {
     return await this.applicationsService.handleUpdateApplication(
-      applicationId,
-      updateApplicationDto,
-    );
-  }
-
-  @MessagePattern({ cmd: 'approve-applications' })
-  async approveApplications(
-    @Payload('applicationIds') applicationIds: string[],
-  ) {
-    return await this.applicationsService.handleApproveApplications(
-      applicationIds,
-    );
-  }
-
-  @MessagePattern({ cmd: 'reject-applications' })
-  async rejectApplications(
-    @Payload('applicationIds') applicationIds: string[],
-  ) {
-    return await this.applicationsService.handleRejectApplications(
-      applicationIds,
+      updateApplication,
     );
   }
 
@@ -75,6 +51,13 @@ export class ApplicationsController {
   ) {
     return await this.applicationsService.handleProcessApplications(
       processApplicationsDto,
+    );
+  }
+
+  @MessagePattern({ cmd: 'get-applications-candidate' })
+  async handleGetApplicationsOfCandidate(@Payload() candidateId: string) {
+    return await this.applicationsService.handleGetApplicationsOfCandidate(
+      candidateId,
     );
   }
 }

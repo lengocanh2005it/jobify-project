@@ -17,13 +17,10 @@ import { ApplicationsService } from 'apps/api-gateway/src/applications/applicati
 import { Request } from 'express';
 import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
-import { ApproveApplicationsDto } from 'libs/common/dtos/approve-applications.dto';
 import { CreateApplicationDto } from 'libs/common/dtos/create-application.dto';
 import { ProcessApplicationsDto } from 'libs/common/dtos/process-applications.dto';
-import { RejectApplicationsDto } from 'libs/common/dtos/reject-applications.dto';
-import { UpdateApplicationDto } from 'libs/common/dtos/update-application.dto';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
-import { CreateApplication } from 'libs/common/utils/types';
+import { CreateApplication, UpdateApplication } from 'libs/common/utils/types';
 
 @Controller('applications')
 export class ApplicationsController {
@@ -41,7 +38,9 @@ export class ApplicationsController {
   ) {
     const resumeFile = files.find((file) => file.fieldname === 'resume');
 
-    const coverLetterFile = files.find((file) => file.fieldname === 'cover');
+    const coverLetterFile = files.find(
+      (file) => file.fieldname === 'cover_letter',
+    );
 
     const userId = request.user?.id as string;
 
@@ -83,30 +82,28 @@ export class ApplicationsController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @ResponseMessage('Application updated successfully!')
+  @UseInterceptors(AnyFilesInterceptor())
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
   updateApplication(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateApplicationDto: UpdateApplicationDto,
+    @UploadedFiles() files: Array<Express.Multer.File>,
   ) {
-    return this.applicationsService.updateApplication(id, updateApplicationDto);
-  }
+    const resumeFile = files.find(
+      (file) => file.fieldname === 'resume',
+    ) as Express.Multer.File;
 
-  @Patch('approve')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
-  @Roles(Role.RECRUITER, Role.ADMIN)
-  approveApplications(@Body() approveApplicationsDto: ApproveApplicationsDto) {
-    return this.applicationsService.handleApproveApplications(
-      approveApplicationsDto,
+    const coverLetterFile = files.find(
+      (file) => file.fieldname === 'cover_letter',
     );
-  }
 
-  @Patch('reject')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
-  @Roles(Role.RECRUITER, Role.ADMIN)
-  rejectApplications(@Body() rejectedApplicationsDto: RejectApplicationsDto) {
-    return this.applicationsService.handleRejectApplications(
-      rejectedApplicationsDto,
-    );
+    const updateApplication: UpdateApplication = {
+      applicationId: id,
+      resumeFile,
+      coverLetterFile,
+    };
+
+    return this.applicationsService.updateApplication(updateApplication);
   }
 
   @Patch('/recruiters/process')
@@ -117,5 +114,14 @@ export class ApplicationsController {
     return this.applicationsService.handleProcessApplications(
       processApplicationsDto,
     );
+  }
+
+  @Get('candidates/me')
+  @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @Roles(Role.CANDIDATE)
+  getApplicationsOfCandidate(@Req() request: Request) {
+    const userId = request.user?.id as string;
+
+    return this.applicationsService.handleGetApplicationsOfCandidate(userId);
   }
 }

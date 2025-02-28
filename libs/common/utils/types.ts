@@ -14,6 +14,12 @@ export type CreateApplication = {
   coverLetterFile?: Express.Multer.File;
 };
 
+export type UpdateApplication = {
+  applicationId: string;
+  resumeFile: Express.Multer.File;
+  coverLetterFile?: Express.Multer.File;
+};
+
 export type UrlResponseType = {
   fieldname: string;
   url: string;
