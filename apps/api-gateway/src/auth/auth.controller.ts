@@ -3,7 +3,7 @@ import { AuthService } from 'apps/api-gateway/src/auth/auth.service';
 import { Request } from 'express';
 import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
-import { CreateCompanyDto, LoginDto } from 'libs/common/dtos';
+import { CreateCompanyDto, CreateUserDto, LoginDto } from 'libs/common/dtos';
 import { ForgetPasswordDto } from 'libs/common/dtos/forget-password.dto';
 import { UpdatePasswordDto } from 'libs/common/dtos/update-password.dto';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
@@ -12,10 +12,16 @@ import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('login')
-  @ResponseMessage('LoggedIn successfully.')
+  @Post('sign-in')
+  @ResponseMessage('Logged in successfully.')
   handleLogin(@Body() loginDto: LoginDto) {
     return this.authService.handleLogin(loginDto);
+  }
+
+  @Post('sign-up')
+  @ResponseMessage('Signed up successfully.')
+  handleSignup(@Body() createUserDto: CreateUserDto) {
+    return this.authService.handleSignup(createUserDto);
   }
 
   @Post('company')

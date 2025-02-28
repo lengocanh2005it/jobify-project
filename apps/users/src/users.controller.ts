@@ -33,8 +33,13 @@ export class UsersController {
   async updateUser(
     @Payload('userId') userId: string,
     @Payload('updateUserDto') updateUserDto: UpdateUserDto,
+    @Payload('avatar') avatar?: Express.Multer.File,
   ) {
-    return await this.usersService.handleUpdateUser(userId, updateUserDto);
+    return await this.usersService.handleUpdateUser(
+      userId,
+      updateUserDto,
+      avatar,
+    );
   }
 
   @MessagePattern({ cmd: 'delete-user' })
