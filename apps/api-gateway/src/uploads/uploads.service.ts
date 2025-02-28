@@ -8,7 +8,7 @@ export class UploadsService {
     private readonly rabbitMqUploadsClient: ClientProxy,
   ) {}
 
-  public handleUploadsFile = (file: Express.Multer.File) => {
-    return this.rabbitMqUploadsClient.send({ cmd: 'uploads-file' }, file);
+  public handleUploadsFile = (files: Array<Express.Multer.File>) => {
+    return this.rabbitMqUploadsClient.send({ cmd: 'upload-files' }, files);
   };
 }

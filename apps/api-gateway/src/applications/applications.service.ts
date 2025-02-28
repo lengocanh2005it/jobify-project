@@ -1,10 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { ApproveApplicationsDto } from 'libs/common/dtos/approve-applications.dto';
 import { ProcessApplicationsDto } from 'libs/common/dtos/process-applications.dto';
-import { RejectApplicationsDto } from 'libs/common/dtos/reject-applications.dto';
-import { UpdateApplicationDto } from 'libs/common/dtos/update-application.dto';
-import { CreateApplication } from 'libs/common/utils/types';
+import { CreateApplication, UpdateApplication } from 'libs/common/utils/types';
 
 @Injectable()
 export class ApplicationsService {
@@ -41,31 +38,10 @@ export class ApplicationsService {
     );
   };
 
-  public updateApplication = (
-    applicationId: string,
-    updateApplicationDto: UpdateApplicationDto,
-  ) => {
+  public updateApplication = (updateApplication: UpdateApplication) => {
     return this.rabbitMqApplicationClient.send(
       { cmd: 'update-application' },
-      { updateApplicationDto, applicationId },
-    );
-  };
-
-  public handleApproveApplications = (
-    approveApplicationsDto: ApproveApplicationsDto,
-  ) => {
-    return this.rabbitMqApplicationClient.send(
-      { cmd: 'approve-applications' },
-      approveApplicationsDto,
-    );
-  };
-
-  public handleRejectApplications = (
-    rejectApplicationsDto: RejectApplicationsDto,
-  ) => {
-    return this.rabbitMqApplicationClient.send(
-      { cmd: 'reject-applications' },
-      rejectApplicationsDto,
+      updateApplication,
     );
   };
 
@@ -75,6 +51,13 @@ export class ApplicationsService {
     return this.rabbitMqApplicationClient.send(
       { cmd: 'process-applications' },
       processApplicationsDto,
+    );
+  };
+
+  public handleGetApplicationsOfCandidate = (candidateId: string) => {
+    return this.rabbitMqApplicationClient.send(
+      { cmd: 'get-applications-candidate' },
+      candidateId,
     );
   };
 }

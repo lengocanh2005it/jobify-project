@@ -5,8 +5,11 @@ import { Application } from 'apps/applications/src/entities/applications.entity'
 import { Job } from 'apps/jobs/src/entities/jobs.entity';
 import { NotificationTypes } from 'libs/common/constants';
 import { ProcessApplicationsDto } from 'libs/common/dtos/process-applications.dto';
-import { UpdateApplicationDto } from 'libs/common/dtos/update-application.dto';
-import { CreateApplication, UrlResponseType } from 'libs/common/utils/types';
+import {
+  CreateApplication,
+  UpdateApplication,
+  UrlResponseType,
+} from 'libs/common/utils/types';
 import { lastValueFrom } from 'rxjs';
 import { DataSource, Repository } from 'typeorm';
 
@@ -210,11 +213,12 @@ export class ApplicationsService {
   };
 
   public handleUpdateApplication = async (
-    applicationId: string,
-    updateApplicationDto: UpdateApplicationDto,
+    updateApplication: UpdateApplication,
   ) => {
     try {
-      const application = await this.applicationRepository.findOne({
+      const { applicationId, resumeFile, coverLetterFile } = updateApplication;
+
+      let application = await this.applicationRepository.findOne({
         where: {
           id: applicationId,
         },
@@ -226,10 +230,32 @@ export class ApplicationsService {
           `Application With ID: '${applicationId}' Not Found.`,
         );
 
+      const files = [resumeFile];
+
+      if (coverLetterFile) {
+        files.push(coverLetterFile);
+      }
+
+      const [resume, coverLetter] = await lastValueFrom<UrlResponseType[]>(
+        this.rabbitMqUploadClient.send({ cmd: 'upload-files' }, files),
+      );
+
       await this.applicationRepository.update(
         { id: applicationId },
-        updateApplicationDto,
+        {
+          ...(coverLetter && coverLetterFile
+            ? { cover_letter_link: coverLetter.url }
+            : {}),
+          resume_link: resume.url,
+        },
       );
+
+      application = (await this.applicationRepository.findOne({
+        where: {
+          id: application.id,
+        },
+        relations: ['job', 'job.recruiter'],
+      })) as Application;
 
       const { title, description, key } =
         NotificationTypes.APPLICATION_STATUS_UPDATED;
@@ -243,105 +269,22 @@ export class ApplicationsService {
         userIds: [application.job.recruiter.id],
       });
 
-      return await this.applicationRepository.findOneBy({ id: applicationId });
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
-  };
+      const { id, email, phone_number, address, full_name } =
+        application.job.recruiter;
 
-  public handleApproveApplications = async (applicationIds: string[]) => {
-    try {
-      const applications: Application[] = [];
-      const candidateIds: string[] = [];
-
-      for (const applicationId of applicationIds) {
-        const application = await this.applicationRepository.findOne({
-          where: {
-            id: applicationId,
+      return {
+        ...application,
+        job: {
+          ...application.job,
+          recruiter: {
+            id,
+            email,
+            phone_number,
+            address,
+            full_name,
           },
-          relations: ['candidate'],
-        });
-
-        if (!application)
-          throw new RpcException(
-            `Application With ID: '${applicationId}' Not Found.`,
-          );
-
-        await this.applicationRepository.update(
-          { id: applicationId },
-          {
-            status: 'approved',
-          },
-        );
-
-        candidateIds.push(application.candidate.id);
-        applications.push(application);
-      }
-
-      const { JOB_APPLICATION_ACCEPTED } = NotificationTypes;
-
-      const { title, description, key } = JOB_APPLICATION_ACCEPTED;
-
-      this.rabbitMqNotificationClient.emit('create-notification', {
-        data: {
-          title,
-          message: description,
-          type: key,
         },
-        userIds: candidateIds,
-      });
-
-      return applications;
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
-  };
-
-  public handleRejectApplications = async (applicationIds: string[]) => {
-    try {
-      const applications: Application[] = [];
-      const candidateIds: string[] = [];
-
-      for (const applicationId of applicationIds) {
-        const application = await this.applicationRepository.findOne({
-          where: {
-            id: applicationId,
-          },
-          relations: ['candidate'],
-        });
-
-        if (!application)
-          throw new RpcException(
-            `Application With ID: '${applicationId}' Not Found.`,
-          );
-
-        await this.applicationRepository.update(
-          { id: applicationId },
-          {
-            status: 'rejected',
-          },
-        );
-
-        candidateIds.push(application.candidate.id);
-        applications.push(application);
-      }
-
-      const { JOB_APPLICATION_REJECTED } = NotificationTypes;
-
-      const { title, description, key } = JOB_APPLICATION_REJECTED;
-
-      this.rabbitMqNotificationClient.emit('create-notification', {
-        data: {
-          title,
-          message: description,
-          type: key,
-        },
-        userIds: candidateIds,
-      });
-
-      return applications;
+      };
     } catch (err) {
       console.error(err);
       throw err;
@@ -352,33 +295,27 @@ export class ApplicationsService {
     processApplicationsDto: ProcessApplicationsDto,
   ) => {
     try {
-      const { applicationIds, status } = processApplicationsDto;
-      const applications: Application[] = [];
+      const { approvedApplicationIds, rejectedApplicationIds } =
+        processApplicationsDto;
 
-      for (const applicationId of applicationIds) {
-        const application = await this.applicationRepository.findOneBy({
-          id: applicationId,
-        });
+      const applications: Record<string, Partial<Application>[]> = {};
 
-        if (!application)
-          throw new RpcException(
-            `Application With ID: '${applicationId}' Not Found.`,
-          );
+      if (approvedApplicationIds && approvedApplicationIds.length) {
+        applications.approvedApplications = (
+          await this.handleGenerateProcessApplications(
+            approvedApplicationIds,
+            'approved',
+          )
+        ).map(({ candidate, ...res }) => ({ ...res }));
+      }
 
-        await this.applicationRepository.update(
-          {
-            id: applicationId,
-          },
-          {
-            status,
-          },
-        );
-
-        applications.push(
-          (await this.applicationRepository.findOneBy({
-            id: applicationId,
-          })) as Application,
-        );
+      if (rejectedApplicationIds && rejectedApplicationIds.length) {
+        applications.rejectedApplications = (
+          await this.handleGenerateProcessApplications(
+            rejectedApplicationIds,
+            'rejected',
+          )
+        ).map(({ candidate, ...res }) => ({ ...res }));
       }
 
       return applications;
@@ -386,5 +323,71 @@ export class ApplicationsService {
       console.error(err);
       throw err;
     }
+  };
+
+  private handleGenerateProcessApplications = async (
+    applicationIds: string[],
+    status: string,
+  ) => {
+    const applications: Application[] = [];
+    const candidateIds: string[] = [];
+
+    for (const applicationId of applicationIds) {
+      const application = await this.applicationRepository.findOne({
+        where: {
+          id: applicationId,
+        },
+        relations: ['candidate'],
+      });
+
+      if (!application)
+        throw new RpcException(
+          `Application With ID: '${applicationId}' Not Found.`,
+        );
+
+      await this.applicationRepository.update(
+        {
+          id: applicationId,
+        },
+        {
+          status,
+        },
+      );
+
+      applications.push(
+        (await this.applicationRepository.findOneBy({
+          id: applicationId,
+        })) as Application,
+      );
+
+      candidateIds.push(application.candidate.id);
+    }
+
+    const { title, description, key } =
+      status === 'approved'
+        ? NotificationTypes.JOB_APPLICATION_ACCEPTED
+        : NotificationTypes.JOB_APPLICATION_REJECTED;
+
+    this.rabbitMqNotificationClient.emit('create-notification', {
+      data: {
+        title,
+        message: description,
+        type: key,
+      },
+      userIds: candidateIds,
+    });
+
+    return applications;
+  };
+
+  public handleGetApplicationsOfCandidate = async (candidateId: string) => {
+    return (
+      await this.applicationRepository.find({
+        where: {
+          candidate: { id: candidateId },
+        },
+        relations: ['candidate', 'job'],
+      })
+    ).map(({ candidate, ...res }) => ({ ...res }));
   };
 }

@@ -1,11 +1,11 @@
 import {
   Controller,
   Post,
-  UploadedFile,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { UploadsService } from 'apps/api-gateway/src/uploads/uploads.service';
 import { Role } from 'libs/common/constants';
 import { Roles } from 'libs/common/decorators';
@@ -18,8 +18,8 @@ export class UploadsController {
   @Post()
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
-  @UseInterceptors(FileInterceptor('file'))
-  uploadsFile(@UploadedFile() file: Express.Multer.File) {
-    return this.uploadsService.handleUploadsFile(file);
+  @UseInterceptors(FilesInterceptor('files', 10))
+  uploadsFile(@UploadedFiles() files: Array<Express.Multer.File>) {
+    return this.uploadsService.handleUploadsFile(files);
   }
 }
