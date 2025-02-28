@@ -21,7 +21,9 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('jwt_secret_key'),
-        expiresIn: configService.get('access_token_life') as string,
+        signOptions: {
+          expiresIn: configService.get('access_token_life') as string,
+        },
       }),
     }),
     TypeOrmModule.forRootAsync({

@@ -39,10 +39,14 @@ export class UsersService {
     return this.rabbitMqUsersClient.send({ cmd: 'get-user' }, userId);
   };
 
-  public handleUpdateUser = (userId: string, updateUserDto: UpdateUserDto) => {
+  public handleUpdateUser = (
+    userId: string,
+    updateUserDto: UpdateUserDto,
+    avatar?: Express.Multer.File,
+  ) => {
     return this.rabbitMqUsersClient.send(
       { cmd: 'update-user' },
-      { updateUserDto, userId },
+      { updateUserDto, userId, avatar },
     );
   };
 

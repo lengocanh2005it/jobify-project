@@ -17,8 +17,5 @@ export class UpdateUserDto {
   readonly full_name?: string;
 
   @IsOptional()
-  readonly avatar_url?: string;
-
-  @IsOptional()
   readonly expected_salary?: number;
 }

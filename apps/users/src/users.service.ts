@@ -11,6 +11,7 @@ import { SKILL_KEYWORDS } from 'libs/common/constants/skills.constant';
 import { CreateUserDto, LoginDto, UpdateUserDto } from 'libs/common/dtos';
 import { AssignCompanyToRecruitersDto } from 'libs/common/dtos/assign-company-to-recruiters.dto';
 import { handleEncodedPassword } from 'libs/common/utils';
+import { UrlResponseType } from 'libs/common/utils/types';
 import { lastValueFrom } from 'rxjs';
 import { DataSource, Repository } from 'typeorm';
 
@@ -26,6 +27,8 @@ export class UsersService {
     private readonly skillRepository: Repository<Skill>,
     @Inject('EMAILS_SERVICE') private readonly rabbitMqEmailClient: ClientProxy,
     @Inject('JOBS_SERVICE') private readonly rabbitMqJobClient: ClientProxy,
+    @Inject('UPLOADS_SERVICE')
+    private readonly rabbitMqUploadClient: ClientProxy,
   ) {}
 
   public getUsers = async () => {
@@ -179,13 +182,36 @@ export class UsersService {
   public handleUpdateUser = async (
     userId: string,
     updateUserDto: UpdateUserDto,
+    avatar?: Express.Multer.File,
   ) => {
     try {
       const user = await this.userRepository.findOneBy({ id: userId });
 
       if (!user) throw new RpcException('User Not Found.');
 
-      await this.userRepository.update({ id: userId }, updateUserDto);
+      let avatar_url = '';
+
+      if (avatar) {
+        const [avatarElement] = await lastValueFrom<UrlResponseType[]>(
+          this.rabbitMqUploadClient.send({ cmd: 'upload-files' }, [avatar]),
+        );
+
+        if (avatarElement) {
+          avatar_url = avatarElement.url;
+        }
+      }
+
+      await this.userRepository.update(
+        { id: userId },
+        {
+          ...updateUserDto,
+          ...(avatar_url !== ''
+            ? {
+                avatar_url,
+              }
+            : {}),
+        },
+      );
 
       const savedUser = (await this.userRepository.findOneBy({
         id: userId,

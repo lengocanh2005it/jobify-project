@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { CreateCompanyDto, LoginDto } from 'libs/common/dtos';
+import { CreateCompanyDto, CreateUserDto, LoginDto } from 'libs/common/dtos';
 import { ForgetPasswordDto } from 'libs/common/dtos/forget-password.dto';
 import { UpdatePasswordDto } from 'libs/common/dtos/update-password.dto';
 import { catchError } from 'rxjs';
@@ -75,5 +75,9 @@ export class AuthService {
         type,
       },
     );
+  };
+
+  public handleSignup = (createUserDto: CreateUserDto) => {
+    return this.rabbitMqUserClient.send({ cmd: 'create-user' }, createUserDto);
   };
 }
