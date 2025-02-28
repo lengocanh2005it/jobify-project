@@ -13,6 +13,7 @@ import { LoggerMiddleware } from 'libs/common/middlewares';
 import { CustomValidationPipe } from 'libs/common/pipe';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { UploadsModule } from 'apps/api-gateway/src/uploads/uploads.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { AppService } from './app.service';
     ApplicationsModule,
     ReviewsModule,
     PaymentsModule,
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [
