@@ -4,9 +4,9 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Application } from 'apps/applications/src/entities/applications.entity';
 import { Job } from 'apps/jobs/src/entities/jobs.entity';
 import { NotificationTypes } from 'libs/common/constants';
-import { CreateApplicationDto } from 'libs/common/dtos/create-application.dto';
 import { ProcessApplicationsDto } from 'libs/common/dtos/process-applications.dto';
 import { UpdateApplicationDto } from 'libs/common/dtos/update-application.dto';
+import { CreateApplication, UrlResponseType } from 'libs/common/utils/types';
 import { lastValueFrom } from 'rxjs';
 import { DataSource, Repository } from 'typeorm';
 
@@ -19,17 +19,28 @@ export class ApplicationsService {
     @InjectDataSource() private readonly dataSource: DataSource,
     @Inject('NOTIFICATIONS_SERVICE')
     private readonly rabbitMqNotificationClient: ClientProxy,
+    @Inject('UPLOADS_SERVICE')
+    private readonly rabbitMqUploadClient: ClientProxy,
   ) {}
 
   public handleCreateApplication = async (
-    createApplicationDto: CreateApplicationDto,
-    userId: string,
+    createApplication: CreateApplication,
   ) => {
     try {
-      const { job_id: jobId } = createApplicationDto;
+      const { jobId, resumeFile, coverLetterFile, userId } = createApplication;
+
+      const files = [resumeFile];
+
+      if (coverLetterFile) {
+        files.push(coverLetterFile);
+      }
+
+      const response = await lastValueFrom<UrlResponseType[]>(
+        this.rabbitMqUploadClient.send({ cmd: 'upload-files' }, files),
+      );
 
       const job = await lastValueFrom<Job | undefined>(
-        this.rabbitMqJobClient.send({ cmd: 'get-jobs' }, jobId),
+        this.rabbitMqJobClient.send({ cmd: 'get-job' }, jobId),
       );
 
       if (!job) throw new RpcException(`Job With ID: '${jobId}' Not Found.`);
@@ -45,8 +56,13 @@ export class ApplicationsService {
       if (application)
         throw new BadRequestException('You have applied for this position.');
 
+      const [resume, coverLetter] = response;
+
       application = this.applicationRepository.create({
-        ...createApplicationDto,
+        resume_link: resume.url,
+        ...(coverLetterFile && coverLetter
+          ? { cover_letter_link: coverLetter.url }
+          : {}),
         applied_at: new Date(),
       });
 
@@ -68,15 +84,8 @@ export class ApplicationsService {
         where: {
           id: application.id,
         },
-        relations: ['candidate', 'job', 'job.recruiter'],
+        relations: ['job', 'job.recruiter'],
       })) as Application;
-
-      const { candidate, ...res } = application;
-
-      const { password, ...resData } = candidate;
-
-      const { password: recruiterPassword, ...resRecruiterData } =
-        res.job.recruiter;
 
       const { title, description, key } =
         NotificationTypes.NEW_APPLICATION_RECEIVED;
@@ -87,15 +96,23 @@ export class ApplicationsService {
           message: description,
           type: key,
         },
-        userIds: [res.job.recruiter.id],
+        userIds: [application.job.recruiter.id],
       });
 
+      const { id, email, phone_number, address, full_name } =
+        application.job.recruiter;
+
       return {
-        ...res,
-        candidate: resData,
+        ...application,
         job: {
-          ...res.job,
-          recruiter: resRecruiterData,
+          ...application.job,
+          recruiter: {
+            id,
+            email,
+            phone_number,
+            address,
+            full_name,
+          },
         },
       };
     } catch (err) {

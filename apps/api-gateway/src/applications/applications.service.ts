@@ -1,10 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { ApproveApplicationsDto } from 'libs/common/dtos/approve-applications.dto';
-import { CreateApplicationDto } from 'libs/common/dtos/create-application.dto';
 import { ProcessApplicationsDto } from 'libs/common/dtos/process-applications.dto';
 import { RejectApplicationsDto } from 'libs/common/dtos/reject-applications.dto';
 import { UpdateApplicationDto } from 'libs/common/dtos/update-application.dto';
+import { CreateApplication } from 'libs/common/utils/types';
 
 @Injectable()
 export class ApplicationsService {
@@ -13,13 +13,10 @@ export class ApplicationsService {
     private readonly rabbitMqApplicationClient: ClientProxy,
   ) {}
 
-  public createApplication = (
-    createApplicationDto: CreateApplicationDto,
-    userId: string,
-  ) => {
+  public createApplication = (createApplication: CreateApplication) => {
     return this.rabbitMqApplicationClient.send(
       { cmd: 'create-application' },
-      { createApplicationDto, userId },
+      createApplication,
     );
   };
 

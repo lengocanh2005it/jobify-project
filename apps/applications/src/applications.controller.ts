@@ -4,19 +4,16 @@ import { CreateApplicationDto } from 'libs/common/dtos/create-application.dto';
 import { UpdateApplicationDto } from 'libs/common/dtos/update-application.dto';
 import { ApplicationsService } from './applications.service';
 import { ProcessApplicationsDto } from 'libs/common/dtos/process-applications.dto';
+import { CreateApplication } from 'libs/common/utils/types';
 
 @Controller()
 export class ApplicationsController {
   constructor(private readonly applicationsService: ApplicationsService) {}
 
   @MessagePattern({ cmd: 'create-application' })
-  async createApplication(
-    @Payload('createApplicationDto') createApplicationDto: CreateApplicationDto,
-    @Payload('userId') userId: string,
-  ) {
+  async createApplication(@Payload() createApplication: CreateApplication) {
     return await this.applicationsService.handleCreateApplication(
-      createApplicationDto,
-      userId,
+      createApplication,
     );
   }
 

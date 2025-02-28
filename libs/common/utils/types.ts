@@ -7,6 +7,18 @@ export type CreateNotificationDto = {
   type: string;
 };
 
+export type CreateApplication = {
+  jobId: string;
+  userId: string;
+  resumeFile?: Express.Multer.File;
+  coverLetterFile?: Express.Multer.File;
+};
+
+export type UrlResponseType = {
+  fieldname: string;
+  url: string;
+};
+
 export type JwtPayload = {
   userId: string;
   role: Role;

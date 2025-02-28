@@ -8,8 +8,11 @@ import {
   Patch,
   Post,
   Req,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { ApplicationsService } from 'apps/api-gateway/src/applications/applications.service';
 import { Request } from 'express';
 import { Role } from 'libs/common/constants';
@@ -20,6 +23,7 @@ import { ProcessApplicationsDto } from 'libs/common/dtos/process-applications.dt
 import { RejectApplicationsDto } from 'libs/common/dtos/reject-applications.dto';
 import { UpdateApplicationDto } from 'libs/common/dtos/update-application.dto';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
+import { CreateApplication } from 'libs/common/utils/types';
 
 @Controller('applications')
 export class ApplicationsController {
@@ -28,16 +32,27 @@ export class ApplicationsController {
   @Post()
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.CANDIDATE)
+  @ResponseMessage('New application created successfully!')
+  @UseInterceptors(AnyFilesInterceptor())
   createApplication(
     @Body() createApplicationDto: CreateApplicationDto,
     @Req() request: Request,
+    @UploadedFiles() files: Array<Express.Multer.File>,
   ) {
+    const resumeFile = files.find((file) => file.fieldname === 'resume');
+
+    const coverLetterFile = files.find((file) => file.fieldname === 'cover');
+
     const userId = request.user?.id as string;
 
-    return this.applicationsService.createApplication(
-      createApplicationDto,
+    const createApplication: CreateApplication = {
       userId,
-    );
+      resumeFile,
+      coverLetterFile,
+      jobId: createApplicationDto.job_id,
+    };
+
+    return this.applicationsService.createApplication(createApplication);
   }
 
   @Get()
