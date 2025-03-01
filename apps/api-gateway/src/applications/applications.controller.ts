@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   Req,
   UploadedFiles,
   UseGuards,
@@ -14,11 +15,13 @@ import {
 } from '@nestjs/common';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { ApplicationsService } from 'apps/api-gateway/src/applications/applications.service';
+import { User } from 'apps/users/src/entities/users.entity';
 import { Request } from 'express';
 import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
 import { CreateApplicationDto } from 'libs/common/dtos/create-application.dto';
 import { ProcessApplicationsDto } from 'libs/common/dtos/process-applications.dto';
+import { SearchApplicationsDto } from 'libs/common/dtos/search-applications.dto';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 import { CreateApplication, UpdateApplication } from 'libs/common/utils/types';
 
@@ -56,28 +59,44 @@ export class ApplicationsController {
 
   @Get()
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @ResponseMessage('Applications fetched successfully!')
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
-  getApplications() {
-    return this.applicationsService.getApplications();
+  getApplications(
+    @Req() request: Request,
+    @Query() searchApplicationsDto: SearchApplicationsDto,
+  ) {
+    const user = request.user as User;
+
+    return this.applicationsService.getApplications(
+      user,
+      searchApplicationsDto,
+    );
   }
 
   @Get(':id')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @ResponseMessage('Application fetched successfully!')
   @Roles(Role.RECRUITER, Role.ADMIN, Role.CANDIDATE)
   getApplication(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: Request,
   ) {
-    const role = request.user?.role.name as string;
+    const user = request.user as User;
 
-    return this.applicationsService.getApplication(id, role);
+    return this.applicationsService.getApplication(id, user);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @ResponseMessage('Application deleted successfully!')
   @Roles(Role.ADMIN, Role.RECRUITER, Role.CANDIDATE)
-  deleteApplication(@Param('id', ParseUUIDPipe) id: string) {
-    return this.applicationsService.deleteApplication(id);
+  deleteApplication(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
+  ) {
+    const user = request.user as User;
+
+    return this.applicationsService.deleteApplication(id, user);
   }
 
   @Patch(':id')
@@ -88,7 +107,10 @@ export class ApplicationsController {
   updateApplication(
     @Param('id', ParseUUIDPipe) id: string,
     @UploadedFiles() files: Array<Express.Multer.File>,
+    @Req() request: Request,
   ) {
+    const user = request.user as User;
+
     const resumeFile = files.find(
       (file) => file.fieldname === 'resume',
     ) as Express.Multer.File;
@@ -103,25 +125,22 @@ export class ApplicationsController {
       coverLetterFile,
     };
 
-    return this.applicationsService.updateApplication(updateApplication);
+    return this.applicationsService.updateApplication(updateApplication, user);
   }
 
-  @Patch('/recruiters/process')
+  @Patch('recruiters/process')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Processed applications successfully!')
   @Roles(Role.RECRUITER, Role.ADMIN)
-  processApplications(@Body() processApplicationsDto: ProcessApplicationsDto) {
+  processApplications(
+    @Body() processApplicationsDto: ProcessApplicationsDto,
+    @Req() request: Request,
+  ) {
+    const user = request.user as User;
+
     return this.applicationsService.handleProcessApplications(
       processApplicationsDto,
+      user,
     );
-  }
-
-  @Get('candidates/me')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
-  @Roles(Role.CANDIDATE)
-  getApplicationsOfCandidate(@Req() request: Request) {
-    const userId = request.user?.id as string;
-
-    return this.applicationsService.handleGetApplicationsOfCandidate(userId);
   }
 }
