@@ -81,4 +81,10 @@ export class UsersController {
       assignCompanyToRecruitersDto,
     );
   }
+
+  @MessagePattern({ cmd: 'get-user-by-field' })
+  async handleGetUserByField(
+    @Payload('field') field: string,
+    @Payload('value') value,
+  ) {}
 }

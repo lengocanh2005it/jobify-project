@@ -29,6 +29,7 @@ export type JwtPayload = {
   userId: string;
   role: Role;
   iat: number;
+  exp: number;
 };
 
 declare module 'express' {

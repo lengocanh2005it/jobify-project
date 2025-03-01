@@ -36,7 +36,7 @@ export class EmailsService {
           subject: 'PAYMENT FOR SUBSCRIPTION SUCCESSFULLY!',
           html: content,
         });
-      } else if (type === 'verify-otp') {
+      } else if (type === 'verify-otp' || type === 'verify-email') {
         const otp = generateOTP();
 
         this.rabbitMqRedisClient.emit('set-key', {

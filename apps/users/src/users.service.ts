@@ -420,4 +420,26 @@ export class UsersService {
       throw err;
     }
   };
+
+  public handleGetUserByField = async (field: string, value: string) => {
+    try {
+      const user = await this.userRepository.findOne({
+        where: {
+          [field]: value,
+        },
+        select: {
+          id: true,
+          email: true,
+          full_name: true,
+          phone_number: true,
+          address: true,
+        },
+      });
+
+      return user;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
 }

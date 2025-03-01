@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
+import { User } from 'apps/users/src/entities/users.entity';
 import { CreateCompanyDto, CreateUserDto, LoginDto } from 'libs/common/dtos';
 import { ForgetPasswordDto } from 'libs/common/dtos/forget-password.dto';
 import { UpdatePasswordDto } from 'libs/common/dtos/update-password.dto';
@@ -79,5 +80,17 @@ export class AuthService {
 
   public handleSignup = (createUserDto: CreateUserDto) => {
     return this.rabbitMqUserClient.send({ cmd: 'create-user' }, createUserDto);
+  };
+
+  public handleRefreshToken = (email: string) => {
+    return this.rabbitMqAuthClient.send({ cmd: 'refresh-token' }, email);
+  };
+
+  public handleVerifyEmail = (email: string) => {
+    return this.rabbitMqAuthClient.send({ cmd: 'verify-email' }, email);
+  };
+
+  public handleSignout = (user: User) => {
+    return this.rabbitMqAuthClient.send({ cmd: 'sign-out' }, user);
   };
 }

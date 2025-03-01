@@ -13,7 +13,7 @@ import {
 import { JobsService } from 'apps/api-gateway/src/jobs/jobs.service';
 import { Request } from 'express';
 import { Role } from 'libs/common/constants';
-import { Roles } from 'libs/common/decorators';
+import { ResponseMessage, Roles } from 'libs/common/decorators';
 import { CreateJobDto } from 'libs/common/dtos';
 import { ApproveJobsDto } from 'libs/common/dtos/approve-jobs.dto';
 import { SavedJobsDto } from 'libs/common/dtos/saved-jobs.dto';
@@ -27,6 +27,7 @@ export class JobsController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @ResponseMessage('New job created successfully.')
   @Roles(Role.RECRUITER, Role.ADMIN)
   createJob(@Body() createJobDto: CreateJobDto, @Req() request: Request) {
     const userId = request.user?.id as string;
@@ -36,6 +37,7 @@ export class JobsController {
 
   @Patch('approve')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @ResponseMessage('Jobs has been approved successfully.')
   @Roles(Role.ADMIN)
   approveJobs(@Body() { jobIds }: ApproveJobsDto) {
     return this.jobsService.handleApproveJobs(jobIds);
@@ -44,11 +46,13 @@ export class JobsController {
   @Get()
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.RECRUITER)
+  @ResponseMessage('Job fetched successfully.')
   getJobs(@Query() filters: SearchJobsDto) {
     return this.jobsService.handleGetJobs(filters);
   }
 
   @Delete(':id')
+  @ResponseMessage('Job deleted successfully.')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.RECRUITER)
   deleteJob(@Param('id') id: string) {
@@ -57,6 +61,7 @@ export class JobsController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @ResponseMessage('Job updated successfully.')
   @Roles(Role.ADMIN, Role.RECRUITER)
   updateJob(@Body() updateJobDto: UpdateJobDto, @Param('id') id: string) {
     return this.jobsService.handleUpdateJob(updateJobDto, id);
@@ -64,12 +69,14 @@ export class JobsController {
 
   @Get(':id')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @ResponseMessage('Job fetched successfully.')
   @Roles(Role.ADMIN, Role.CANDIDATE)
   getJob(@Param('id') jobId: string) {
     return this.jobsService.handleGetJob(jobId);
   }
 
   @Post('saved')
+  @ResponseMessage('Job has been saved successfully.')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
   savedJobs(@Body() savedJobDtos: SavedJobsDto, @Req() request: Request) {

@@ -142,6 +142,7 @@ export class ApplicationsService {
       });
     } catch (err) {
       console.error(err);
+      throw err;
     }
   };
 
