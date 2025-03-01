@@ -3,8 +3,10 @@ import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Application } from 'apps/applications/src/entities/applications.entity';
 import { Job } from 'apps/jobs/src/entities/jobs.entity';
+import { User } from 'apps/users/src/entities/users.entity';
 import { NotificationTypes } from 'libs/common/constants';
 import { ProcessApplicationsDto } from 'libs/common/dtos/process-applications.dto';
+import { SearchApplicationsDto } from 'libs/common/dtos/search-applications.dto';
 import {
   CreateApplication,
   UpdateApplication,
@@ -124,35 +126,159 @@ export class ApplicationsService {
     }
   };
 
-  public handleGetApplications = async () => {
+  public handleGetApplications = async (
+    user: User,
+    filters?: SearchApplicationsDto,
+  ) => {
     try {
-      return (
-        await this.applicationRepository.find({
-          relations: ['candidate', 'job'],
-        })
-      ).map((app) => {
-        const { candidate, ...res } = app;
+      const { id, role } = user;
 
-        const { password, ...resData } = candidate;
+      const query = this.applicationRepository
+        .createQueryBuilder('application')
+        .leftJoinAndSelect('application.candidate', 'candidate')
+        .leftJoinAndSelect('application.job', 'job')
+        .leftJoinAndSelect('job.recruiter', 'recruiter')
+        .select([
+          'application.id',
+          'application.resume_link',
+          'application.cover_letter_link',
+          'application.status',
+          'application.applied_at',
+          'candidate.id',
+          'candidate.email',
+          'candidate.full_name',
+          'candidate.bio',
+          'candidate.phone_number',
+          'candidate.address',
+          'candidate.certifications',
+          'job.id',
+          'job.title',
+          'job.description',
+          'job.salary_min',
+          'job.salary_max',
+          'job.job_type',
+          'job.status',
+          'job.address',
+          'recruiter.id',
+          'recruiter.email',
+          'recruiter.full_name',
+          'recruiter.bio',
+          'recruiter.phone_number',
+          'recruiter.address',
+        ]);
 
-        return {
-          ...res,
-          candidate: resData,
-        };
-      });
+      if (role.name === 'recruiter') {
+        query.andWhere('job.recruiter.id = :id', { id });
+      } else if (role.name !== 'admin') {
+        query.andWhere('candidate.id = :id', { id });
+      }
+
+      if (filters?.status) {
+        query.andWhere('application.status = :status', {
+          status: filters.status,
+        });
+      }
+
+      if (filters?.jobTitle) {
+        query.andWhere('LOWER(job.title) LIKE LOWER(:jobTitle)', {
+          jobTitle: `%${filters.jobTitle}%`,
+        });
+      }
+
+      if (filters?.appliedAfter) {
+        const appliedAfterDate = new Date(
+          `${filters.appliedAfter}T00:00:00.000Z`,
+        );
+
+        query.andWhere('application.applied_at >= :appliedAfter', {
+          appliedAfter: appliedAfterDate,
+        });
+      }
+
+      if (filters?.appliedBefore) {
+        const appliedBeforeDate = new Date(
+          `${filters.appliedBefore}T00:00:00.000Z`,
+        );
+
+        query.andWhere('application.applied_at <= :appliedBefore', {
+          appliedBefore: appliedBeforeDate,
+        });
+      }
+
+      if (filters?.candidate_email) {
+        query.andWhere('candidate.email = :candidate_email', {
+          candidate_email: filters.candidate_email,
+        });
+      }
+
+      if (filters?.candidate_name) {
+        query.andWhere(
+          'LOWER(candidate.full_name) LIKE LOWER(:candidate_name)',
+          {
+            candidate_name: `%${filters.candidate_name}%`,
+          },
+        );
+      }
+
+      return await query.getMany();
     } catch (err) {
       console.error(err);
       throw err;
     }
   };
 
-  public handleGetApplication = async (applicationId: string, role: string) => {
+  public handleGetApplication = async (applicationId: string, user: User) => {
     try {
+      const { role } = user;
+
       const application = await this.applicationRepository.findOne({
         where: {
           id: applicationId,
         },
-        relations: ['candidate'],
+        relations: [
+          'candidate',
+          'job',
+          'job.recruiter',
+          'job.recruiter.company',
+        ],
+        select: {
+          id: true,
+          resume_link: true,
+          cover_letter_link: true,
+          status: true,
+          applied_at: true,
+          candidate: {
+            id: true,
+            email: true,
+            phone_number: true,
+            address: true,
+            full_name: true,
+            bio: true,
+            certifications: true,
+          },
+          job: {
+            id: true,
+            title: true,
+            description: true,
+            job_type: true,
+            address: true,
+            status: true,
+            posted_at: true,
+            salary_max: true,
+            salary_min: true,
+            recruiter: {
+              id: true,
+              email: true,
+              phone_number: true,
+              address: true,
+              full_name: true,
+              bio: true,
+              company: {
+                name: true,
+              },
+            },
+          },
+        },
       });
 
       if (!application)
@@ -160,7 +286,9 @@ export class ApplicationsService {
           `Application With ID: '${applicationId}' Not Found.`,
         );
 
-      if (role === 'admin' || role === 'recruiter') {
+      this.checkApplicationAccess(application, user, 'get');
+
+      if (role.name === 'admin' || role.name === 'recruiter') {
         const { title, description, key } =
           NotificationTypes.JOB_APPLICATION_REVIEWED;
 
@@ -181,19 +309,24 @@ export class ApplicationsService {
     }
   };
 
-  public handleDeleteApplication = async (applicationId: string) => {
+  public handleDeleteApplication = async (
+    applicationId: string,
+    user: User,
+  ) => {
     try {
       const application = await this.applicationRepository.findOne({
         where: {
           id: applicationId,
         },
-        relations: ['job', 'job.recruiter'],
+        relations: ['job', 'job.recruiter', 'candidate'],
       });
 
       if (!application)
         throw new RpcException(
           `Application With ID: '${applicationId}' Not Found.`,
         );
+
+      this.checkApplicationAccess(application, user, 'delete');
 
       const { title, description, key } = NotificationTypes.APPLICATION_DELETED;
 
@@ -206,7 +339,7 @@ export class ApplicationsService {
         userIds: [application.job.recruiter.id],
       });
 
-      return { msg: 'Application deleted successfully.' };
+      return { success: 'Application deleted successfully!' };
     } catch (error) {
       console.error(error);
       throw error;
@@ -215,6 +348,7 @@ export class ApplicationsService {
 
   public handleUpdateApplication = async (
     updateApplication: UpdateApplication,
+    user: User,
   ) => {
     try {
       const { applicationId, resumeFile, coverLetterFile } = updateApplication;
@@ -223,13 +357,15 @@ export class ApplicationsService {
         where: {
           id: applicationId,
         },
-        relations: ['job', 'job.recruiter'],
+        relations: ['job', 'job.recruiter', 'candidate'],
       });
 
       if (!application)
         throw new RpcException(
           `Application With ID: '${applicationId}' Not Found.`,
         );
+
+      this.checkApplicationAccess(application, user, 'update');
 
       const files = [resumeFile];
 
@@ -255,7 +391,45 @@ export class ApplicationsService {
         where: {
           id: application.id,
         },
-        relations: ['job', 'job.recruiter'],
+        relations: ['job', 'job.recruiter', 'candidate'],
+        select: {
+          id: true,
+          resume_link: true,
+          cover_letter_link: true,
+          status: true,
+          applied_at: true,
+          candidate: {
+            id: true,
+            email: true,
+            phone_number: true,
+            address: true,
+            full_name: true,
+            bio: true,
+            certifications: true,
+          },
+          job: {
+            id: true,
+            title: true,
+            description: true,
+            job_type: true,
+            address: true,
+            status: true,
+            posted_at: true,
+            salary_max: true,
+            salary_min: true,
+            recruiter: {
+              id: true,
+              email: true,
+              phone_number: true,
+              address: true,
+              full_name: true,
+              bio: true,
+              company: {
+                name: true,
+              },
+            },
+          },
+        },
       })) as Application;
 
       const { title, description, key } =
@@ -270,22 +444,7 @@ export class ApplicationsService {
         userIds: [application.job.recruiter.id],
       });
 
-      const { id, email, phone_number, address, full_name } =
-        application.job.recruiter;
-
-      return {
-        ...application,
-        job: {
-          ...application.job,
-          recruiter: {
-            id,
-            email,
-            phone_number,
-            address,
-            full_name,
-          },
-        },
-      };
+      return application;
     } catch (err) {
       console.error(err);
       throw err;
@@ -294,6 +453,7 @@ export class ApplicationsService {
 
   public handleProcessApplications = async (
     processApplicationsDto: ProcessApplicationsDto,
+    user: User,
   ) => {
     try {
       const { approvedApplicationIds, rejectedApplicationIds } =
@@ -302,21 +462,21 @@ export class ApplicationsService {
       const applications: Record<string, Partial<Application>[]> = {};
 
       if (approvedApplicationIds && approvedApplicationIds.length) {
-        applications.approvedApplications = (
+        applications.approvedApplications =
           await this.handleGenerateProcessApplications(
             approvedApplicationIds,
             'approved',
-          )
-        ).map(({ candidate, ...res }) => ({ ...res }));
+            user,
+          );
       }
 
       if (rejectedApplicationIds && rejectedApplicationIds.length) {
-        applications.rejectedApplications = (
+        applications.rejectedApplications =
           await this.handleGenerateProcessApplications(
             rejectedApplicationIds,
             'rejected',
-          )
-        ).map(({ candidate, ...res }) => ({ ...res }));
+            user,
+          );
       }
 
       return applications;
@@ -329,6 +489,7 @@ export class ApplicationsService {
   private handleGenerateProcessApplications = async (
     applicationIds: string[],
     status: string,
+    user: User,
   ) => {
     const applications: Application[] = [];
     const candidateIds: string[] = [];
@@ -338,13 +499,19 @@ export class ApplicationsService {
         where: {
           id: applicationId,
         },
-        relations: ['candidate'],
+        relations: ['candidate', 'job', 'job.recruiter'],
       });
 
       if (!application)
         throw new RpcException(
           `Application With ID: '${applicationId}' Not Found.`,
         );
+
+      this.checkApplicationAccess(
+        application,
+        user,
+        status === 'approved' ? 'approve' : 'reject',
+      );
 
       await this.applicationRepository.update(
         {
@@ -356,8 +523,48 @@ export class ApplicationsService {
       );
 
       applications.push(
-        (await this.applicationRepository.findOneBy({
-          id: applicationId,
+        (await this.applicationRepository.findOne({
+          where: {
+            id: applicationId,
+          },
+          select: {
+            id: true,
+            resume_link: true,
+            cover_letter_link: true,
+            status: true,
+            applied_at: true,
+            candidate: {
+              id: true,
+              email: true,
+              phone_number: true,
+              address: true,
+              full_name: true,
+              bio: true,
+              certifications: true,
+            },
+            job: {
+              id: true,
+              title: true,
+              description: true,
+              job_type: true,
+              address: true,
+              status: true,
+              posted_at: true,
+              salary_max: true,
+              salary_min: true,
+              recruiter: {
+                id: true,
+                email: true,
+                phone_number: true,
+                address: true,
+                full_name: true,
+                bio: true,
+                company: {
+                  name: true,
+                },
+              },
+            },
+          },
         })) as Application,
       );
 
@@ -391,4 +598,24 @@ export class ApplicationsService {
       })
     ).map(({ candidate, ...res }) => ({ ...res }));
   };
+
+  private checkApplicationAccess(
+    application: Application,
+    user: User,
+    action: 'get' | 'delete' | 'update' | 'approve' | 'reject',
+  ) {
+    const { role, id } = user;
+
+    if (application.candidate.id !== id && role.name === 'user') {
+      throw new RpcException(
+        `You are only allowed to ${action} your own application.`,
+      );
+    }
+
+    if (application.job.recruiter.id !== id && role.name === 'recruiter') {
+      throw new RpcException(
+        `You can only ${action} applications for jobs you have posted.`,
+      );
+    }
+  }
 }
