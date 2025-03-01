@@ -55,6 +55,15 @@
         "tsConfigPath": "apps/emails/tsconfig.app.json"
       }
     },
+    "interviews": {
+      "type": "application",
+      "root": "apps/interviews",
+      "entryFile": "main",
+      "sourceRoot": "apps/interviews/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/interviews/tsconfig.app.json"
+      }
+    },
     "jobs": {
       "type": "application",
       "root": "apps/jobs",
