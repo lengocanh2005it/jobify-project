@@ -3,6 +3,7 @@ import { MessagePattern, Payload } from '@nestjs/microservices';
 import { LoginDto } from 'libs/common/dtos/login.dto';
 import { UpdatePasswordDto } from 'libs/common/dtos/update-password.dto';
 import { AuthService } from './auth.service';
+import { User } from 'apps/users/src/entities/users.entity';
 
 @Controller()
 export class AuthController {
@@ -30,5 +31,20 @@ export class AuthController {
     @Payload('type') type: string,
   ) {
     return this.authService.handleForgetPassword(email, type);
+  }
+
+  @MessagePattern({ cmd: 'refresh-token' })
+  async handleRefreshToken(@Payload() email: string) {
+    return await this.authService.handleRefreshToken(email);
+  }
+
+  @MessagePattern({ cmd: 'verify-email' })
+  async handleVerifyEmail(@Payload() email: string) {
+    return await this.authService.handleVerifyEmail(email);
+  }
+
+  @MessagePattern({ cmd: 'sign-out' })
+  async handleSignout(@Payload() user: User) {
+    return await this.authService.handleSignout(user);
   }
 }
