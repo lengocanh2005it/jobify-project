@@ -79,4 +79,9 @@ export class JobsController {
   async handleGetAllApplicationsOfJobs(@Payload() recruiterId: string) {
     return await this.jobsService.handleGetAllApplicationsOfJobs(recruiterId);
   }
+
+  @MessagePattern({ cmd: 'get-company-by-recruiter-id' })
+  async handleGetCompanyByRecruiterId(@Payload() recruiterId: string) {
+    return await this.jobsService.handleGetCompanyByRecruiterId(recruiterId);
+  }
 }

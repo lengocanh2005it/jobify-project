@@ -1,4 +1,5 @@
 import { Application } from 'apps/applications/src/entities/applications.entity';
+import { Interview } from 'apps/interviews/src/entities/interviews.entity';
 import { Requirement } from 'apps/jobs/src/entities/requirements.entity';
 import { SavedJob } from 'apps/jobs/src/entities/saved-jobs.entity';
 import { User } from 'apps/users/src/entities/users.entity';
@@ -66,6 +67,11 @@ export class Job {
 
   @OneToMany(() => SavedJob, (savedJob) => savedJob.job, { cascade: true })
   readonly savedByUsers!: SavedJob[];
+
+  @OneToMany(() => Interview, (interview) => interview.job, {
+    cascade: true,
+  })
+  readonly interviews!: Interview[];
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;

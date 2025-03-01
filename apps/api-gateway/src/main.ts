@@ -14,6 +14,11 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
 
+  app.enableCors({
+    origin: configService.get<string>('origin_fe_url'),
+    credentials: true,
+  });
+
   const PORT = configService.get<number>('port');
 
   const config = new DocumentBuilder()

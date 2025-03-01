@@ -14,6 +14,7 @@ import { CustomValidationPipe } from 'libs/common/pipe';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UploadsModule } from 'apps/api-gateway/src/uploads/uploads.module';
+import { InterviewsModule } from 'apps/api-gateway/src/interviews/interviews.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { UploadsModule } from 'apps/api-gateway/src/uploads/uploads.module';
     ReviewsModule,
     PaymentsModule,
     UploadsModule,
+    InterviewsModule,
   ],
   controllers: [AppController],
   providers: [

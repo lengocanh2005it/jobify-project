@@ -85,6 +85,8 @@ export class UsersController {
   @MessagePattern({ cmd: 'get-user-by-field' })
   async handleGetUserByField(
     @Payload('field') field: string,
-    @Payload('value') value,
-  ) {}
+    @Payload('value') value: string,
+  ) {
+    return await this.usersService.handleGetUserByField(field, value);
+  }
 }

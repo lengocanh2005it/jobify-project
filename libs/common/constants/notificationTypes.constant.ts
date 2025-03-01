@@ -50,6 +50,18 @@ export const NotificationTypes = {
     title: 'Job Offer Declined',
     description: 'You have declined the job offer.',
   },
+  INTERVIEW_CANCELED_BY_ADMIN: {
+    key: 'interview_canceled_by_admin',
+    title: 'Interview Canceled by Admin',
+    description:
+      'The interview you scheduled has been canceled by the admin due to unforeseen circumstances. Please check with the admin for further details.',
+  },
+  INTERVIEW_DELETED_BY_ADMIN: {
+    key: 'interview_deleted_by_admin',
+    title: 'Interview Deleted by Admin',
+    description:
+      'The interview has been permanently deleted by the admin. Please contact support for any concerns.',
+  },
 
   // Employer Notifications
   NEW_APPLICATION_RECEIVED: {

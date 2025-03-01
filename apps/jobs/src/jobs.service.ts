@@ -457,4 +457,26 @@ export class JobsService {
       throw err;
     }
   };
+
+  public handleGetCompanyByRecruiterId = async (recruiterId: string) => {
+    try {
+      const companies = await this.companyRepository.find({
+        relations: ['recruiters'],
+      });
+
+      const findFirstCompany = companies.find((company) =>
+        company.recruiters.some((re) => re.id === recruiterId),
+      );
+
+      if (!findFirstCompany)
+        throw new RpcException(
+          `Recruiter with id '${recruiterId}' hasn't been assigned with any companies.`,
+        );
+
+      return findFirstCompany;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
 }
