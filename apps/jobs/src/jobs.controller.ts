@@ -5,6 +5,7 @@ import { CreateCompanyDto } from 'libs/common/dtos/create-company.dto';
 import { CreateJobDto } from 'libs/common/dtos';
 import { UpdateJobDto } from 'libs/common/dtos/update-job.dto';
 import { SearchJobsDto } from 'libs/common/dtos/search-jobs.dto';
+import { User } from 'apps/users/src/entities/users.entity';
 
 @Controller()
 export class JobsController {
@@ -21,9 +22,9 @@ export class JobsController {
   @MessagePattern({ cmd: 'create-job' })
   async handleCreateJob(
     @Payload('createJobDto') createJobDto: CreateJobDto,
-    @Payload('userId') userId: string,
+    @Payload('user') user: User,
   ) {
-    return await this.jobsService.handleCreateJob(createJobDto, userId);
+    return await this.jobsService.handleCreateJob(createJobDto, user);
   }
 
   @MessagePattern({ cmd: 'approve-jobs' })
@@ -32,26 +33,36 @@ export class JobsController {
   }
 
   @MessagePattern({ cmd: 'get-jobs' })
-  async handleGetJobs(@Payload() filters?: SearchJobsDto) {
-    return await this.jobsService.handleGetJobs(filters);
+  async handleGetJobs(
+    @Payload('user') user: User,
+    @Payload('filters') filters?: SearchJobsDto,
+  ) {
+    return await this.jobsService.handleGetJobs(user, filters);
   }
 
   @MessagePattern({ cmd: 'delete-job' })
-  async handleDeleteJob(@Payload() jobId: string) {
-    return await this.jobsService.handleDeleteJob(jobId);
+  async handleDeleteJob(
+    @Payload('jobId') jobId: string,
+    @Payload('user') user: User,
+  ) {
+    return await this.jobsService.handleDeleteJob(jobId, user);
   }
 
   @MessagePattern({ cmd: 'update-job' })
   async handleUpdateJob(
     @Payload('updateJobDto') updateJobDto: UpdateJobDto,
     @Payload('jobId') jobId: string,
+    @Payload('user') user: User,
   ) {
-    return await this.jobsService.handleUpdateJob(updateJobDto, jobId);
+    return await this.jobsService.handleUpdateJob(updateJobDto, jobId, user);
   }
 
   @MessagePattern({ cmd: 'get-job' })
-  async handleGetJob(@Payload() jobId: string) {
-    return await this.jobsService.handleGetJob(jobId);
+  async handleGetJob(
+    @Payload('jobId') jobId: string,
+    @Payload('user') user: User,
+  ) {
+    return await this.jobsService.handleGetJob(jobId, user);
   }
 
   @MessagePattern({ cmd: 'get-company' })
@@ -62,17 +73,17 @@ export class JobsController {
   @MessagePattern({ cmd: 'saved-jobs' })
   async handleSavedJobs(
     @Payload('jobIds') jobIds: string[],
-    @Payload('userId') userId: string,
+    @Payload('user') user: User,
   ) {
-    return await this.jobsService.handleSavedJobs(jobIds, userId);
+    return await this.jobsService.handleSavedJobs(jobIds, user);
   }
 
   @MessagePattern({ cmd: 'remove-saved-jobs' })
   async handleRemoveSavedJobs(
     @Payload('jobIds') jobIds: string[],
-    @Payload('userId') userId: string,
+    @Payload('user') user: User,
   ) {
-    return await this.jobsService.handleRemoveSavedJobs(jobIds, userId);
+    return await this.jobsService.handleRemoveSavedJobs(jobIds, user);
   }
 
   @MessagePattern({ cmd: 'get-jobs-recruiter' })

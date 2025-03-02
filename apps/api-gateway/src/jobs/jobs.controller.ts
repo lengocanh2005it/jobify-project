@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JobsService } from 'apps/api-gateway/src/jobs/jobs.service';
+import { User } from 'apps/users/src/entities/users.entity';
 import { Request } from 'express';
 import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
@@ -30,9 +31,9 @@ export class JobsController {
   @ResponseMessage('New job created successfully.')
   @Roles(Role.RECRUITER, Role.ADMIN)
   createJob(@Body() createJobDto: CreateJobDto, @Req() request: Request) {
-    const userId = request.user?.id as string;
+    const user = request.user as User;
 
-    return this.jobsService.handleCreateJob(createJobDto, userId);
+    return this.jobsService.handleCreateJob(createJobDto, user);
   }
 
   @Patch('approve')
@@ -47,42 +48,54 @@ export class JobsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.RECRUITER)
   @ResponseMessage('Job fetched successfully.')
-  getJobs(@Query() filters: SearchJobsDto) {
-    return this.jobsService.handleGetJobs(filters);
+  getJobs(@Query() filters: SearchJobsDto, @Req() request: Request) {
+    const user = request.user as User;
+
+    return this.jobsService.handleGetJobs(user, filters);
   }
 
   @Delete(':id')
   @ResponseMessage('Job deleted successfully.')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.RECRUITER)
-  deleteJob(@Param('id') id: string) {
-    return this.jobsService.handleDeleteJob(id);
+  deleteJob(@Param('id') id: string, @Req() request: Request) {
+    const user = request.user as User;
+
+    return this.jobsService.handleDeleteJob(id, user);
   }
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Job updated successfully.')
   @Roles(Role.ADMIN, Role.RECRUITER)
-  updateJob(@Body() updateJobDto: UpdateJobDto, @Param('id') id: string) {
-    return this.jobsService.handleUpdateJob(updateJobDto, id);
+  updateJob(
+    @Body() updateJobDto: UpdateJobDto,
+    @Param('id') id: string,
+    @Req() request: Request,
+  ) {
+    const user = request.user as User;
+
+    return this.jobsService.handleUpdateJob(updateJobDto, id, user);
   }
 
   @Get(':id')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Job fetched successfully.')
-  @Roles(Role.ADMIN, Role.CANDIDATE)
-  getJob(@Param('id') jobId: string) {
-    return this.jobsService.handleGetJob(jobId);
+  @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  getJob(@Param('id') jobId: string, @Req() request: Request) {
+    const user = request.user as User;
+
+    return this.jobsService.handleGetJob(jobId, user);
   }
 
   @Post('saved')
   @ResponseMessage('Job has been saved successfully.')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
-  @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  @Roles(Role.CANDIDATE, Role.ADMIN)
   savedJobs(@Body() savedJobDtos: SavedJobsDto, @Req() request: Request) {
-    const userId = request.user?.id as string;
+    const user = request.user as User;
 
-    return this.jobsService.handleSavedJobs(savedJobDtos, userId);
+    return this.jobsService.handleSavedJobs(savedJobDtos, user);
   }
 
   @Patch('saved/remove')
@@ -92,9 +105,9 @@ export class JobsController {
     @Body() removeSavedJobsDto: SavedJobsDto,
     @Req() request: Request,
   ) {
-    const userId = request.user?.id as string;
+    const user = request.user as User;
 
-    return this.jobsService.handleRemoveSavedJobs(removeSavedJobsDto, userId);
+    return this.jobsService.handleRemoveSavedJobs(removeSavedJobsDto, user);
   }
 
   @Get('/recruiters/me')

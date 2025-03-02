@@ -17,7 +17,10 @@ export class Requirement {
   @Column({ type: 'text' })
   readonly requirement!: string;
 
-  @ManyToMany(() => Job, (job) => job.requirements)
+  @ManyToMany(() => Job, (job) => job.requirements, {
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE',
+  })
   @JoinTable({
     name: 'job_requirements',
     joinColumn: {
