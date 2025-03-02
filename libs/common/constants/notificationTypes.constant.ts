@@ -99,6 +99,18 @@ export const NotificationTypes = {
     title: 'Company Review Deleted',
     description: 'A review for your company has been deleted.',
   },
+  JOB_APPROVED: {
+    key: 'job_approved',
+    title: 'Job Approved',
+    description:
+      'Your job posting has been approved by an admin and is now live.',
+  },
+  JOB_REJECTED: {
+    key: 'job_rejected',
+    title: 'Job Rejected',
+    description:
+      'Your job posting has been rejected by an admin. Please review and update your job details.',
+  },
 
   // Systems Notifications
   ACCOUNT_REGISTRATION: {

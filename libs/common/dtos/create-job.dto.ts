@@ -6,8 +6,10 @@ import {
   IsIn,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsPositive,
   IsString,
+  IsUUID,
 } from 'class-validator';
 
 export class CreateJobDto {
@@ -53,4 +55,10 @@ export class CreateJobDto {
   @ArrayNotEmpty()
   @IsString({ each: true })
   readonly requirements!: string[];
+
+  @IsOptional()
+  @IsString()
+  @IsUUID()
+  @IsNotEmpty()
+  readonly recruiter_id?: string;
 }

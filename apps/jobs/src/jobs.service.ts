@@ -66,16 +66,31 @@ export class JobsService {
     };
   };
 
-  public handleCreateJob = async (
-    createJobDto: CreateJobDto,
-    recruiterId: string,
-  ) => {
+  public handleCreateJob = async (createJobDto: CreateJobDto, user: User) => {
     try {
+      const { role, id } = user;
+
+      let recruiterId = id;
+
+      if (role.name === 'admin') {
+        const { recruiter_id } = createJobDto;
+
+        if (!recruiter_id)
+          throw new RpcException(
+            'Admin must specify a recruiter_id in CreateJobDto.',
+          );
+
+        recruiterId = recruiter_id;
+      }
+
       const { posted_at, expired_at, title, description } = createJobDto;
+
       const { requirements, ...resCreateJobDto } = createJobDto;
 
       const now = new Date();
+
       const postedDate = new Date(posted_at);
+
       const expiredDate = new Date(expired_at);
 
       if (now.getTime() > postedDate.getTime())
@@ -94,7 +109,9 @@ export class JobsService {
       });
 
       if (existingJob)
-        throw new RpcException('This job has been posted by you.');
+        throw new RpcException(
+          `This job has been posted by ${role.name === 'admin' ? `recruiter with id '${recruiterId}'` : 'you'}`,
+        );
 
       const newJob = this.jobRepository.create(resCreateJobDto);
 
@@ -139,6 +156,7 @@ export class JobsService {
       };
     } catch (err) {
       console.error(err);
+      throw err;
     }
   };
 
@@ -149,7 +167,7 @@ export class JobsService {
       for (const jobId of jobIds) {
         const job = await this.jobRepository.findOneBy({ id: jobId });
 
-        if (!job) throw new RpcException(`Job With Id: '${jobId}' Not Found.`);
+        if (!job) throw new RpcException(`Job with id: '${jobId}' not found.`);
 
         await this.jobRepository.update(
           {
@@ -167,10 +185,26 @@ export class JobsService {
               'applications',
               'applications.candidate',
               'requirements',
+              'recruiter',
             ],
           })) as Job,
         );
       }
+
+      const {
+        title: approvedTitle,
+        description: approvedDescription,
+        key: approvedKey,
+      } = NotificationTypes.JOB_APPROVED;
+
+      this.rabbitMqNotificationClient.emit('create-notification', {
+        data: {
+          title: approvedTitle,
+          message: approvedDescription,
+          type: approvedKey,
+        },
+        userIds: jobs.map((j) => j.recruiter.id),
+      });
 
       const { title, description, key } = NotificationTypes.RECOMMENDED_JOB;
 
@@ -196,18 +230,20 @@ export class JobsService {
         }
       }
 
-      return jobs.map((job) => {
-        const { applications, ...res } = job;
-
-        return res;
-      });
+      return jobs.map(({ applications, recruiter, ...res }) => ({
+        ...res,
+        requirements: res.requirements.map((r) => r.requirement),
+      }));
     } catch (err) {
       console.error(err);
+      throw err;
     }
   };
 
-  public handleGetJobs = async (filters?: SearchJobsDto) => {
+  public handleGetJobs = async (user: User, filters?: SearchJobsDto) => {
     try {
+      const { role, id } = user;
+
       const query = this.jobRepository
         .createQueryBuilder('job')
         .leftJoinAndSelect('job.recruiter', 'recruiter')
@@ -222,6 +258,12 @@ export class JobsService {
           'company.name',
           'requirements',
         ]);
+
+      if (role.name === 'recruiter') {
+        query.andWhere('recruiter.id = :id', {
+          id,
+        });
+      }
 
       if (filters) {
         if (filters.title) {
@@ -275,28 +317,61 @@ export class JobsService {
     }
   };
 
-  public handleDeleteJob = async (jobId: string) => {
+  public handleDeleteJob = async (jobId: string, user: User) => {
     try {
-      const job = await this.jobRepository.findOneBy({ id: jobId });
+      const job = await this.jobRepository.findOne({
+        where: {
+          id: jobId,
+        },
+        relations: ['recruiter'],
+      });
 
       if (!job) throw new RpcException(`Job With ID: '${jobId}' Not Found.`);
 
+      const { id, role } = user;
+
+      if (job.recruiter.id !== id && role.name === 'recruiter')
+        throw new RpcException(`You can only delete job that you posted.`);
+
+      const jobWithRequirements = await this.jobRepository.findOne({
+        where: {
+          id: jobId,
+        },
+        relations: ['requirements'],
+      });
+
+      console.log('Job with requirements: ', jobWithRequirements?.requirements);
+
       await this.jobRepository.delete({ id: jobId });
 
-      return { msg: 'Job deleted successfully.' };
+      return { success: 'Job deleted successfully.' };
     } catch (err) {
       console.error(err);
+      throw err;
     }
   };
 
   public handleUpdateJob = async (
     updateJobDto: UpdateJobDto,
     jobId: string,
+    user: User,
   ) => {
     try {
-      let job = await this.jobRepository.findOneBy({ id: jobId });
+      let job = await this.jobRepository.findOne({
+        where: {
+          id: jobId,
+        },
+        relations: ['recruiter'],
+      });
 
       if (!job) throw new RpcException(`Job With ID: '${jobId}' Not Found.`);
+
+      const { role, id } = user;
+
+      if (job.recruiter.id !== id && role.name === 'recruiter')
+        throw new RpcException(
+          'You can only update the job that you have posted.',
+        );
 
       const { requirements, ...res } = updateJobDto;
 
@@ -326,14 +401,27 @@ export class JobsService {
     }
   };
 
-  public handleGetJob = async (jobId: string) => {
+  public handleGetJob = async (jobId: string, user: User) => {
     try {
       const job = await this.jobRepository.findOne({
         where: { id: jobId },
-        relations: ['requirements'],
+        relations: ['requirements', 'recruiter'],
       });
 
       if (!job) throw new RpcException(`Job With ID: '${jobId}' Not Found.`);
+
+      const { id, role } = user;
+
+      if (job.recruiter.id !== id && role.name === 'recruiter')
+        throw new RpcException(`You can only get a job that you have posted.`);
+
+      if (
+        !job.applications.some((app) => app.candidate.id === id) &&
+        role.name === 'candidate'
+      )
+        throw new RpcException(
+          'You can only get a job that you have applied for.',
+        );
 
       return job;
     } catch (err) {
@@ -367,23 +455,44 @@ export class JobsService {
     }
   };
 
-  public handleSavedJobs = async (jobIds: string[], userId: string) => {
+  public handleSavedJobs = async (jobIds: string[], user: User) => {
     try {
+      const savedJobs: Job[] = [];
+
       for (const jobId of jobIds) {
         const job = await this.jobRepository.findOneBy({ id: jobId });
 
         if (!job) throw new RpcException(`Job With ID: '${jobId}' Not Found.`);
 
+        if (
+          await this.savedJobRepository.findOne({
+            where: {
+              user: {
+                id: user.id,
+              },
+              job: {
+                id: jobId,
+              },
+            },
+          })
+        )
+          throw new RpcException(
+            `You have already saved the job with id: '${jobId}'`,
+          );
+
         const newSavedJob = this.savedJobRepository.create({
-          user: { id: userId },
+          user: { id: user.id },
           job: { id: job.id },
         });
 
         await this.savedJobRepository.save(newSavedJob);
+
+        savedJobs.push(job);
       }
 
       return {
-        message: 'Saved these jobs successfully!',
+        success: 'Saved these jobs successfully!',
+        savedJobs,
       };
     } catch (err) {
       console.error(err);
@@ -391,8 +500,10 @@ export class JobsService {
     }
   };
 
-  public handleRemoveSavedJobs = async (jobIds: string[], userId: string) => {
+  public handleRemoveSavedJobs = async (jobIds: string[], user: User) => {
     try {
+      const { id } = user;
+
       for (const jobId of jobIds) {
         const job = await this.jobRepository.findOne({
           where: { id: jobId },
@@ -401,8 +512,19 @@ export class JobsService {
 
         if (!job) throw new RpcException(`Job With ID: '${jobId}' Not Found.`);
 
+        if (
+          !(
+            await this.savedJobRepository.find({
+              relations: ['user'],
+            })
+          ).some((job) => job.user.id === id)
+        )
+          throw new RpcException(
+            `You can only remove the saved job that you saved before.`,
+          );
+
         await this.savedJobRepository.delete({
-          user: { id: userId },
+          user: { id },
           job: { id: jobId },
         });
       }
@@ -479,4 +601,6 @@ export class JobsService {
       throw err;
     }
   };
+
+  private checkPermissionAccess = (user: User, job: Job) => {};
 }

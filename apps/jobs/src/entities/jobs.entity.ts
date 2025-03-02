@@ -62,7 +62,9 @@ export class Job {
   })
   readonly applications!: Application[];
 
-  @ManyToMany(() => Requirement, (requirement) => requirement.jobs)
+  @ManyToMany(() => Requirement, (requirement) => requirement.jobs, {
+    cascade: true,
+  })
   readonly requirements!: Requirement[];
 
   @OneToMany(() => SavedJob, (savedJob) => savedJob.job, { cascade: true })
