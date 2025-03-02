@@ -10,10 +10,13 @@ import { NotificationTypes } from 'libs/common/constants';
 import { SKILL_KEYWORDS } from 'libs/common/constants/skills.constant';
 import { CreateUserDto, LoginDto, UpdateUserDto } from 'libs/common/dtos';
 import { AssignCompanyToRecruitersDto } from 'libs/common/dtos/assign-company-to-recruiters.dto';
+import { UpdateCompanyDto } from 'libs/common/dtos/update-company.dto';
 import { handleEncodedPassword } from 'libs/common/utils';
 import { UrlResponseType } from 'libs/common/utils/types';
 import { lastValueFrom } from 'rxjs';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
+import { Role as RoleEnum } from 'libs/common/constants';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class UsersService {
@@ -29,38 +32,135 @@ export class UsersService {
     @Inject('JOBS_SERVICE') private readonly rabbitMqJobClient: ClientProxy,
     @Inject('UPLOADS_SERVICE')
     private readonly rabbitMqUploadClient: ClientProxy,
+    @Inject('APPLICATIONS_SERVICE')
+    private readonly rabbitMqApplicationClient: ClientProxy,
+    private readonly configService: ConfigService,
   ) {}
 
-  public getUsers = async () => {
+  public getUsers = async (user: User) => {
+    const { id, role } = user;
+
+    const recruiter = await this.userRepository.findOne({
+      where: {
+        id,
+      },
+      relations: ['jobs', 'jobs.applications', 'jobs.applications.candidate'],
+    });
+
+    const userIds: string[] = [];
+
+    recruiter?.jobs.forEach((job) => {
+      job.applications.forEach((app) => {
+        userIds.push(app.candidate.id);
+      });
+    });
+
     return await this.userRepository.find({
       select: {
         id: true,
         email: true,
-        createdAt: true,
-        updatedAt: true,
+        phone_number: true,
+        address: true,
+        bio: true,
+        full_name: true,
+        avatar_url: true,
+        skills: {
+          name: true,
+        },
+        ...(role.name === 'admin'
+          ? {
+              createdAt: true,
+              updatedAt: true,
+              is_premium: true,
+              expected_salary: true,
+              premium_expiry: true,
+              certifications: true,
+            }
+          : {}),
       },
+      where:
+        role.name === 'admin'
+          ? {}
+          : {
+              id: In(userIds),
+            },
     });
   };
 
-  public createUser = async (createUserDto: CreateUserDto) => {
+  public createUser = async (
+    createUserDto: CreateUserDto,
+    files?: Array<Express.Multer.File>,
+  ) => {
     const { password, type, email } = createUserDto;
 
-    const { skills, ...createUserData } = createUserDto;
+    const { skills, createCompanyDto, ...createUserData } = createUserDto;
 
     const userWithEmail = await this.userRepository.findOneBy({ email });
 
     if (userWithEmail) throw new RpcException('Email has been existed.');
 
+    if (createCompanyDto && type !== 'recruiter')
+      throw new RpcException(
+        `Only recruiter can have permission to create company.`,
+      );
+
+    if (type === 'recruiter' && !createCompanyDto)
+      throw new RpcException(
+        `Recruiter must be provide the profile of company.`,
+      );
+
     const role = await this.handleGetRoleByName(type);
+
+    let cvFileUrl = '';
+
+    let avatarFileUrl = '';
+
+    if (files) {
+      const cvFile = files.find((file) => file.fieldname === 'cv');
+
+      const avatarFile = files.find((file) => file.fieldname === 'avatar');
+
+      if (cvFile) {
+        const [file] = await lastValueFrom<UrlResponseType[]>(
+          this.rabbitMqUploadClient.send({ cmd: 'upload-files' }, [cvFile]),
+        );
+
+        if (file && file.url) {
+          cvFileUrl = file.url;
+        }
+      }
+
+      if (avatarFile) {
+        const [file] = await lastValueFrom<UrlResponseType[]>(
+          this.rabbitMqUploadClient.send({ cmd: 'upload-files' }, [avatarFile]),
+        );
+
+        if (file && file.url) {
+          avatarFileUrl = file.url;
+        }
+      }
+    }
 
     const newUser = this.userRepository.create({
       ...createUserData,
       password: handleEncodedPassword(password),
-      avatar_url:
-        'https://res.cloudinary.com/daiqcjyk9/image/upload/v1735465375/default_user_logo_b1f7pd.png',
+      avatar_url: avatarFileUrl
+        ? avatarFileUrl
+        : this.configService.get<string>('default_user_logo'),
+      ...(cvFileUrl ? { resume_link: cvFileUrl } : {}),
     });
 
     await this.userRepository.save(newUser);
+
+    if (createCompanyDto && type === 'recruiter') {
+      this.rabbitMqJobClient.send(
+        { cmd: 'create-company' },
+        {
+          createCompanyDto: JSON.parse(createCompanyDto),
+          userId: newUser.id,
+        },
+      );
+    }
 
     if (skills && skills.length) {
       for (const skill of skills) {
@@ -88,9 +188,7 @@ export class UsersService {
 
     const { password: passwordUser, ...res } = newUser;
 
-    const { ACCOUNT_REGISTRATION } = NotificationTypes;
-
-    const { title, description, key } = ACCOUNT_REGISTRATION;
+    const { title, description, key } = NotificationTypes.ACCOUNT_REGISTRATION;
 
     this.rabbitMqNotificationClient.emit('create-notification', {
       data: {
@@ -162,16 +260,29 @@ export class UsersService {
     };
   };
 
-  public handleGetUser = async (userId: string) => {
+  public handleGetUser = async (userId: string, user: User) => {
     try {
-      const user = await this.userRepository.findOne({
+      const { id, role } = user;
+
+      const findUser = await this.userRepository.findOne({
         where: { id: userId },
         relations: ['role'],
       });
 
-      if (!user) throw new RpcException('User Not Found.');
+      if (!findUser) throw new RpcException('User Not Found.');
 
-      const { password, ...res } = user;
+      if (findUser.id !== id && role.name === 'user')
+        throw new RpcException(`You can have only get profile yourself.`);
+
+      if (
+        !findUser.applications.some((app) => app.job.recruiter.id === id) &&
+        role.name === 'recruiter'
+      )
+        throw new RpcException(
+          'You can have only get profile of candidates that they applied for job you posted.',
+        );
+
+      const { password, ...res } = findUser;
 
       return res;
     } catch (err) {
@@ -182,34 +293,83 @@ export class UsersService {
   public handleUpdateUser = async (
     userId: string,
     updateUserDto: UpdateUserDto,
-    avatar?: Express.Multer.File,
+    user: User,
+    files?: Array<Express.Multer.File>,
   ) => {
     try {
-      const user = await this.userRepository.findOneBy({ id: userId });
+      const findUser = await this.userRepository.findOneBy({ id: userId });
 
-      if (!user) throw new RpcException('User Not Found.');
+      if (!findUser) throw new RpcException('User Not Found.');
 
-      let avatar_url = '';
+      const { id, role } = user;
 
-      if (avatar) {
-        const [avatarElement] = await lastValueFrom<UrlResponseType[]>(
-          this.rabbitMqUploadClient.send({ cmd: 'upload-files' }, [avatar]),
+      if (findUser.id !== id && role.name !== 'admin')
+        throw new RpcException('You can only update profile yourself.');
+
+      let cvFileUrl = '';
+      let avatarFileUrl = '';
+
+      if (files) {
+        const cvFile = files.find((file) => file.fieldname === 'cv');
+
+        const avatarFile = files.find((file) => file.fieldname === 'avatar');
+
+        cvFileUrl = await this.uploadFile(cvFile);
+
+        avatarFileUrl = await this.uploadFile(avatarFile);
+      }
+
+      const { skills, updateCompanyDto, ...resUpdateUserDto } = updateUserDto;
+
+      if (updateCompanyDto && role.name === 'candidate')
+        throw new RpcException(
+          `Only the recruiter can have permission to update company.`,
         );
 
-        if (avatarElement) {
-          avatar_url = avatarElement.url;
+      if (updateCompanyDto && role.name === 'recruiter') {
+        this.rabbitMqJobClient.emit('update-company', {
+          updateCompanyDto: JSON.parse(updateCompanyDto),
+          recruiterId: userId,
+        });
+      }
+
+      if (skills && skills.length) {
+        const existingSkillsOfUser = (
+          await this.userRepository.findOne({
+            where: {
+              id: userId,
+            },
+            relations: ['skills'],
+          })
+        )?.skills;
+
+        if (existingSkillsOfUser && existingSkillsOfUser.length) {
+          for (const skill of skills) {
+            if (
+              !existingSkillsOfUser.map((skill) => skill.name).includes(skill)
+            ) {
+              const newSkill = this.skillRepository.create({
+                name: skill,
+              });
+
+              await this.skillRepository.save(newSkill);
+
+              await this.dataSource
+                .createQueryBuilder()
+                .relation(Skill, 'user')
+                .of(newSkill.id)
+                .add(userId);
+            }
+          }
         }
       }
 
       await this.userRepository.update(
         { id: userId },
         {
-          ...updateUserDto,
-          ...(avatar_url !== ''
-            ? {
-                avatar_url,
-              }
-            : {}),
+          ...resUpdateUserDto,
+          ...(avatarFileUrl ? { avatar_url: avatarFileUrl } : {}),
+          ...(cvFileUrl ? { resume_link: cvFileUrl } : {}),
         },
       );
 
@@ -236,15 +396,28 @@ export class UsersService {
     }
   };
 
-  public handleDeleteUser = async (userId: string) => {
+  public handleDeleteUser = async (userId: string, user: User) => {
     try {
-      const user = await this.userRepository.findOneBy({ id: userId });
+      const findUser = await this.userRepository.findOneBy({ id: userId });
 
-      if (!user) throw new RpcException('User Not Found.');
+      if (!findUser) throw new RpcException('User Not Found.');
 
-      await this.userRepository.delete({ id: userId });
+      const { role } = user;
 
-      return { msg: 'User deleted successfully!' };
+      if (role.name === 'recruiter') {
+        const result = this.rabbitMqApplicationClient.send(
+          { cmd: 'delete-user-from-application' },
+          userId,
+        );
+
+        return result;
+      } else {
+        await this.userRepository.delete({ id: userId });
+
+        return {
+          success: 'User deleted successfully!',
+        };
+      }
     } catch (err) {
       console.error(err);
     }
@@ -375,6 +548,7 @@ export class UsersService {
 
   public handleAssignCompanyToRecruiters = async (
     assignCompanyToRecruitersDto: AssignCompanyToRecruitersDto,
+    user: User,
   ) => {
     try {
       const { recruiterIds, company_id: companyId } =
@@ -386,6 +560,16 @@ export class UsersService {
 
       if (!company)
         throw new RpcException(`Company With ID: '${companyId}' Not Found.`);
+
+      const { id, role } = user;
+
+      if (
+        !company.recruiters.some((re) => re.id === id) &&
+        role.name === 'recruiter'
+      )
+        throw new RpcException(
+          'You can only assign other recruiters to the company that you belongs to.',
+        );
 
       for (const recruiterId of recruiterIds) {
         const recruiter = await this.userRepository.findOne({
@@ -409,6 +593,10 @@ export class UsersService {
             .relation(User, 'company')
             .of(recruiter.id)
             .set(company.id);
+        } else {
+          throw new RpcException(
+            `Recruiter with id: '${recruiterId}' has already assign to another company.`,
+          );
         }
       }
 
@@ -441,5 +629,35 @@ export class UsersService {
       console.error(err);
       throw err;
     }
+  };
+
+  public handleGetUserJwt = async (userId: string) => {
+    try {
+      const user = await this.userRepository.findOne({
+        where: {
+          id: userId,
+        },
+        relations: ['role'],
+      });
+
+      if (!user) throw new RpcException(`User with id: '${userId}' not found.`);
+
+      const { password, ...res } = user;
+
+      return res;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  private uploadFile = async (file?: Express.Multer.File) => {
+    if (!file) return '';
+
+    const [uploaded] = await lastValueFrom<UrlResponseType[]>(
+      this.rabbitMqUploadClient.send({ cmd: 'upload-files' }, [file]),
+    );
+
+    return uploaded?.url || '';
   };
 }

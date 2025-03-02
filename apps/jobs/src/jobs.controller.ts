@@ -1,11 +1,12 @@
 import { Controller } from '@nestjs/common';
 import { JobsService } from './jobs.service';
-import { MessagePattern, Payload } from '@nestjs/microservices';
+import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
 import { CreateCompanyDto } from 'libs/common/dtos/create-company.dto';
 import { CreateJobDto } from 'libs/common/dtos';
 import { UpdateJobDto } from 'libs/common/dtos/update-job.dto';
 import { SearchJobsDto } from 'libs/common/dtos/search-jobs.dto';
 import { User } from 'apps/users/src/entities/users.entity';
+import { UpdateCompanyDto } from 'libs/common/dtos/update-company.dto';
 
 @Controller()
 export class JobsController {
@@ -94,5 +95,16 @@ export class JobsController {
   @MessagePattern({ cmd: 'get-company-by-recruiter-id' })
   async handleGetCompanyByRecruiterId(@Payload() recruiterId: string) {
     return await this.jobsService.handleGetCompanyByRecruiterId(recruiterId);
+  }
+
+  @EventPattern('update-company')
+  async handleUpdateCompanyOfRecruiter(
+    @Payload('updateCompanyDto') updateCompanyDto: UpdateCompanyDto,
+    @Payload('recruiterId') recruiterId: string,
+  ) {
+    return await this.jobsService.handleUpdateCompanyOfRecruiter(
+      updateCompanyDto,
+      recruiterId,
+    );
   }
 }

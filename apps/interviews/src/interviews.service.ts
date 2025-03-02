@@ -56,7 +56,7 @@ export class InterviewsService {
       } = createInterviewDto;
 
       const candidate = await lastValueFrom<User | null>(
-        this.rabbitMqUserClient.send({ cmd: 'get-user' }, candidate_id),
+        this.rabbitMqUserClient.send({ cmd: 'get-user-jwt' }, candidate_id),
       );
 
       if (!candidate)

@@ -22,7 +22,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: JwtPayload): Promise<User> {
     const user = (await lastValueFrom<User | null>(
-      this.rabbitMqUserClient.send({ cmd: 'get-user' }, payload.userId),
+      this.rabbitMqUserClient.send({ cmd: 'get-user-jwt' }, payload.userId),
     )) as User;
 
     return user;
