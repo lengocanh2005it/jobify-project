@@ -7,17 +7,21 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
-  UploadedFile,
+  Req,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { UsersService } from 'apps/api-gateway/src/users/users.service';
+import { User } from 'apps/users/src/entities/users.entity';
+import { Request } from 'express';
 import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
 import { CreateUserDto, UpdateUserDto } from 'libs/common/dtos';
 import { AssignCompanyToRecruitersDto } from 'libs/common/dtos/assign-company-to-recruiters.dto';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
+import { FileValidationPipe } from 'libs/common/pipe/file-validation.pipe';
 
 @Controller('users')
 export class UsersController {
@@ -26,51 +30,79 @@ export class UsersController {
   @Get()
   @ResponseMessage('All users fetched successfully.')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
-  @Roles(Role.ADMIN)
-  getUsers() {
-    return this.usersService.getUsers();
-  }
+  @Roles(Role.ADMIN, Role.RECRUITER)
+  getUsers(@Req() request: Request) {
+    const user = request.user as User;
 
-  @Post()
-  createUser(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.createUser(createUserDto);
+    return this.usersService.getUsers(user);
   }
 
   @Get(':id')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @ResponseMessage('Get user successfully.')
+  @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  getUser(@Param('id', ParseUUIDPipe) userId: string, @Req() request: Request) {
+    const user = request.user as User;
+
+    return this.usersService.handleGetUser(userId, user);
+  }
+
+  @Post()
+  @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @UseInterceptors(AnyFilesInterceptor())
   @Roles(Role.ADMIN)
-  getUser(@Param('id') userId: string) {
-    return this.usersService.handleGetUser(userId);
+  createUser(
+    @UploadedFiles() files: Array<Express.Multer.File>,
+    @Body() createUserDto: CreateUserDto,
+  ) {
+    return this.usersService.createUser(createUserDto, files);
   }
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
-  @ResponseMessage('Profile updated successfully!')
-  @UseInterceptors(FileInterceptor('avatar'))
+  @ResponseMessage('Profile of user updated successfully!')
+  @UseInterceptors(AnyFilesInterceptor())
   updateUser(
     @Param('id', ParseUUIDPipe) userId: string,
     @Body() updateUserDto: UpdateUserDto,
-    @UploadedFile() avatar?: Express.Multer.File,
+    @Req() request: Request,
+    @UploadedFiles(new FileValidationPipe()) files: Array<Express.Multer.File>,
   ) {
-    return this.usersService.handleUpdateUser(userId, updateUserDto, avatar);
+    const user = request.user as User;
+
+    return this.usersService.handleUpdateUser(
+      userId,
+      updateUserDto,
+      user,
+      files,
+    );
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
-  @Roles(Role.ADMIN)
-  deleteUser(@Param('id', ParseUUIDPipe) userId: string) {
-    return this.usersService.handleDeleteUser(userId);
+  @Roles(Role.ADMIN, Role.RECRUITER)
+  deleteUser(
+    @Param('id', ParseUUIDPipe) userId: string,
+    @Req() request: Request,
+  ) {
+    const user = request.user as User;
+
+    return this.usersService.handleDeleteUser(userId, user);
   }
 
   @Patch('company/assign')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.RECRUITER)
   assignCompanyToRecruiters(
     @Body() assignCompanyToRecruitersDto: AssignCompanyToRecruitersDto,
+    @Req() request: Request,
   ) {
+    const user = request.user as User;
+
     return this.usersService.handleAssignCompanyToRecruiters(
       assignCompanyToRecruitersDto,
+      user,
     );
   }
 }

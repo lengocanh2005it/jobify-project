@@ -74,6 +74,9 @@ export class User {
   })
   readonly certifications?: string[];
 
+  @Column({ type: 'text', nullable: true })
+  readonly resume_link?: string;
+
   @OneToMany(() => Transaction, (transaction) => transaction.user, {
     cascade: true,
   })

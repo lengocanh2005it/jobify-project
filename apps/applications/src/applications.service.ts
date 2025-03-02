@@ -618,4 +618,35 @@ export class ApplicationsService {
       );
     }
   }
+
+  public handleDeleteUserFromApplication = async (userId: string) => {
+    try {
+      const existingUser = await this.applicationRepository.find({
+        where: {
+          candidate: {
+            id: userId,
+          },
+        },
+        relations: ['candidate'],
+      });
+
+      if (!existingUser || !existingUser.length)
+        throw new RpcException(
+          `Candidate with id '${userId}' has not applied for jobs you posted.`,
+        );
+
+      await this.applicationRepository.delete({
+        candidate: {
+          id: userId,
+        },
+      });
+
+      return {
+        success: 'This candidate has been deleted from jobs that you posted.',
+      };
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
 }

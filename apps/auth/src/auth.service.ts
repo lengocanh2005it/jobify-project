@@ -176,7 +176,7 @@ export class AuthService {
   public handleSignout = async (user: User) => {
     try {
       const findUser = await lastValueFrom<User | null>(
-        this.rabbitMqUserClient.send({ cmd: 'get-user' }, user.id),
+        this.rabbitMqUserClient.send({ cmd: 'get-user-jwt' }, user.id),
       );
 
       if (!findUser)

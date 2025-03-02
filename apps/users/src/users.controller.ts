@@ -4,19 +4,23 @@ import { CreateUserDto } from 'libs/common/dtos/create-user.dto';
 import { UpdateUserDto } from 'libs/common/dtos/update-user.dto';
 import { UsersService } from './users.service';
 import { AssignCompanyToRecruitersDto } from 'libs/common/dtos/assign-company-to-recruiters.dto';
+import { User } from 'apps/users/src/entities/users.entity';
 
 @Controller()
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @MessagePattern({ cmd: 'get-users' })
-  async getUsers() {
-    return await this.usersService.getUsers();
+  async getUsers(@Payload('user') user: User) {
+    return await this.usersService.getUsers(user);
   }
 
   @MessagePattern({ cmd: 'create-user' })
-  async createUser(@Payload() createUserDto: CreateUserDto) {
-    return await this.usersService.createUser(createUserDto);
+  async createUser(
+    @Payload('createUserDto') createUserDto: CreateUserDto,
+    @Payload('files') files?: Array<Express.Multer.File>,
+  ) {
+    return await this.usersService.createUser(createUserDto, files);
   }
 
   @MessagePattern({ cmd: 'get-profile' })
@@ -25,26 +29,34 @@ export class UsersController {
   }
 
   @MessagePattern({ cmd: 'get-user' })
-  async getUser(@Payload() userId: string) {
-    return await this.usersService.handleGetUser(userId);
+  async getUser(
+    @Payload('userId') userId: string,
+    @Payload('user') user: User,
+  ) {
+    return await this.usersService.handleGetUser(userId, user);
   }
 
   @MessagePattern({ cmd: 'update-user' })
   async updateUser(
     @Payload('userId') userId: string,
     @Payload('updateUserDto') updateUserDto: UpdateUserDto,
-    @Payload('avatar') avatar?: Express.Multer.File,
+    @Payload('user') user: User,
+    @Payload('files') files?: Array<Express.Multer.File>,
   ) {
     return await this.usersService.handleUpdateUser(
       userId,
       updateUserDto,
-      avatar,
+      user,
+      files,
     );
   }
 
   @MessagePattern({ cmd: 'delete-user' })
-  async deleteUser(@Payload() userId: string) {
-    return await this.usersService.handleDeleteUser(userId);
+  async deleteUser(
+    @Payload('userId') userId: string,
+    @Payload('user') user: User,
+  ) {
+    return await this.usersService.handleDeleteUser(userId, user);
   }
 
   @MessagePattern({ cmd: 'get-password' })
@@ -74,11 +86,13 @@ export class UsersController {
 
   @MessagePattern({ cmd: 'assign-company' })
   async handleAssignCompanyToRecruiters(
-    @Payload()
+    @Payload('assignCompanyToRecruitersDto')
     assignCompanyToRecruitersDto: AssignCompanyToRecruitersDto,
+    @Payload('user') user: User,
   ) {
     return await this.usersService.handleAssignCompanyToRecruiters(
       assignCompanyToRecruitersDto,
+      user,
     );
   }
 
@@ -88,5 +102,10 @@ export class UsersController {
     @Payload('value') value: string,
   ) {
     return await this.usersService.handleGetUserByField(field, value);
+  }
+
+  @MessagePattern({ cmd: 'get-user-jwt' })
+  async handleGetUserJwt(@Payload() userId: string) {
+    return await this.usersService.handleGetUserJwt(userId);
   }
 }

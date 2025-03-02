@@ -28,7 +28,7 @@ export class PaymentsService {
   ) => {
     try {
       const user = await lastValueFrom<User | null>(
-        this.rabbitMqUserClient.send({ cmd: 'get-user' }, userId),
+        this.rabbitMqUserClient.send({ cmd: 'get-user-jwt' }, userId),
       );
 
       if (!user) throw new RpcException(`User With ID: '${userId}' Not Found.`);

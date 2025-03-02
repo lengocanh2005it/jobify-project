@@ -1,5 +1,5 @@
 import { Controller } from '@nestjs/common';
-import { MessagePattern, Payload } from '@nestjs/microservices';
+import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities/users.entity';
 import { ProcessApplicationsDto } from 'libs/common/dtos/process-applications.dto';
 import { SearchApplicationsDto } from 'libs/common/dtos/search-applications.dto';
@@ -67,6 +67,13 @@ export class ApplicationsController {
     return await this.applicationsService.handleProcessApplications(
       processApplicationsDto,
       user,
+    );
+  }
+
+  @MessagePattern({ cmd: 'delete-user-from-application' })
+  async handleDeleteUserFromApplication(@Payload() userId: string) {
+    return await this.applicationsService.handleDeleteUserFromApplication(
+      userId,
     );
   }
 }

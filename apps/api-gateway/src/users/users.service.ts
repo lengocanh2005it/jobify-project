@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
+import { User } from 'apps/users/src/entities/users.entity';
 import { CreateUserDto, UpdateUserDto } from 'libs/common/dtos';
 import { AssignCompanyToRecruitersDto } from 'libs/common/dtos/assign-company-to-recruiters.dto';
 import { catchError } from 'rxjs';
@@ -15,13 +16,27 @@ export class UsersService {
     @Inject('USERS_SERVICE') private readonly rabbitMqUsersClient: ClientProxy,
   ) {}
 
-  public getUsers = () => {
-    return this.rabbitMqUsersClient.send({ cmd: 'get-users' }, {});
+  public getUsers = (user: User) => {
+    return this.rabbitMqUsersClient.send(
+      { cmd: 'get-users' },
+      {
+        user,
+      },
+    );
   };
 
-  public createUser = (createUserDto: CreateUserDto) => {
+  public createUser = (
+    createUserDto: CreateUserDto,
+    files?: Array<Express.Multer.File>,
+  ) => {
     return this.rabbitMqUsersClient
-      .send({ cmd: 'create-user' }, createUserDto)
+      .send(
+        { cmd: 'create-user' },
+        {
+          createUserDto,
+          files,
+        },
+      )
       .pipe(
         catchError((err: Error) => {
           if (err.message.includes('Role Not Found'))
@@ -35,31 +50,48 @@ export class UsersService {
       );
   };
 
-  public handleGetUser = (userId: string) => {
-    return this.rabbitMqUsersClient.send({ cmd: 'get-user' }, userId);
+  public handleGetUser = (userId: string, user: User) => {
+    return this.rabbitMqUsersClient.send(
+      { cmd: 'get-user' },
+      {
+        userId,
+        user,
+      },
+    );
   };
 
   public handleUpdateUser = (
     userId: string,
     updateUserDto: UpdateUserDto,
-    avatar?: Express.Multer.File,
+    user: User,
+    files?: Array<Express.Multer.File>,
   ) => {
     return this.rabbitMqUsersClient.send(
       { cmd: 'update-user' },
-      { updateUserDto, userId, avatar },
+      { updateUserDto, userId, user, files },
     );
   };
 
-  public handleDeleteUser = (userId: string) => {
-    return this.rabbitMqUsersClient.send({ cmd: 'delete-user' }, userId);
+  public handleDeleteUser = (userId: string, user: User) => {
+    return this.rabbitMqUsersClient.send(
+      { cmd: 'delete-user' },
+      {
+        userId,
+        user,
+      },
+    );
   };
 
   public handleAssignCompanyToRecruiters = (
     assignCompanyToRecruitersDto: AssignCompanyToRecruitersDto,
+    user: User,
   ) => {
     return this.rabbitMqUsersClient.send(
       { cmd: 'assign-company' },
-      assignCompanyToRecruitersDto,
+      {
+        assignCompanyToRecruitersDto,
+        user,
+      },
     );
   };
 }

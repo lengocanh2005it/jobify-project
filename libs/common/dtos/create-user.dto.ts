@@ -1,10 +1,15 @@
+import { Type } from 'class-transformer';
 import {
+  ArrayNotEmpty,
+  IsArray,
   IsEmail,
   IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
+  ValidateNested,
 } from 'class-validator';
+import { CreateCompanyDto } from 'libs/common/dtos/create-company.dto';
 
 export class CreateUserDto {
   @IsEmail()
@@ -37,5 +42,14 @@ export class CreateUserDto {
   readonly expected_salary!: number;
 
   @IsOptional()
-  readonly skills!: string[];
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsString({ each: true })
+  @IsNotEmpty()
+  readonly skills?: string[];
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  readonly createCompanyDto?: string;
 }

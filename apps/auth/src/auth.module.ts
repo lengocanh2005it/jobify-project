@@ -80,6 +80,17 @@ import { Skill } from 'apps/users/src/entities/skills.entity';
           },
         },
       },
+      {
+        name: 'APPLICATIONS_SERVICE',
+        transport: Transport.RMQ,
+        options: {
+          urls: ['amqp://localhost:5672'],
+          queue: 'applications_queue',
+          queueOptions: {
+            durable: false,
+          },
+        },
+      },
     ]),
     TypeOrmModule.forFeature([User, Role, Notification, Skill]),
     UsersModule,

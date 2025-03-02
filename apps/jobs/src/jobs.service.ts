@@ -10,6 +10,7 @@ import { NotificationTypes } from 'libs/common/constants';
 import { CreateJobDto } from 'libs/common/dtos';
 import { CreateCompanyDto } from 'libs/common/dtos/create-company.dto';
 import { SearchJobsDto } from 'libs/common/dtos/search-jobs.dto';
+import { UpdateCompanyDto } from 'libs/common/dtos/update-company.dto';
 import { UpdateJobDto } from 'libs/common/dtos/update-job.dto';
 import { lastValueFrom } from 'rxjs';
 import { DataSource, Repository } from 'typeorm';
@@ -340,8 +341,6 @@ export class JobsService {
         relations: ['requirements'],
       });
 
-      console.log('Job with requirements: ', jobWithRequirements?.requirements);
-
       await this.jobRepository.delete({ id: jobId });
 
       return { success: 'Job deleted successfully.' };
@@ -602,5 +601,36 @@ export class JobsService {
     }
   };
 
-  private checkPermissionAccess = (user: User, job: Job) => {};
+  public handleUpdateCompanyOfRecruiter = async (
+    updateCompanyDto: UpdateCompanyDto,
+    recruiterId: string,
+  ) => {
+    try {
+      const { name } = updateCompanyDto;
+
+      let company = await this.companyRepository.findOneBy({ name });
+
+      if (!company) {
+        company = this.companyRepository.create(updateCompanyDto);
+
+        await this.companyRepository.save(company);
+
+        await this.dataSource
+          .createQueryBuilder()
+          .relation(Company, 'recruiters')
+          .of(company.id)
+          .add(recruiterId);
+      } else {
+        await this.companyRepository.update(
+          {
+            id: company.id,
+          },
+          updateCompanyDto,
+        );
+      }
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
 }

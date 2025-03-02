@@ -56,6 +56,17 @@ import { UsersService } from './users.service';
           },
         },
       },
+      {
+        name: 'APPLICATIONS_SERVICE',
+        transport: Transport.RMQ,
+        options: {
+          urls: ['amqp://localhost:5672'],
+          queue: 'applications_queue',
+          queueOptions: {
+            durable: false,
+          },
+        },
+      },
     ]),
     CommonModule,
     TypeOrmModule.forFeature([User, Role, Notification, Skill]),
