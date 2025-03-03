@@ -29,4 +29,9 @@ export default () => ({
   },
   origin_fe_url: process.env.ORIGIN_FE_URL,
   default_user_logo: process.env.DEFAULT_LOGO_USER,
+  payment_images: process.env.PAYMENT_IMAGES,
+  payment_description: process.env.PAYMENT_DESCRIPTION,
+  payment_title: process.env.PAYMENT_TITLE,
+  payment_success_url: process.env.PAYMENT_SUCCESS_URL,
+  payment_failed_url: process.env.PAYMENT_FAILED_URL,
 });
