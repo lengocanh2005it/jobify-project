@@ -60,7 +60,7 @@ export class ApplicationsController {
 
   @MessagePattern({ cmd: 'process-applications' })
   async handleProcessApplications(
-    @Payload('processApplicationDto')
+    @Payload('processApplicationsDto')
     processApplicationsDto: ProcessApplicationsDto,
     @Payload('user') user: User,
   ) {

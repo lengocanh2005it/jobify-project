@@ -77,6 +77,12 @@ export class User {
   @Column({ type: 'text', nullable: true })
   readonly resume_link?: string;
 
+  @Column({ type: 'int', nullable: true })
+  readonly job_posted_count?: number;
+
+  @Column({ type: 'int', nullable: true })
+  readonly application_applied_count?: number;
+
   @OneToMany(() => Transaction, (transaction) => transaction.user, {
     cascade: true,
   })

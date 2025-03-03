@@ -108,4 +108,12 @@ export class UsersController {
   async handleGetUserJwt(@Payload() userId: string) {
     return await this.usersService.handleGetUserJwt(userId);
   }
+
+  @EventPattern('update-user-limit')
+  async handleUpdateUserLimit(
+    @Payload('userId') userId: string,
+    @Payload('type') type: 'increase' | 'decrease',
+  ) {
+    return await this.usersService.handleUpdateUserLimit(userId, type);
+  }
 }

@@ -13,6 +13,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { RpcException } from '@nestjs/microservices';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { ApplicationsService } from 'apps/api-gateway/src/applications/applications.service';
 import { User } from 'apps/users/src/entities/users.entity';
@@ -40,6 +41,9 @@ export class ApplicationsController {
     @UploadedFiles() files: Array<Express.Multer.File>,
   ) {
     const resumeFile = files.find((file) => file.fieldname === 'resume');
+
+    if (!resumeFile)
+      throw new RpcException(`You must provide Resume (CV) File.`);
 
     const coverLetterFile = files.find(
       (file) => file.fieldname === 'cover_letter',

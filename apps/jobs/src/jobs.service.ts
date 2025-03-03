@@ -69,7 +69,7 @@ export class JobsService {
 
   public handleCreateJob = async (createJobDto: CreateJobDto, user: User) => {
     try {
-      const { role, id } = user;
+      const { role, id, job_posted_count } = user;
 
       let recruiterId = id;
 
@@ -83,6 +83,11 @@ export class JobsService {
 
         recruiterId = recruiter_id;
       }
+
+      if (role.name === 'recruiter' && !job_posted_count)
+        throw new RpcException(
+          `You have exhausted your job posting limit. Please wait until it resets or contact support.`,
+        );
 
       const { posted_at, expired_at, title, description } = createJobDto;
 
@@ -404,7 +409,7 @@ export class JobsService {
     try {
       const job = await this.jobRepository.findOne({
         where: { id: jobId },
-        relations: ['requirements', 'recruiter'],
+        relations: ['requirements', 'recruiter', 'applications'],
       });
 
       if (!job) throw new RpcException(`Job With ID: '${jobId}' Not Found.`);
@@ -628,6 +633,23 @@ export class JobsService {
           updateCompanyDto,
         );
       }
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  public handleVerifyJob = async (jobId: string) => {
+    try {
+      const job = await this.jobRepository.findOne({
+        where: {
+          id: jobId,
+        },
+      });
+
+      if (!job) throw new RpcException(`Job with id: '${jobId}' not found.`);
+
+      return job;
     } catch (err) {
       console.error(err);
       throw err;

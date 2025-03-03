@@ -107,4 +107,9 @@ export class JobsController {
       recruiterId,
     );
   }
+
+  @MessagePattern({ cmd: 'verify-job' })
+  async handleVerifyJob(@Payload() jobId: string) {
+    return await this.jobsService.handleVerifyJob(jobId);
+  }
 }
