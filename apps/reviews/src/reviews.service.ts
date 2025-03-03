@@ -3,6 +3,7 @@ import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Company } from 'apps/jobs/src/entities/companies.entity';
 import { Review } from 'apps/reviews/src/entities/reviews.entity';
+import { User } from 'apps/users/src/entities/users.entity';
 import { NotificationTypes } from 'libs/common/constants';
 import { CreateReviewDto } from 'libs/common/dtos/create-review.dto';
 import { UpdateReviewDto } from 'libs/common/dtos/update-review.dto';
@@ -108,10 +109,20 @@ export class ReviewsService {
     }
   };
 
-  public handleGetReviews = async () => {
+  public handleGetReviews = async (user: User) => {
     try {
+      const { role, company } = user;
+
       return await this.reviewRepository.find({
         relations: ['candidate', 'company'],
+        where:
+          role.name === 'recruiter'
+            ? {
+                company: {
+                  id: company.id,
+                },
+              }
+            : {},
         select: {
           id: true,
           ratings_number: true,
@@ -140,14 +151,23 @@ export class ReviewsService {
   public handleUpdateReview = async (
     updateReviewDto: UpdateReviewDto,
     reviewId: string,
+    user: User,
   ) => {
     try {
+      const { role, id } = user;
+
       const review = await this.reviewRepository.findOne({
         where: { id: reviewId },
+        relations: ['candidate'],
       });
 
       if (!review)
         throw new RpcException(`Review With ID: '${reviewId}' Not Found.`);
+
+      if (role.name === 'candidate' && review.candidate.id !== id)
+        throw new RpcException(
+          `You can only update the review that belongs to you.`,
+        );
 
       await this.reviewRepository.update({ id: reviewId }, updateReviewDto);
 
@@ -180,15 +200,22 @@ export class ReviewsService {
     }
   };
 
-  public handleDeleteReview = async (reviewId: string) => {
+  public handleDeleteReview = async (reviewId: string, user: User) => {
     try {
+      const { id, role } = user;
+
       const review = await this.reviewRepository.findOne({
         where: { id: reviewId },
         relations: ['company', 'company.recruiters'],
       });
 
       if (!review)
-        throw new RpcException(`Review With ID: '${reviewId}' Not Found.`);
+        throw new RpcException(`Review with id: '${reviewId}' not found.`);
+
+      if (role.name === 'candidate' && review.candidate.id !== id)
+        throw new RpcException(
+          `You can only delete the review that belongs to you.`,
+        );
 
       const { title, description, key } = NotificationTypes.REVIEW_DELETED;
 
@@ -210,11 +237,13 @@ export class ReviewsService {
     }
   };
 
-  public handleGetReview = async (reviewId: string) => {
+  public handleGetReview = async (reviewId: string, user: User) => {
     try {
+      const { id, role } = user;
+
       const review = await this.reviewRepository.findOne({
         where: { id: reviewId },
-        relations: ['candidate', 'company'],
+        relations: ['candidate', 'company', 'company.recruiters'],
         select: {
           id: true,
           ratings_number: true,
@@ -235,6 +264,19 @@ export class ReviewsService {
           },
         },
       });
+
+      if (role.name === 'candidate' && review?.candidate.id !== id)
+        throw new RpcException(
+          `You can only get the review that belongs to you.`,
+        );
+
+      if (
+        role.name === 'recruiter' &&
+        !review?.company.recruiters.some((re) => re.id === id)
+      )
+        throw new RpcException(
+          'You can only get the review of the company that you belongs to.',
+        );
 
       return review;
     } catch (err) {
