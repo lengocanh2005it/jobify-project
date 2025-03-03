@@ -637,7 +637,7 @@ export class UsersService {
         where: {
           id: userId,
         },
-        relations: ['role'],
+        relations: ['role', 'company'],
       });
 
       if (!user) throw new RpcException(`User with id: '${userId}' not found.`);

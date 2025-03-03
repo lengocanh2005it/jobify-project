@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
+import { User } from 'apps/users/src/entities/users.entity';
 import { CreateReviewDto } from 'libs/common/dtos/create-review.dto';
 import { UpdateReviewDto } from 'libs/common/dtos/update-review.dto';
 
@@ -20,25 +21,38 @@ export class ReviewsService {
     );
   };
 
-  public handleGetReviews = () => {
-    return this.rabbitMqReviewClient.send({ cmd: 'get-reviews' }, {});
+  public handleGetReviews = (user: User) => {
+    return this.rabbitMqReviewClient.send({ cmd: 'get-reviews' }, user);
   };
 
   public handleUpdateReview = (
     updateReviewDto: UpdateReviewDto,
     reviewId: string,
+    user: User,
   ) => {
     return this.rabbitMqReviewClient.send(
       { cmd: 'update-review' },
-      { updateReviewDto, reviewId },
+      { updateReviewDto, reviewId, user },
     );
   };
 
-  public handleDeleteReview = (reviewId: string) => {
-    return this.rabbitMqReviewClient.send({ cmd: 'delete-review' }, reviewId);
+  public handleDeleteReview = (reviewId: string, user: User) => {
+    return this.rabbitMqReviewClient.send(
+      { cmd: 'delete-review' },
+      {
+        reviewId,
+        user,
+      },
+    );
   };
 
-  public handleGetReview = (reviewId: string) => {
-    return this.rabbitMqReviewClient.send({ cmd: 'get-review' }, reviewId);
+  public handleGetReview = (reviewId: string, user: User) => {
+    return this.rabbitMqReviewClient.send(
+      { cmd: 'get-review' },
+      {
+        reviewId,
+        user,
+      },
+    );
   };
 }
