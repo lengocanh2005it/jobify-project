@@ -1,8 +1,9 @@
-import { Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { PaymentsService } from 'apps/api-gateway/src/payments/payments.service';
+import { User } from 'apps/users/src/entities/users.entity';
 import { Request } from 'express';
 import { Role } from 'libs/common/constants';
-import { Roles } from 'libs/common/decorators';
+import { ResponseMessage, Roles } from 'libs/common/decorators';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 
 @Controller('payments')
@@ -10,12 +11,13 @@ export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
   @Post()
+  @ResponseMessage('Checkout session created successfully.')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
   handleCreatePayment(@Req() request: Request) {
-    const userId = request.user?.id as string;
+    const user = request.user as User;
 
-    return this.paymentsService.handleCreatePayment(userId);
+    return this.paymentsService.handleCreatePayment(user);
   }
 
   @Post('stripe/webhooks')
@@ -23,5 +25,13 @@ export class PaymentsController {
     const sig = req.headers['stripe-signature'] as string;
 
     return this.paymentsService.handleStripeWebhooks(sig, req.body as string);
+  }
+
+  @Get()
+  @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @ResponseMessage('Get all payments successfully!')
+  @Roles(Role.ADMIN)
+  getPayments() {
+    return this.paymentsService.handleGetPayments();
   }
 }

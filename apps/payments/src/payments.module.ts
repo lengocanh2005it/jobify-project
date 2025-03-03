@@ -3,9 +3,12 @@ import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Transaction } from 'apps/payments/src/entities/transactions.entity';
 
 @Module({
   imports: [
+    TypeOrmModule.forFeature([Transaction]),
     ClientsModule.register([
       {
         name: 'USERS_SERVICE',
