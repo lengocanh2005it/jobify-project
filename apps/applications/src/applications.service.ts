@@ -438,12 +438,13 @@ export class ApplicationsService {
     try {
       const applications: Record<string, Partial<Application>[]> = {};
 
-      if (
-        processApplicationsDto?.approvedApplicationIds &&
-        processApplicationsDto?.approvedApplicationIds?.length
-      ) {
-        const { approvedApplicationIds } = processApplicationsDto;
+      const approvedApplicationIds =
+        processApplicationsDto?.approvedApplicationIds ?? [];
 
+      const rejectedApplicationIds =
+        processApplicationsDto?.rejectedApplicationIds ?? [];
+
+      if (approvedApplicationIds.length) {
         applications.approvedApplications =
           await this.handleGenerateProcessApplications(
             approvedApplicationIds,
@@ -452,12 +453,7 @@ export class ApplicationsService {
           );
       }
 
-      if (
-        processApplicationsDto?.rejectedApplicationIds &&
-        processApplicationsDto?.rejectedApplicationIds?.length
-      ) {
-        const { rejectedApplicationIds } = processApplicationsDto;
-
+      if (rejectedApplicationIds?.length) {
         applications.rejectedApplications =
           await this.handleGenerateProcessApplications(
             rejectedApplicationIds,
