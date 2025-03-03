@@ -10,7 +10,7 @@ export type CreateNotificationDto = {
 export type CreateApplication = {
   jobId: string;
   userId: string;
-  resumeFile?: Express.Multer.File;
+  resumeFile: Express.Multer.File;
   coverLetterFile?: Express.Multer.File;
 };
 

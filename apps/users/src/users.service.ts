@@ -6,7 +6,13 @@ import { Role } from 'apps/users/src/entities/roles.entity';
 import { Skill } from 'apps/users/src/entities/skills.entity';
 import { User } from 'apps/users/src/entities/users.entity';
 import * as bcrypt from 'bcrypt';
-import { NotificationTypes } from 'libs/common/constants';
+import {
+  CANDIDATE_APPLICATION_LIMIT,
+  CANDIDATE_PREMIUM_LIMIT,
+  NotificationTypes,
+  RECRUITER_JOB_LIMIT,
+  RECRUITER_PREMIUM_LIMIT,
+} from 'libs/common/constants';
 import { SKILL_KEYWORDS } from 'libs/common/constants/skills.constant';
 import { CreateUserDto, LoginDto, UpdateUserDto } from 'libs/common/dtos';
 import { AssignCompanyToRecruitersDto } from 'libs/common/dtos/assign-company-to-recruiters.dto';
@@ -148,6 +154,11 @@ export class UsersService {
         ? avatarFileUrl
         : this.configService.get<string>('default_user_logo'),
       ...(cvFileUrl ? { resume_link: cvFileUrl } : {}),
+      ...(type === 'recruiter'
+        ? { job_posted_count: RECRUITER_JOB_LIMIT }
+        : type === 'candidate'
+          ? { application_applied_count: CANDIDATE_APPLICATION_LIMIT }
+          : {}),
     });
 
     await this.userRepository.save(newUser);
@@ -501,11 +512,15 @@ export class UsersService {
 
   public handleUpdatePremium = async (userId: string) => {
     try {
-      const user = await this.userRepository.findOneBy({ id: userId });
+      const user = await this.userRepository.findOne({
+        where: { id: userId },
+        relations: ['role'],
+      });
 
       if (!user) throw new RpcException(`User With ID: '${userId}' Not Found.`);
 
       const now = new Date();
+
       let premiumExpiry = new Date();
 
       if (user.premium_expiry) {
@@ -524,6 +539,15 @@ export class UsersService {
         {
           is_premium: true,
           premium_expiry: premiumExpiry,
+          ...(user.role.name === 'recruiter'
+            ? {
+                job_posted_count: RECRUITER_PREMIUM_LIMIT,
+              }
+            : user.role.name === 'candidate'
+              ? {
+                  application_applied_count: CANDIDATE_PREMIUM_LIMIT,
+                }
+              : {}),
         },
       );
 
@@ -645,6 +669,40 @@ export class UsersService {
       const { password, ...res } = user;
 
       return res;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  public handleUpdateUserLimit = async (
+    userId: string,
+    type: 'increase' | 'decrease',
+  ) => {
+    try {
+      const user = await this.userRepository.findOne({
+        where: {
+          id: userId,
+        },
+        relations: ['role'],
+      });
+
+      if (!user) throw new RpcException(`User with id: '${userId}' not found.`);
+
+      const isRecruiter = user.role?.name === 'recruiter';
+
+      const updatedFields = isRecruiter
+        ? {
+            job_posted_count:
+              (user.job_posted_count ?? 0) + (type === 'increase' ? 1 : -1),
+          }
+        : {
+            application_applied_count:
+              (user.application_applied_count ?? 0) +
+              (type === 'increase' ? 1 : -1),
+          };
+
+      await this.userRepository.update({ id: userId }, updatedFields);
     } catch (err) {
       console.error(err);
       throw err;

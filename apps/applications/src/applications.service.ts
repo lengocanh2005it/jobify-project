@@ -26,6 +26,7 @@ export class ApplicationsService {
     private readonly rabbitMqNotificationClient: ClientProxy,
     @Inject('UPLOADS_SERVICE')
     private readonly rabbitMqUploadClient: ClientProxy,
+    @Inject('USERS_SERVICE') private readonly rabbitMqUserClient: ClientProxy,
   ) {}
 
   public handleCreateApplication = async (
@@ -34,21 +35,22 @@ export class ApplicationsService {
     try {
       const { jobId, resumeFile, coverLetterFile, userId } = createApplication;
 
-      const files = [resumeFile];
-
-      if (coverLetterFile) {
-        files.push(coverLetterFile);
-      }
-
-      const response = await lastValueFrom<UrlResponseType[]>(
-        this.rabbitMqUploadClient.send({ cmd: 'upload-files' }, files),
-      );
-
       const job = await lastValueFrom<Job | undefined>(
-        this.rabbitMqJobClient.send({ cmd: 'get-job' }, jobId),
+        this.rabbitMqJobClient.send({ cmd: 'verify-job' }, jobId),
       );
 
-      if (!job) throw new RpcException(`Job With ID: '${jobId}' Not Found.`);
+      if (!job) throw new RpcException(`Job with id: '${jobId}' not found.`);
+
+      const user = await lastValueFrom<User | null>(
+        this.rabbitMqUserClient.send({ cmd: 'get-user-jwt' }, userId),
+      );
+
+      if (!user) throw new RpcException(`User with id: '${userId}' not found.`);
+
+      if (!user.application_applied_count)
+        throw new RpcException(
+          `You have already applied ${user.application_applied_count} times. No more applications allowed.`,
+        );
 
       let application = await this.applicationRepository.findOne({
         where: {
@@ -58,68 +60,46 @@ export class ApplicationsService {
         relations: ['candidate', 'job', 'job.recruiter'],
       });
 
-      if (application)
+      if (application && application.status !== 'rejected')
         throw new BadRequestException('You have applied for this position.');
 
-      const [resume, coverLetter] = response;
+      const files = [resumeFile];
 
-      application = this.applicationRepository.create({
-        resume_link: resume.url,
-        ...(coverLetterFile && coverLetter
-          ? { cover_letter_link: coverLetter.url }
-          : {}),
-        applied_at: new Date(),
+      if (coverLetterFile) {
+        files.push(coverLetterFile);
+      }
+
+      const uploadedFiles = await this.uploadFiles(files.filter(Boolean));
+
+      const [resume, coverLetter] = uploadedFiles;
+
+      application = application
+        ? await this.updateApplication(
+            application.id,
+            resume.url,
+            coverLetter?.url,
+          )
+        : await this.createApplication(
+            userId,
+            jobId,
+            resume.url,
+            coverLetter?.url,
+          );
+
+      this.rabbitMqUserClient.emit('update-user-limit', {
+        userId,
+        type: 'decrease',
       });
-
-      await this.applicationRepository.save(application);
-
-      await this.dataSource
-        .createQueryBuilder()
-        .relation(Application, 'candidate')
-        .of(application.id)
-        .set(userId);
-
-      await this.dataSource
-        .createQueryBuilder()
-        .relation(Application, 'job')
-        .of(application.id)
-        .set(jobId);
-
-      application = (await this.applicationRepository.findOne({
-        where: {
-          id: application.id,
-        },
-        relations: ['job', 'job.recruiter'],
-      })) as Application;
 
       const { title, description, key } =
         NotificationTypes.NEW_APPLICATION_RECEIVED;
 
       this.rabbitMqNotificationClient.emit('create-notification', {
-        data: {
-          title,
-          message: description,
-          type: key,
-        },
+        data: { title, message: description, type: key },
         userIds: [application.job.recruiter.id],
       });
 
-      const { id, email, phone_number, address, full_name } =
-        application.job.recruiter;
-
-      return {
-        ...application,
-        job: {
-          ...application.job,
-          recruiter: {
-            id,
-            email,
-            phone_number,
-            address,
-            full_name,
-          },
-        },
-      };
+      return this.formatApplicationResponse(application);
     } catch (err) {
       console.error(err);
       throw err;
@@ -456,12 +436,14 @@ export class ApplicationsService {
     user: User,
   ) => {
     try {
-      const { approvedApplicationIds, rejectedApplicationIds } =
-        processApplicationsDto;
-
       const applications: Record<string, Partial<Application>[]> = {};
 
-      if (approvedApplicationIds && approvedApplicationIds.length) {
+      if (
+        processApplicationsDto?.approvedApplicationIds &&
+        processApplicationsDto?.approvedApplicationIds?.length
+      ) {
+        const { approvedApplicationIds } = processApplicationsDto;
+
         applications.approvedApplications =
           await this.handleGenerateProcessApplications(
             approvedApplicationIds,
@@ -470,7 +452,12 @@ export class ApplicationsService {
           );
       }
 
-      if (rejectedApplicationIds && rejectedApplicationIds.length) {
+      if (
+        processApplicationsDto?.rejectedApplicationIds &&
+        processApplicationsDto?.rejectedApplicationIds?.length
+      ) {
+        const { rejectedApplicationIds } = processApplicationsDto;
+
         applications.rejectedApplications =
           await this.handleGenerateProcessApplications(
             rejectedApplicationIds,
@@ -585,6 +572,15 @@ export class ApplicationsService {
       userIds: candidateIds,
     });
 
+    if (status === 'rejected') {
+      for (const candidateId of candidateIds) {
+        this.rabbitMqUserClient.emit('update-user-limit', {
+          userId: candidateId,
+          type: 'increase',
+        });
+      }
+    }
+
     return applications;
   };
 
@@ -648,5 +644,85 @@ export class ApplicationsService {
       console.error(err);
       throw err;
     }
+  };
+
+  private uploadFiles = async (files: Array<Express.Multer.File>) => {
+    return lastValueFrom<UrlResponseType[]>(
+      this.rabbitMqUploadClient.send({ cmd: 'upload-files' }, files),
+    );
+  };
+
+  private updateApplication = async (
+    applicationId: string,
+    resumeUrl: string,
+    coverLetterUrl?: string,
+  ) => {
+    await this.applicationRepository.update(
+      {
+        id: applicationId,
+      },
+      {
+        status: 'pending',
+        resume_link: resumeUrl,
+        ...(coverLetterUrl ? { cover_letter_link: coverLetterUrl } : {}),
+      },
+    );
+
+    return this.applicationRepository.findOne({
+      where: {
+        id: applicationId,
+      },
+      relations: ['job', 'job.recruiter'],
+    }) as Promise<Application>;
+  };
+
+  private createApplication = async (
+    userId: string,
+    jobId: string,
+    resumeUrl: string,
+    coverLetterUrl?: string,
+  ) => {
+    const application = this.applicationRepository.create({
+      resume_link: resumeUrl,
+      ...(coverLetterUrl ? { cover_letter_link: coverLetterUrl } : {}),
+      applied_at: new Date(),
+    });
+
+    await this.applicationRepository.save(application);
+
+    await Promise.all([
+      this.dataSource
+        .createQueryBuilder()
+        .relation(Application, 'candidate')
+        .of(application.id)
+        .set(userId),
+      this.dataSource
+        .createQueryBuilder()
+        .relation(Application, 'job')
+        .of(application.id)
+        .set(jobId),
+    ]);
+
+    return this.applicationRepository.findOne({
+      where: {
+        id: application.id,
+      },
+      relations: ['job', 'job.recruiter'],
+    }) as Promise<Application>;
+  };
+
+  private formatApplicationResponse = (application: Application) => {
+    const { id, email, phone_number, address, full_name } =
+      application.job.recruiter;
+
+    const { candidate, ...res } = application;
+
+    return {
+      ...res,
+      job: {
+        ...application.job,
+        recruiter: { id, email, phone_number, address, full_name },
+      },
+    };
   };
 }
