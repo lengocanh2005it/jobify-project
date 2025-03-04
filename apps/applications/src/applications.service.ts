@@ -490,6 +490,20 @@ export class ApplicationsService {
           `Application With ID: '${applicationId}' Not Found.`,
         );
 
+      if (application.status === 'rejected' && status === 'rejected') {
+        console.warn(
+          `Application with id: '${applicationId}' has already been rejected and cannot be rejected again.'`,
+        );
+        continue;
+      }
+
+      if (application.status === 'approved' && status === 'approved') {
+        console.warn(
+          `Application with id: '${applicationId}' has already been approved and cannot be approved again.'`,
+        );
+        continue;
+      }
+
       this.checkApplicationAccess(
         application,
         user,
