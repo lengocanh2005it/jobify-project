@@ -1,3 +1,5 @@
+import { Application } from 'apps/applications/src/entities/applications.entity';
+import { Job } from 'apps/jobs/src/entities/jobs.entity';
 import { Notification } from 'apps/notifications/src/entities/notifications.entity';
 import { User } from 'apps/users/src/entities/users.entity';
 import {
@@ -6,6 +8,7 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -35,6 +38,25 @@ export class UserNotification {
   )
   @JoinColumn({ name: 'notification_id' })
   readonly notification!: Notification;
+
+  @ManyToOne(() => Job, (job) => job.userNotifications, {
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE',
+    nullable: true,
+  })
+  @JoinColumn({ name: 'job_id' })
+  readonly job?: Job;
+
+  @ManyToOne(
+    () => Application,
+    (application) => application.userNotifications,
+    {
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE',
+    },
+  )
+  @JoinColumn({ name: 'application_id' })
+  readonly application!: Application;
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;

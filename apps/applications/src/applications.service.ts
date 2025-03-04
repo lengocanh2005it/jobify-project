@@ -13,7 +13,7 @@ import {
   UrlResponseType,
 } from 'libs/common/utils/types';
 import { lastValueFrom } from 'rxjs';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 
 @Injectable()
 export class ApplicationsService {
@@ -510,6 +510,7 @@ export class ApplicationsService {
           where: {
             id: applicationId,
           },
+          relations: ['candidate', 'job'],
           select: {
             id: true,
             resume_link: true,
@@ -564,6 +565,9 @@ export class ApplicationsService {
         title,
         message: description,
         type: key,
+        metadata: {
+          applications,
+        },
       },
       userIds: candidateIds,
     });

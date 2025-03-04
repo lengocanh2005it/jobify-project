@@ -230,6 +230,9 @@ export class JobsService {
               title,
               message: description,
               type: key,
+              metadata: {
+                jobId: job.id,
+              },
             },
             userIds: matchedUsers.map((user) => user.id),
           });
