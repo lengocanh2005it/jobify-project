@@ -2,6 +2,8 @@ import { Application } from 'apps/applications/src/entities/applications.entity'
 import { Interview } from 'apps/interviews/src/entities/interviews.entity';
 import { Requirement } from 'apps/jobs/src/entities/requirements.entity';
 import { SavedJob } from 'apps/jobs/src/entities/saved-jobs.entity';
+import { Notification } from 'apps/notifications/src/entities/notifications.entity';
+import { UserNotification } from 'apps/notifications/src/entities/user-notification.entity';
 import { User } from 'apps/users/src/entities/users.entity';
 import {
   Column,
@@ -11,6 +13,7 @@ import {
   ManyToMany,
   ManyToOne,
   OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -74,6 +77,13 @@ export class Job {
     cascade: true,
   })
   readonly interviews!: Interview[];
+
+  @OneToMany(
+    () => UserNotification,
+    (userNotification) => userNotification.job,
+    { cascade: true },
+  )
+  readonly userNotifications!: UserNotification[];
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;

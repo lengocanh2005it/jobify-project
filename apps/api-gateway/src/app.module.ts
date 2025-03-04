@@ -15,6 +15,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UploadsModule } from 'apps/api-gateway/src/uploads/uploads.module';
 import { InterviewsModule } from 'apps/api-gateway/src/interviews/interviews.module';
+import { NotificationsModule } from 'apps/api-gateway/src/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { InterviewsModule } from 'apps/api-gateway/src/interviews/interviews.mod
     PaymentsModule,
     UploadsModule,
     InterviewsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [

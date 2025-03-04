@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Company } from 'apps/jobs/src/entities/companies.entity';
@@ -16,13 +17,10 @@ import {
 import { SKILL_KEYWORDS } from 'libs/common/constants/skills.constant';
 import { CreateUserDto, LoginDto, UpdateUserDto } from 'libs/common/dtos';
 import { AssignCompanyToRecruitersDto } from 'libs/common/dtos/assign-company-to-recruiters.dto';
-import { UpdateCompanyDto } from 'libs/common/dtos/update-company.dto';
 import { handleEncodedPassword } from 'libs/common/utils';
 import { UrlResponseType } from 'libs/common/utils/types';
 import { lastValueFrom } from 'rxjs';
 import { DataSource, In, Repository } from 'typeorm';
-import { Role as RoleEnum } from 'libs/common/constants';
-import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class UsersService {
@@ -264,7 +262,6 @@ export class UsersService {
           id: n.id,
           title: n.title,
           message: n.message,
-          is_read: n.is_read,
         })),
       skills: user.skills.map((sk) => sk.name),
       expected_salary: Number(res.expected_salary),

@@ -5,6 +5,7 @@ export type CreateNotificationDto = {
   title: string;
   message: string;
   type: string;
+  metadata?: Record<string, any>;
 };
 
 export type CreateApplication = {

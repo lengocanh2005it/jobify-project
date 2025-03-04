@@ -1,4 +1,5 @@
 import { Job } from 'apps/jobs/src/entities/jobs.entity';
+import { UserNotification } from 'apps/notifications/src/entities/user-notification.entity';
 import { User } from 'apps/users/src/entities/users.entity';
 import {
   Column,
@@ -6,6 +7,8 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -44,6 +47,15 @@ export class Application {
   })
   @JoinColumn({ name: 'job_id' })
   readonly job!: Job;
+
+  @OneToMany(
+    () => UserNotification,
+    (userNotification) => userNotification.application,
+    {
+      cascade: true,
+    },
+  )
+  readonly userNotifications!: UserNotification[];
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;

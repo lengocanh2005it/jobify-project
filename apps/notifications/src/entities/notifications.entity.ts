@@ -1,3 +1,4 @@
+import { Job } from 'apps/jobs/src/entities/jobs.entity';
 import { UserNotification } from 'apps/notifications/src/entities/user-notification.entity';
 import {
   Column,
@@ -18,9 +19,6 @@ export class Notification {
 
   @Column({ type: 'text' })
   readonly message!: string;
-
-  @Column({ type: 'boolean', default: false })
-  readonly is_read!: boolean;
 
   @Column()
   readonly type!: string;
