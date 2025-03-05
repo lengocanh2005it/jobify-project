@@ -96,6 +96,14 @@ export class NotificationsService {
 
         await this.userNotificationRepository.save(appNotifications);
       }
+
+      if (metadata && metadata?.interviewId) {
+        await this.dataSource
+          .createQueryBuilder()
+          .relation(UserNotification, 'interview')
+          .of(savedUserNotifications.map((un) => un.id))
+          .set(metadata.interviewId);
+      }
     } catch (err) {
       console.error(err);
       throw err;
@@ -112,6 +120,7 @@ export class NotificationsService {
         .leftJoinAndSelect('user-notification.user', 'user')
         .leftJoinAndSelect('user-notification.job', 'job')
         .leftJoinAndSelect('user-notification.application', 'application')
+        .leftJoinAndSelect('user-notification.interview', 'interview')
         .leftJoinAndSelect('user-notification.notification', 'notification')
         .andWhere('user.id = :id', { id: user.id })
         .select([
@@ -122,6 +131,7 @@ export class NotificationsService {
           'application.resume_link',
           'application.cover_letter_link',
           'application.applied_at',
+          'interview',
         ]);
 
       if (filters?.title) {
@@ -181,7 +191,7 @@ export class NotificationsService {
     try {
       const userNotification = await this.userNotificationRepository.findOne({
         where: { id: userNotificationId },
-        relations: ['user', 'notification'],
+        relations: ['user', 'notification', 'job', 'interview', 'application'],
       });
 
       if (!userNotification)

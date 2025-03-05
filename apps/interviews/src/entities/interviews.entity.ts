@@ -1,10 +1,12 @@
 import { Job } from 'apps/jobs/src/entities/jobs.entity';
+import { UserNotification } from 'apps/notifications/src/entities/user-notification.entity';
 import { User } from 'apps/users/src/entities/users.entity';
 import {
   ApprovalStatus,
   InterviewResult,
   InterviewStatus,
   InterviewType,
+  Role,
 } from 'libs/common/constants';
 import {
   Column,
@@ -12,6 +14,7 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -59,6 +62,9 @@ export class Interview {
   })
   readonly approval_status!: ApprovalStatus;
 
+  @Column({ type: 'enum', enum: Role, nullable: true })
+  readonly cancelled_by?: Role;
+
   @Column({
     type: 'enum',
     enum: InterviewResult,
@@ -85,6 +91,13 @@ export class Interview {
   })
   @JoinColumn({ name: 'recruiter_id' })
   readonly recruiter!: User;
+
+  @OneToMany(
+    () => UserNotification,
+    (userNotification) => userNotification.interview,
+    { cascade: true },
+  )
+  readonly userNotifications!: UserNotification[];
 
   @ManyToOne(() => Job, (job) => job.interviews, {
     onDelete: 'CASCADE',

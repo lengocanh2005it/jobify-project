@@ -10,11 +10,14 @@ import {
   InterviewStatus,
   InterviewType,
   NotificationTypes,
+  Role,
 } from 'libs/common/constants';
+import { CandidatesProcessInterviewsDto } from 'libs/common/dtos/candidates-process-interviews.dto';
 import { CreateInterviewDto } from 'libs/common/dtos/create-interview.dto';
 import { ProcessInterviewsDto } from 'libs/common/dtos/process-interviews.dto';
 import { SearchInterviewsDto } from 'libs/common/dtos/search-interviews.dto';
 import { UpdateInterviewDto } from 'libs/common/dtos/update-interview.dto';
+import { omit } from 'lodash';
 import { lastValueFrom } from 'rxjs';
 import { DataSource, Repository } from 'typeorm';
 
@@ -32,19 +35,31 @@ export class InterviewsService {
 
   public handleCreateInterview = async (
     createInterviewDto: CreateInterviewDto,
-    recruiterId: string,
+    user: User,
   ) => {
     try {
+      const { id, role } = user;
+
+      if (role.name === 'admin' && !createInterviewDto?.recruiter_id) {
+        throw new RpcException(
+          `You must be provide recruiter id for creating an interview.`,
+        );
+      } else if (role.name === 'recruiter' && createInterviewDto?.recruiter_id)
+        throw new RpcException(
+          `You don't have to provide recruiter id for creating an interview.`,
+        );
+
       const company = await lastValueFrom<Company | null>(
         this.rabbitMqJobClient.send(
           { cmd: 'get-company-by-recruiter-id' },
-          recruiterId,
+          role.name === 'admin' ? createInterviewDto.recruiter_id : id,
         ),
       );
 
       if (!company)
         throw new RpcException(
-          `Recruiter with id: '${recruiterId}' doesn't have belong to any companies.`,
+          `Recruiter with id: '${role.name === 'admin' ? createInterviewDto.recruiter_id : user.id}' 
+          doesn't have belong to any companies.`,
         );
 
       const {
@@ -65,7 +80,7 @@ export class InterviewsService {
         );
 
       const job = await lastValueFrom<Job | null>(
-        this.rabbitMqJobClient.send({ cmd: 'get-job' }, job_id),
+        this.rabbitMqJobClient.send({ cmd: 'verify-job' }, job_id),
       );
 
       if (!job) throw new RpcException(`Job with id: '${job_id}' not found.`);
@@ -80,7 +95,9 @@ export class InterviewsService {
       let existingInterview = await this.interviewRepository.findOne({
         where: {
           candidate: { id: candidate_id },
-          recruiter: { id: recruiterId },
+          recruiter: {
+            id: role.name === 'admin' ? createInterviewDto.candidate_id : id,
+          },
         },
         relations: ['candidate', 'recruiter'],
       });
@@ -115,7 +132,7 @@ export class InterviewsService {
         .createQueryBuilder()
         .relation(Interview, 'recruiter')
         .of(existingInterview.id)
-        .set(recruiterId);
+        .set(role.name === 'admin' ? createInterviewDto.recruiter_id : id);
 
       await this.dataSource
         .createQueryBuilder()
@@ -123,9 +140,14 @@ export class InterviewsService {
         .of(existingInterview.id)
         .set(job_id);
 
-      return await this.interviewRepository.findOne({
+      const interview = await this.interviewRepository.findOne({
         where: { id: existingInterview.id },
+        relations: ['candidate', 'job', 'recruiter'],
       });
+
+      return role.name === 'admin'
+        ? omit(interview, ['recruiter.password', 'candidate.password'])
+        : omit(interview, ['recruiter', 'candidate.password']);
     } catch (err) {
       console.error(err);
       throw err;
@@ -226,15 +248,23 @@ export class InterviewsService {
   public handleUpdateInterview = async (
     updateInterviewDto: UpdateInterviewDto,
     interviewId: string,
+    user: User,
   ) => {
     try {
+      const { id, role } = user;
+
       const interview = await this.interviewRepository.findOne({
         where: { id: interviewId },
-        relations: ['candidate'],
+        relations: ['candidate', 'recruiter', 'job'],
       });
 
       if (!interview)
         throw new RpcException(`Interview with id '${interviewId}' not found.`);
+
+      if (role.name === 'admin' && interview.recruiter.id !== id)
+        throw new RpcException(
+          `You can only update the review that belongs to you.`,
+        );
 
       const {
         interview_type,
@@ -243,6 +273,7 @@ export class InterviewsService {
         cancel_reason,
         result,
         interview_address,
+        score,
       } = updateInterviewDto;
 
       if (interview_type === InterviewType.ONLINE && !interview_link)
@@ -261,6 +292,11 @@ export class InterviewsService {
           interview only have in offline interview.`,
         );
 
+      if ((result && !score) || (score && !result))
+        throw new RpcException(
+          'You must be provide the result and score concurrently.',
+        );
+
       await this.interviewRepository.update(
         { id: interviewId },
         {
@@ -269,7 +305,7 @@ export class InterviewsService {
         },
       );
 
-      if (result) {
+      if (result && score) {
         const { title, description, key } = NotificationTypes.INTERVIEW_RESULT;
 
         this.rabbitMqNotificationClient.emit('create-notification', {
@@ -282,19 +318,26 @@ export class InterviewsService {
         });
       }
 
-      return await this.interviewRepository.findOne({
+      const newInterview = await this.interviewRepository.findOne({
         where: {
           id: interviewId,
         },
+        relations: ['recruiter', 'candidate', 'job'],
       });
+
+      return role.name === 'admin'
+        ? omit(newInterview, ['recruiter.password', 'candidate.password'])
+        : omit(newInterview, ['candidate.password', 'recruiter']);
     } catch (err) {
       console.error(err);
       throw err;
     }
   };
 
-  public handleDeleteInterview = async (interviewId: string) => {
+  public handleDeleteInterview = async (interviewId: string, user: User) => {
     try {
+      const { id, role } = user;
+
       const interview = await this.interviewRepository.findOne({
         where: {
           id: interviewId,
@@ -305,6 +348,11 @@ export class InterviewsService {
       if (!interview)
         throw new NotFoundException(
           `Interview with id: '${interviewId}' not found.`,
+        );
+
+      if (role.name === 'recruiter' && interview.recruiter.id !== id)
+        throw new RpcException(
+          `You can only the interview that belongs to you.`,
         );
 
       const { title, description, key } =
@@ -330,27 +378,6 @@ export class InterviewsService {
     }
   };
 
-  public handleGetInterviewsOfRecruiters = async (recruiterId: string) => {
-    try {
-      const interviews = await this.interviewRepository.find({
-        where: {
-          recruiter: { id: recruiterId },
-        },
-        relations: ['recruiter'],
-      });
-
-      return interviews.map(
-        ({ recruiter: { password, ...resData }, ...res }) => ({
-          ...res,
-          recruiter: resData,
-        }),
-      );
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
-  };
-
   public handleGetReviews = async (
     user: User,
     filters?: SearchInterviewsDto,
@@ -360,10 +387,30 @@ export class InterviewsService {
 
       const query = this.interviewRepository
         .createQueryBuilder('interview')
-        .leftJoinAndSelect('interview.recruiter', 'recruiter');
+        .leftJoinAndSelect('interview.recruiter', 'recruiter')
+        .leftJoinAndSelect('interview.candidate', 'candidate')
+        .leftJoinAndSelect('recruiter.company', 'company')
+        .leftJoinAndSelect('interview.job', 'job')
+        .select([
+          'interview',
+          'recruiter.id',
+          'recruiter.full_name',
+          'recruiter.email',
+          'recruiter.phone_number',
+          'company.name',
+          'candidate.id',
+          'candidate.full_name',
+          'candidate.email',
+          'candidate.phone_number',
+          'job.id',
+          'job.title',
+          'job.description',
+        ]);
 
-      if (role.name !== 'admin') {
+      if (role.name === 'recruiter') {
         query.andWhere('recruiter.id = :id', { id });
+      } else if (role.name === 'candidate') {
+        query.andWhere('candidate.id = :id', { id });
       }
 
       if (filters) {
@@ -412,18 +459,221 @@ export class InterviewsService {
         }
       }
 
-      return (await query.getMany()).map(
-        ({ recruiter: { password, ...res }, ...resData }) => ({
-          ...resData,
-          recruiter: {
-            id: res.id,
-            full_nae: res.full_name,
-            email: res.email,
-            phone_number: res.phone_number,
-            address: res.address,
-          },
-        }),
-      );
+      return (await query.getMany()).map((interview) => {
+        return user.role.name === 'recruiter'
+          ? omit(interview, ['recruiter'])
+          : interview;
+      });
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  public handleGetInterview = async (interviewId: string, user: User) => {
+    try {
+      const { id, role } = user;
+
+      const interview = await this.interviewRepository.findOne({
+        where: { id: interviewId },
+        relations: ['recruiter', 'job', 'candidate'],
+      });
+
+      if (!interview)
+        throw new RpcException(
+          `Interview with id: '${interviewId}' not found.`,
+        );
+
+      if (role.name === 'recruiter' && interview.recruiter.id !== id)
+        throw new RpcException(
+          `You can only get the interview that you created.`,
+        );
+
+      if (role.name === 'candidate' && interview.candidate.id !== id)
+        throw new RpcException(
+          `You can only get the interview that recruiter invited you.`,
+        );
+
+      return role.name === 'admin' || role.name === 'candidate'
+        ? omit(interview, ['recruiter.password', 'candidate.password'])
+        : omit(interview, ['recruiter', 'candidate.password']);
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  public handleProcessInterviewsOfCandidates = async (
+    user: User,
+    processInterviewsOfCandidate: CandidatesProcessInterviewsDto,
+  ) => {
+    try {
+      const { id, role } = user;
+
+      const approvedInterviewIds =
+        processInterviewsOfCandidate?.approvedInterviewIds ?? [];
+
+      const rejectedInterviews =
+        processInterviewsOfCandidate.rejectedInterviews ?? [];
+
+      if (!approvedInterviewIds.length && !rejectedInterviews.length)
+        throw new RpcException('You must be approve or reject the interviews.');
+
+      if (approvedInterviewIds && approvedInterviewIds.length) {
+        for (const approvedInterviewId of approvedInterviewIds) {
+          const interview = await this.interviewRepository.findOne({
+            where: {
+              id: approvedInterviewId,
+            },
+            relations: ['candidate', 'recruiter'],
+          });
+
+          if (!interview) {
+            console.warn(
+              `Interview with id: '${approvedInterviewId}' not found.`,
+            );
+            continue;
+          }
+
+          if (interview.candidate.id !== id && role.name === 'candidate') {
+            console.warn(
+              'You can only approve the interviews that you received from job of recruiter.',
+            );
+            continue;
+          }
+
+          if (
+            interview.status === InterviewStatus.CANCEL ||
+            interview.status === InterviewStatus.FINISHED
+          ) {
+            console.warn(
+              `Interview with id: '${approvedInterviewId}' has been ${
+                interview.status === InterviewStatus.CANCEL
+                  ? 'cancelled'
+                  : 'finished'
+              }.`,
+            );
+            continue;
+          }
+
+          if (
+            interview.approval_status === ApprovalStatus.APPROVED ||
+            interview.approval_status === ApprovalStatus.REJECTED
+          ) {
+            console.warn(
+              `Interview with id: '${approvedInterviewId}' has been ${
+                interview.approval_status === ApprovalStatus.APPROVED
+                  ? 'approved'
+                  : 'rejected'
+              }.`,
+            );
+            continue;
+          }
+
+          await this.interviewRepository.update(
+            { id: approvedInterviewId },
+            {
+              approval_status: ApprovalStatus.APPROVED,
+            },
+          );
+
+          const { title, description, key } =
+            NotificationTypes.INTERVIEW_RESPONSE_RECEIVED;
+
+          this.rabbitMqNotificationClient.emit('create-notification', {
+            data: {
+              title,
+              message: description,
+              type: key,
+              metadata: {
+                interviewId: approvedInterviewId,
+              },
+            },
+            userIds: [interview.recruiter.id],
+          });
+        }
+      }
+
+      if (rejectedInterviews && rejectedInterviews.length) {
+        for (const rejectedInterview of rejectedInterviews) {
+          const interview = await this.interviewRepository.findOne({
+            where: {
+              id: rejectedInterview.interviewId,
+            },
+            relations: ['candidate', 'recruiter'],
+          });
+
+          if (!interview) {
+            console.warn(
+              `Interview with id: '${rejectedInterview.interviewId}' not found.`,
+            );
+            continue;
+          }
+
+          if (interview.candidate.id !== id && role.name === 'candidate') {
+            console.warn(
+              'You can only reject the interviews that you received from job of recruiter.',
+            );
+            continue;
+          }
+
+          if (
+            interview.status === InterviewStatus.CANCEL ||
+            interview.status === InterviewStatus.FINISHED
+          ) {
+            console.warn(
+              `Interview with id: '${rejectedInterview.interviewId}' has been ${
+                interview.status === InterviewStatus.CANCEL
+                  ? 'cancelled'
+                  : 'finished'
+              }.`,
+            );
+            continue;
+          }
+
+          if (
+            interview.approval_status === ApprovalStatus.APPROVED ||
+            interview.approval_status === ApprovalStatus.REJECTED
+          ) {
+            console.warn(
+              `Interview with id: '${rejectedInterview.interviewId}' has been ${
+                interview.approval_status === ApprovalStatus.APPROVED
+                  ? 'approved'
+                  : 'rejected'
+              }.`,
+            );
+            continue;
+          }
+
+          await this.interviewRepository.update(
+            { id: rejectedInterview.interviewId },
+            {
+              approval_status: ApprovalStatus.REJECTED,
+              cancel_reason: rejectedInterview.reason,
+              cancelled_by: role.name === 'admin' ? Role.ADMIN : Role.CANDIDATE,
+            },
+          );
+
+          const { title, description, key } =
+            NotificationTypes.INTERVIEW_RESPONSE_RECEIVED;
+
+          this.rabbitMqNotificationClient.emit('create-notification', {
+            data: {
+              title,
+              message: description,
+              type: key,
+              metadata: {
+                interviewId: rejectedInterview.interviewId,
+              },
+            },
+            userIds: [interview.recruiter.id],
+          });
+        }
+      }
+
+      return {
+        success: 'Processed the interviews successfully!',
+      };
     } catch (err) {
       console.error(err);
       throw err;
