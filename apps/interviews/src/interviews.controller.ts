@@ -1,11 +1,12 @@
-import { Controller, Get } from '@nestjs/common';
-import { InterviewsService } from './interviews.service';
+import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
+import { User } from 'apps/users/src/entities/users.entity';
 import { CreateInterviewDto } from 'libs/common/dtos/create-interview.dto';
 import { ProcessInterviewsDto } from 'libs/common/dtos/process-interviews.dto';
-import { UpdateInterviewDto } from 'libs/common/dtos/update-interview.dto';
 import { SearchInterviewsDto } from 'libs/common/dtos/search-interviews.dto';
-import { User } from 'apps/users/src/entities/users.entity';
+import { UpdateInterviewDto } from 'libs/common/dtos/update-interview.dto';
+import { InterviewsService } from './interviews.service';
+import { CandidatesProcessInterviewsDto } from 'libs/common/dtos/candidates-process-interviews.dto';
 
 @Controller()
 export class InterviewsController {
@@ -14,11 +15,11 @@ export class InterviewsController {
   @MessagePattern({ cmd: 'create-interview' })
   async handleCreateInterview(
     @Payload('createInterviewDto') createInterviewDto: CreateInterviewDto,
-    @Payload('recruiterId') recruiterId: string,
+    @Payload('user') user: User,
   ) {
     return await this.interviewsService.handleCreateInterview(
       createInterviewDto,
-      recruiterId,
+      user,
     );
   }
 
@@ -35,22 +36,23 @@ export class InterviewsController {
   async handleUpdateInterview(
     @Payload('updateInterviewDto') updateInterviewDto: UpdateInterviewDto,
     @Payload('interviewId') interviewId: string,
+    @Payload('user') user: User,
   ) {
     return await this.interviewsService.handleUpdateInterview(
       updateInterviewDto,
       interviewId,
+      user,
     );
   }
 
   @MessagePattern({ cmd: 'delete-interview' })
-  async handleDeleteInterview(@Payload() interviewId: string) {
-    return await this.interviewsService.handleDeleteInterview(interviewId);
-  }
-
-  @MessagePattern({ cmd: 'get-interviews-recruiters' })
-  async handleGetInterviewsOfRecruiters(@Payload() recruiterId: string) {
-    return await this.interviewsService.handleGetInterviewsOfRecruiters(
-      recruiterId,
+  async handleDeleteInterview(
+    @Payload('interviewId') interviewId: string,
+    @Payload('user') user: User,
+  ) {
+    return await this.interviewsService.handleDeleteInterview(
+      interviewId,
+      user,
     );
   }
 
@@ -62,6 +64,26 @@ export class InterviewsController {
     return await this.interviewsService.handleGetReviews(
       user,
       searchInterviewsDto,
+    );
+  }
+
+  @MessagePattern({ cmd: 'get-interview' })
+  async handleGetInterview(
+    @Payload('interviewId') interviewId: string,
+    @Payload('user') user: User,
+  ) {
+    return this.interviewsService.handleGetInterview(interviewId, user);
+  }
+
+  @MessagePattern({ cmd: 'process-interviews-candidates' })
+  async processInterviewsOfCandidates(
+    @Payload('user') user: User,
+    @Payload('candidatesProcessInterviewsDto')
+    candidatesProcessInterviewsDto: CandidatesProcessInterviewsDto,
+  ) {
+    return this.interviewsService.handleProcessInterviewsOfCandidates(
+      user,
+      candidatesProcessInterviewsDto,
     );
   }
 }

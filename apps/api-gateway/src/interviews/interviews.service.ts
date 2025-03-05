@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities/users.entity';
+import { CandidatesProcessInterviewsDto } from 'libs/common/dtos/candidates-process-interviews.dto';
 import { CreateInterviewDto } from 'libs/common/dtos/create-interview.dto';
 import { ProcessInterviewsDto } from 'libs/common/dtos/process-interviews.dto';
 import { SearchInterviewsDto } from 'libs/common/dtos/search-interviews.dto';
@@ -15,11 +16,11 @@ export class InterviewsService {
 
   public handleCreateInterview = (
     createInterviewDto: CreateInterviewDto,
-    recruiterId: string,
+    user: User,
   ) => {
     return this.rabbitMqInterviewClient.send(
       { cmd: 'create-interview' },
-      { createInterviewDto, recruiterId },
+      { createInterviewDto, user },
     );
   };
 
@@ -33,27 +34,25 @@ export class InterviewsService {
   public handleUpdateInterview = (
     updateInterviewDto: UpdateInterviewDto,
     interviewId: string,
+    user: User,
   ) => {
     return this.rabbitMqInterviewClient.send(
       { cmd: 'update-interview' },
       {
         updateInterviewDto,
         interviewId,
+        user,
       },
     );
   };
 
-  public handleDeleteInterview = (interviewId: string) => {
+  public handleDeleteInterview = (interviewId: string, user: User) => {
     return this.rabbitMqInterviewClient.send(
       { cmd: 'delete-interview' },
-      interviewId,
-    );
-  };
-
-  public handleGetInterviewsOfRecruiter = (recruiterId: string) => {
-    return this.rabbitMqInterviewClient.send(
-      { cmd: 'get-interviews-recruiters' },
-      recruiterId,
+      {
+        interviewId,
+        user,
+      },
     );
   };
 
@@ -69,4 +68,27 @@ export class InterviewsService {
       },
     );
   }
+
+  public handleGetInterview = (interviewId: string, user: User) => {
+    return this.rabbitMqInterviewClient.send(
+      { cmd: 'get-interview' },
+      {
+        interviewId,
+        user,
+      },
+    );
+  };
+
+  public handleProcessInterviewsOfCandidate = (
+    user: User,
+    candidatesProcessInterviewsDto: CandidatesProcessInterviewsDto,
+  ) => {
+    return this.rabbitMqInterviewClient.send(
+      { cmd: 'process-interviews-candidates' },
+      {
+        user,
+        candidatesProcessInterviewsDto,
+      },
+    );
+  };
 }

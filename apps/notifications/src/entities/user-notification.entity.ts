@@ -1,4 +1,5 @@
 import { Application } from 'apps/applications/src/entities/applications.entity';
+import { Interview } from 'apps/interviews/src/entities/interviews.entity';
 import { Job } from 'apps/jobs/src/entities/jobs.entity';
 import { Notification } from 'apps/notifications/src/entities/notifications.entity';
 import { User } from 'apps/users/src/entities/users.entity';
@@ -8,7 +9,6 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
-  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -57,6 +57,13 @@ export class UserNotification {
   )
   @JoinColumn({ name: 'application_id' })
   readonly application!: Application;
+
+  @ManyToOne(() => Interview, (interview) => interview.userNotifications, {
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE',
+  })
+  @JoinColumn({ name: 'interview_id' })
+  readonly interview!: Interview;
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;

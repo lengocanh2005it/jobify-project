@@ -51,4 +51,10 @@ export class CreateInterviewDto {
   @IsString()
   @IsNotEmpty()
   readonly candidate_id!: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @IsUUID()
+  readonly recruiter_id!: string;
 }

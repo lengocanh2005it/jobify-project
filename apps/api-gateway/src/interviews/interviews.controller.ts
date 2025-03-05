@@ -16,6 +16,7 @@ import { User } from 'apps/users/src/entities/users.entity';
 import { Request } from 'express';
 import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
+import { CandidatesProcessInterviewsDto } from 'libs/common/dtos/candidates-process-interviews.dto';
 import { CreateInterviewDto } from 'libs/common/dtos/create-interview.dto';
 import { ProcessInterviewsDto } from 'libs/common/dtos/process-interviews.dto';
 import { SearchInterviewsDto } from 'libs/common/dtos/search-interviews.dto';
@@ -29,7 +30,7 @@ export class InterviewsController {
   @Get()
   @ResponseMessage('Interviews fetch successfully!')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
-  @Roles(Role.ADMIN, Role.RECRUITER)
+  @Roles(Role.ADMIN, Role.RECRUITER, Role.CANDIDATE)
   getInterviews(
     @Req() request: Request,
     @Query() searchInterviewsDto?: SearchInterviewsDto,
@@ -42,6 +43,19 @@ export class InterviewsController {
     );
   }
 
+  @Get(':id')
+  @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  @ResponseMessage('Interviews fetched successfully!')
+  getInterview(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
+  ) {
+    const user = request.user as User;
+
+    return this.interviewsService.handleGetInterview(id, user);
+  }
+
   @Post()
   @ResponseMessage('New interview created successfully!')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
@@ -50,11 +64,11 @@ export class InterviewsController {
     @Body() createInterviewDto: CreateInterviewDto,
     @Req() request: Request,
   ) {
-    const recruiter = request.user as User;
+    const user = request.user as User;
 
     return this.interviewsService.handleCreateInterview(
       createInterviewDto,
-      recruiter.id,
+      user,
     );
   }
 
@@ -73,23 +87,41 @@ export class InterviewsController {
   updateInterview(
     @Body() updateInterviewDto: UpdateInterviewDto,
     @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
   ) {
-    return this.interviewsService.handleUpdateInterview(updateInterviewDto, id);
+    const user = request.user as User;
+
+    return this.interviewsService.handleUpdateInterview(
+      updateInterviewDto,
+      id,
+      user,
+    );
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.RECRUITER)
-  deleteInterview(@Param('id', ParseUUIDPipe) id: string) {
-    return this.interviewsService.handleDeleteInterview(id);
-  }
-
-  @Get('recruiters/me')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
-  @Roles(Role.ADMIN, Role.RECRUITER)
-  getInterviewsOfRecruiter(@Req() request: Request) {
+  deleteInterview(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: Request,
+  ) {
     const user = request.user as User;
 
-    return this.interviewsService.handleGetInterviewsOfRecruiter(user.id);
+    return this.interviewsService.handleDeleteInterview(id, user);
+  }
+
+  @Patch('candidates/process')
+  @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @Roles(Role.ADMIN, Role.CANDIDATE)
+  candidatesProcessInterviews(
+    @Req() request: Request,
+    @Body() candidatesProcessInterviewsDto: CandidatesProcessInterviewsDto,
+  ) {
+    const user = request.user as User;
+
+    return this.interviewsService.handleProcessInterviewsOfCandidate(
+      user,
+      candidatesProcessInterviewsDto,
+    );
   }
 }
