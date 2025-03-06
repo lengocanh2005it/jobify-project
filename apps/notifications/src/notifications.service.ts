@@ -104,6 +104,14 @@ export class NotificationsService {
           .of(savedUserNotifications.map((un) => un.id))
           .set(metadata.interviewId);
       }
+
+      if (metadata && metadata?.conversationId) {
+        await this.dataSource
+          .createQueryBuilder()
+          .relation(UserNotification, 'conversation')
+          .of(savedUserNotifications.map((un) => un.id))
+          .set(metadata.conversationId);
+      }
     } catch (err) {
       console.error(err);
       throw err;

@@ -3,8 +3,8 @@ import { Interview } from 'apps/interviews/src/entities/interviews.entity';
 import { Company } from 'apps/jobs/src/entities/companies.entity';
 import { Job } from 'apps/jobs/src/entities/jobs.entity';
 import { SavedJob } from 'apps/jobs/src/entities/saved-jobs.entity';
+import { Conversation } from 'apps/messages/src/entities/conversations.entity';
 import { Message } from 'apps/messages/src/entities/messages.entity';
-import { Notification } from 'apps/notifications/src/entities/notifications.entity';
 import { UserNotification } from 'apps/notifications/src/entities/user-notification.entity';
 import { Transaction } from 'apps/payments/src/entities/transactions.entity';
 import { Review } from 'apps/reviews/src/entities/reviews.entity';
@@ -142,6 +142,9 @@ export class User {
     cascade: true,
   })
   readonly recruiter_interviews!: Interview[];
+
+  @ManyToMany(() => Conversation, (conversation) => conversation.participants)
+  readonly conversations!: Conversation[];
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;
