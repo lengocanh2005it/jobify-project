@@ -648,6 +648,7 @@ export class JobsService {
         where: {
           id: jobId,
         },
+        relations: ['recruiter'],
       });
 
       if (!job) throw new RpcException(`Job with id: '${jobId}' not found.`);

@@ -19,6 +19,7 @@ import { CreateUserDto, LoginDto, UpdateUserDto } from 'libs/common/dtos';
 import { AssignCompanyToRecruitersDto } from 'libs/common/dtos/assign-company-to-recruiters.dto';
 import { handleEncodedPassword } from 'libs/common/utils';
 import { UrlResponseType } from 'libs/common/utils/types';
+import { omit } from 'lodash';
 import { lastValueFrom } from 'rxjs';
 import { DataSource, In, Repository } from 'typeorm';
 
@@ -663,9 +664,7 @@ export class UsersService {
 
       if (!user) throw new RpcException(`User with id: '${userId}' not found.`);
 
-      const { password, ...res } = user;
-
-      return res;
+      return omit(user, ['password']);
     } catch (err) {
       console.error(err);
       throw err;

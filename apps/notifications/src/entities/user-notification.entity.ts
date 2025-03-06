@@ -1,6 +1,7 @@
 import { Application } from 'apps/applications/src/entities/applications.entity';
 import { Interview } from 'apps/interviews/src/entities/interviews.entity';
 import { Job } from 'apps/jobs/src/entities/jobs.entity';
+import { Conversation } from 'apps/messages/src/entities/conversations.entity';
 import { Notification } from 'apps/notifications/src/entities/notifications.entity';
 import { User } from 'apps/users/src/entities/users.entity';
 import {
@@ -64,6 +65,18 @@ export class UserNotification {
   })
   @JoinColumn({ name: 'interview_id' })
   readonly interview!: Interview;
+
+  @ManyToOne(
+    () => Conversation,
+    (conversation) => conversation.messages_notifications,
+    {
+      onDelete: 'CASCADE',
+      onUpdate: 'CASCADE',
+      nullable: true,
+    },
+  )
+  @JoinColumn({ name: 'conversation_id' })
+  readonly conversation?: Conversation;
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;
