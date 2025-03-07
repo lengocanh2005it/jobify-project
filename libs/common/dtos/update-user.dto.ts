@@ -1,17 +1,12 @@
-import { Type } from 'class-transformer';
 import {
-  ArrayNotEmpty,
-  IsArray,
   IsEmail,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsPositive,
   IsString,
-  ValidateNested,
+  IsUUID,
 } from 'class-validator';
-import { CreateCompanyDto } from 'libs/common/dtos/create-company.dto';
-import { UpdateCompanyDto } from 'libs/common/dtos/update-company.dto';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -40,22 +35,28 @@ export class UpdateUserDto {
   readonly full_name?: string;
 
   @IsOptional()
-  @IsNumber()
-  @IsPositive()
-  readonly expected_salary?: number;
+  @IsString()
+  @IsNotEmpty()
+  readonly expected_salary?: string;
 
   @IsOptional()
   @IsString()
   @IsNotEmpty()
-  readonly skills?: string[];
+  readonly skills?: string;
 
   @IsOptional()
   @IsString()
   @IsNotEmpty()
-  readonly certifications?: string[];
+  readonly certifications?: string;
 
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   readonly updateCompanyDto: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @IsUUID()
+  readonly user_id?: string;
 }
