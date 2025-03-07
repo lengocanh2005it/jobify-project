@@ -20,6 +20,7 @@ import { AssignCompanyToRecruitersDto } from 'libs/common/dtos/assign-company-to
 import { handleEncodedPassword } from 'libs/common/utils';
 import { UrlResponseType } from 'libs/common/utils/types';
 import { omit } from 'lodash';
+import { paginate, PaginateQuery } from 'nestjs-paginate';
 import { lastValueFrom } from 'rxjs';
 import { DataSource, In, Repository } from 'typeorm';
 
@@ -42,53 +43,32 @@ export class UsersService {
     private readonly configService: ConfigService,
   ) {}
 
-  public getUsers = async (user: User) => {
-    const { id, role } = user;
+  public getUsers = async (query: PaginateQuery) => {
+    const qb = this.userRepository.createQueryBuilder('user');
 
-    const recruiter = await this.userRepository.findOne({
-      where: {
-        id,
-      },
-      relations: ['jobs', 'jobs.applications', 'jobs.applications.candidate'],
-    });
+    qb.leftJoinAndSelect('user.role', 'role');
 
-    const userIds: string[] = [];
+    qb.select([
+      'user.id',
+      'user.email',
+      'user.address',
+      'user.full_name',
+      'user.phone_number',
+      'user.bio',
+      'user.avatar_url',
+      'user.is_premium',
+      'user.expected_salary',
+      'user.premium_expiry',
+      'user.createdAt',
+      'role.name',
+    ]);
 
-    recruiter?.jobs.forEach((job) => {
-      job.applications.forEach((app) => {
-        userIds.push(app.candidate.id);
-      });
-    });
-
-    return await this.userRepository.find({
-      select: {
-        id: true,
-        email: true,
-        phone_number: true,
-        address: true,
-        bio: true,
-        full_name: true,
-        avatar_url: true,
-        skills: {
-          name: true,
-        },
-        ...(role.name === 'admin'
-          ? {
-              createdAt: true,
-              updatedAt: true,
-              is_premium: true,
-              expected_salary: true,
-              premium_expiry: true,
-              certifications: true,
-            }
-          : {}),
-      },
-      where:
-        role.name === 'admin'
-          ? {}
-          : {
-              id: In(userIds),
-            },
+    return paginate(query, qb, {
+      sortableColumns: ['id', 'email'],
+      searchableColumns: ['email', 'address', 'phone_number'],
+      defaultSortBy: [['id', 'ASC']],
+      maxLimit: 100,
+      select: query.select ?? [],
     });
   };
 
@@ -306,7 +286,10 @@ export class UsersService {
     files?: Array<Express.Multer.File>,
   ) => {
     try {
-      const findUser = await this.userRepository.findOneBy({ id: userId });
+      const findUser = await this.userRepository.findOne({
+        where: { id: userId },
+        relations: ['skills'],
+      });
 
       if (!findUser) throw new RpcException('User Not Found.');
 
@@ -314,6 +297,20 @@ export class UsersService {
 
       if (findUser.id !== id && role.name !== 'admin')
         throw new RpcException('You can only update profile yourself.');
+
+      const {
+        skills,
+        updateCompanyDto,
+        expected_salary,
+        certifications,
+        user_id,
+        ...resUpdateUserDto
+      } = updateUserDto;
+
+      if (role.name === 'admin' && !user_id)
+        throw new RpcException(
+          `Please provide the user_id you want to update their profile.`,
+        );
 
       let cvFileUrl = '';
       let avatarFileUrl = '';
@@ -327,8 +324,6 @@ export class UsersService {
 
         avatarFileUrl = await this.uploadFile(avatarFile);
       }
-
-      const { skills, updateCompanyDto, ...resUpdateUserDto } = updateUserDto;
 
       if (updateCompanyDto && role.name === 'candidate')
         throw new RpcException(
@@ -353,40 +348,82 @@ export class UsersService {
         )?.skills;
 
         if (existingSkillsOfUser && existingSkillsOfUser.length) {
-          for (const skill of skills) {
+          for (const skill of JSON.parse(skills) as string[]) {
             if (
               !existingSkillsOfUser.map((skill) => skill.name).includes(skill)
             ) {
-              const newSkill = this.skillRepository.create({
-                name: skill,
+              let newSkill = await this.skillRepository.findOne({
+                where: {
+                  name: skill,
+                },
               });
 
-              await this.skillRepository.save(newSkill);
+              if (!newSkill) {
+                newSkill = this.skillRepository.create({
+                  name: skill,
+                });
+
+                await this.skillRepository.save(newSkill);
+              }
 
               await this.dataSource
                 .createQueryBuilder()
-                .relation(Skill, 'user')
+                .relation(Skill, 'users')
                 .of(newSkill.id)
                 .add(userId);
             }
           }
+
+          const excludeSkills = existingSkillsOfUser
+            .map((skill) => skill.name)
+            .filter((el) => !(JSON.parse(skills) as string[]).includes(el));
+
+          for (const skill of excludeSkills) {
+            const findSkill = await this.skillRepository.findOne({
+              where: {
+                name: skill,
+              },
+            });
+
+            if (!findSkill)
+              throw new RpcException(
+                `Skill with name: '${skill}' not found in Skill Table.`,
+              );
+
+            await this.dataSource
+              .createQueryBuilder()
+              .relation(User, 'skills')
+              .of(user.id)
+              .remove(findSkill.id);
+          }
         }
+      }
+
+      let formattedCertifications: string[] = [];
+
+      if (certifications) {
+        formattedCertifications = JSON.parse(certifications) as string[];
       }
 
       await this.userRepository.update(
         { id: userId },
         {
           ...resUpdateUserDto,
+          ...(formattedCertifications && formattedCertifications.length
+            ? { certifications: formattedCertifications }
+            : {}),
+          expected_salary: Number(expected_salary),
           ...(avatarFileUrl ? { avatar_url: avatarFileUrl } : {}),
           ...(cvFileUrl ? { resume_link: cvFileUrl } : {}),
         },
       );
 
-      const savedUser = (await this.userRepository.findOneBy({
-        id: userId,
+      const savedUser = (await this.userRepository.findOne({
+        where: {
+          id: userId,
+        },
+        relations: ['skills'],
       })) as User;
-
-      const { password, ...res } = savedUser;
 
       const { title, description, key } = NotificationTypes.PROFILE_UPDATE;
 
@@ -399,7 +436,12 @@ export class UsersService {
         userIds: [savedUser.id],
       });
 
-      return res;
+      const { password, ...res } = savedUser;
+
+      return {
+        ...res,
+        skills: res.skills.map((skill) => skill.name),
+      };
     } catch (err) {
       console.error(err);
     }

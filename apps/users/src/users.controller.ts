@@ -5,14 +5,15 @@ import { UpdateUserDto } from 'libs/common/dtos/update-user.dto';
 import { UsersService } from './users.service';
 import { AssignCompanyToRecruitersDto } from 'libs/common/dtos/assign-company-to-recruiters.dto';
 import { User } from 'apps/users/src/entities/users.entity';
+import { PaginateQuery } from 'nestjs-paginate';
 
 @Controller()
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @MessagePattern({ cmd: 'get-users' })
-  async getUsers(@Payload('user') user: User) {
-    return await this.usersService.getUsers(user);
+  async getUsers(@Payload('query') query: PaginateQuery) {
+    return await this.usersService.getUsers(query);
   }
 
   @MessagePattern({ cmd: 'create-user' })

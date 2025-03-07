@@ -8,6 +8,7 @@ import { ClientProxy } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities/users.entity';
 import { CreateUserDto, UpdateUserDto } from 'libs/common/dtos';
 import { AssignCompanyToRecruitersDto } from 'libs/common/dtos/assign-company-to-recruiters.dto';
+import { PaginateQuery } from 'nestjs-paginate';
 import { catchError } from 'rxjs';
 
 @Injectable()
@@ -16,11 +17,11 @@ export class UsersService {
     @Inject('USERS_SERVICE') private readonly rabbitMqUsersClient: ClientProxy,
   ) {}
 
-  public getUsers = (user: User) => {
+  public getUsers = (query: PaginateQuery) => {
     return this.rabbitMqUsersClient.send(
       { cmd: 'get-users' },
       {
-        user,
+        query,
       },
     );
   };

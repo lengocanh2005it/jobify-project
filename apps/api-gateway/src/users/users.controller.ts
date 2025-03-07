@@ -22,6 +22,7 @@ import { CreateUserDto, UpdateUserDto } from 'libs/common/dtos';
 import { AssignCompanyToRecruitersDto } from 'libs/common/dtos/assign-company-to-recruiters.dto';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 import { FileValidationPipe } from 'libs/common/pipe/file-validation.pipe';
+import { Paginate, PaginateQuery } from 'nestjs-paginate';
 
 @Controller('users')
 export class UsersController {
@@ -30,11 +31,9 @@ export class UsersController {
   @Get()
   @ResponseMessage('All users fetched successfully.')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
-  @Roles(Role.ADMIN, Role.RECRUITER)
-  getUsers(@Req() request: Request) {
-    const user = request.user as User;
-
-    return this.usersService.getUsers(user);
+  @Roles(Role.ADMIN)
+  getUsers(@Req() request: Request, @Paginate() query: PaginateQuery) {
+    return this.usersService.getUsers(query);
   }
 
   @Get(':id')
