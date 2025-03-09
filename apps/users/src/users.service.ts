@@ -76,6 +76,8 @@ export class UsersService {
     createUserDto: CreateUserDto,
     files?: Array<Express.Multer.File>,
   ) => {
+    console.log(createUserDto);
+
     const { password, type, email } = createUserDto;
 
     const { skills, createCompanyDto, ...createUserData } = createUserDto;

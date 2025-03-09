@@ -16,7 +16,7 @@ import { Request } from 'express';
 import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
 import { CreateJobDto } from 'libs/common/dtos';
-import { ApproveJobsDto } from 'libs/common/dtos/approve-jobs.dto';
+import { ProcessJobsDto } from 'libs/common/dtos/process-jobs.dto';
 import { SavedJobsDto } from 'libs/common/dtos/saved-jobs.dto';
 import { SearchJobsDto } from 'libs/common/dtos/search-jobs.dto';
 import { UpdateJobDto } from 'libs/common/dtos/update-job.dto';
@@ -36,17 +36,17 @@ export class JobsController {
     return this.jobsService.handleCreateJob(createJobDto, user);
   }
 
-  @Patch('approve')
+  @Patch('process')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
-  @ResponseMessage('Jobs has been approved successfully.')
+  @ResponseMessage('Jobs has been processed successfully.')
   @Roles(Role.ADMIN)
-  approveJobs(@Body() { jobIds }: ApproveJobsDto) {
-    return this.jobsService.handleApproveJobs(jobIds);
+  processJobs(@Body() processJobsDto: ProcessJobsDto) {
+    return this.jobsService.handleProcessJobs(processJobsDto);
   }
 
   @Get()
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
-  @Roles(Role.ADMIN, Role.RECRUITER)
+  @Roles(Role.ADMIN, Role.RECRUITER, Role.CANDIDATE)
   @ResponseMessage('Job fetched successfully.')
   getJobs(@Query() filters: SearchJobsDto, @Req() request: Request) {
     const user = request.user as User;

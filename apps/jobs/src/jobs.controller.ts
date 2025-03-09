@@ -7,6 +7,7 @@ import { UpdateJobDto } from 'libs/common/dtos/update-job.dto';
 import { SearchJobsDto } from 'libs/common/dtos/search-jobs.dto';
 import { User } from 'apps/users/src/entities/users.entity';
 import { UpdateCompanyDto } from 'libs/common/dtos/update-company.dto';
+import { ProcessJobsDto } from 'libs/common/dtos/process-jobs.dto';
 
 @Controller()
 export class JobsController {
@@ -28,9 +29,9 @@ export class JobsController {
     return await this.jobsService.handleCreateJob(createJobDto, user);
   }
 
-  @MessagePattern({ cmd: 'approve-jobs' })
-  async handleApproveJobs(@Payload() jobIds: string[]) {
-    return await this.jobsService.handleApproveJobs(jobIds);
+  @MessagePattern({ cmd: 'process-jobs' })
+  async handleProcessJobs(@Payload() processJobsDto: ProcessJobsDto) {
+    return await this.jobsService.handleProcessJobs(processJobsDto);
   }
 
   @MessagePattern({ cmd: 'get-jobs' })
