@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  UploadedFiles,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { AuthService } from 'apps/api-gateway/src/auth/auth.service';
 import { User } from 'apps/users/src/entities/users.entity';
 import { Request } from 'express';
@@ -10,6 +20,7 @@ import { RefreshTokenDto } from 'libs/common/dtos/refresh-token.dto';
 import { UpdatePasswordDto } from 'libs/common/dtos/update-password.dto';
 import { VerifyEmailDto } from 'libs/common/dtos/verify-email.dto';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
+import { FileValidationPipe } from 'libs/common/pipe/file-validation.pipe';
 
 @Controller('auth')
 export class AuthController {
@@ -22,9 +33,13 @@ export class AuthController {
   }
 
   @Post('sign-up')
+  @UseInterceptors(AnyFilesInterceptor())
   @ResponseMessage('Signed up successfully.')
-  handleSignup(@Body() createUserDto: CreateUserDto) {
-    return this.authService.handleSignup(createUserDto);
+  async handleSignup(
+    @Body() createUserDto: CreateUserDto,
+    @UploadedFiles(FileValidationPipe) files: Array<Express.Multer.File>,
+  ) {
+    return this.authService.handleSignup(createUserDto, files);
   }
 
   @Post('sign-out')

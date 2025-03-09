@@ -1,9 +1,8 @@
+import { Transform } from 'class-transformer';
 import {
   IsEmail,
   IsNotEmpty,
-  IsNumber,
   IsOptional,
-  IsPositive,
   IsString,
   IsUUID,
 } from 'class-validator';
@@ -35,9 +34,10 @@ export class UpdateUserDto {
   readonly full_name?: string;
 
   @IsOptional()
+  @Transform(({ value }) => parseFloat(value as string))
   @IsString()
   @IsNotEmpty()
-  readonly expected_salary?: string;
+  readonly expected_salary?: number;
 
   @IsOptional()
   @IsString()
@@ -52,7 +52,7 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   @IsNotEmpty()
-  readonly updateCompanyDto: string;
+  readonly updateCompanyDto?: string;
 
   @IsOptional()
   @IsString()

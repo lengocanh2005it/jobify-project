@@ -56,7 +56,7 @@ export class JobsService {
 
     const { recruiters, ...res } = (await this.companyRepository.findOne({
       where: { id: company.id },
-      relations: ['recruiters', 'requirements'],
+      relations: ['recruiters'],
     })) as Company;
 
     return {
@@ -187,6 +187,14 @@ export class JobsService {
           if (!job)
             throw new RpcException(`Job with id: '${jobId}' not found.`);
 
+          if (
+            job.is_approved === true ||
+            (job.is_approved === false && job.cancel_reason && job.cancelled_by)
+          )
+            throw new RpcException(
+              `Job with id: '${jobId}' has already been processed and cannot be processed again.`,
+            );
+
           await this.jobRepository.update(
             {
               id: jobId,
@@ -279,6 +287,14 @@ export class JobsService {
           if (!job)
             throw new RpcException(
               `Job with id: '${rejectedJob.job_id}' not found.`,
+            );
+
+          if (
+            job.is_approved === true ||
+            (job.is_approved === false && job.cancel_reason && job.cancelled_by)
+          )
+            throw new RpcException(
+              `Job with id: '${rejectedJob.job_id}' has already been processed and cannot be processed again.`,
             );
 
           await this.jobRepository.update(
