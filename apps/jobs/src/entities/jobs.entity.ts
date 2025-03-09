@@ -53,6 +53,12 @@ export class Job {
   @Column({ type: 'boolean', default: false })
   readonly is_approved!: boolean;
 
+  @Column({ nullable: true })
+  readonly cancel_reason?: string;
+
+  @Column({ nullable: true })
+  readonly cancelled_by?: string;
+
   @ManyToOne(() => User, (user) => user.jobs, {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
