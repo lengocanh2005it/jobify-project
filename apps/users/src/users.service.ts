@@ -22,7 +22,7 @@ import { UrlResponseType } from 'libs/common/utils/types';
 import { omit } from 'lodash';
 import { paginate, PaginateQuery } from 'nestjs-paginate';
 import { lastValueFrom } from 'rxjs';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 
 @Injectable()
 export class UsersService {
@@ -76,11 +76,16 @@ export class UsersService {
     createUserDto: CreateUserDto,
     files?: Array<Express.Multer.File>,
   ) => {
-    console.log(createUserDto);
-
     const { password, type, email } = createUserDto;
 
-    const { skills, createCompanyDto, ...createUserData } = createUserDto;
+    if (type === 'admin')
+      throw new RpcException(`You cannot register an admin account.`);
+
+    const { skills, createCompanyDto, certifications, ...createUserData } =
+      createUserDto;
+
+    if (type === 'candidate' && createCompanyDto)
+      throw new RpcException(`Candidate can't be belongs to specific company.`);
 
     const userWithEmail = await this.userRepository.findOneBy({ email });
 
@@ -130,6 +135,9 @@ export class UsersService {
 
     const newUser = this.userRepository.create({
       ...createUserData,
+      ...(certifications && {
+        certifications: JSON.parse(certifications) as string[],
+      }),
       password: handleEncodedPassword(password),
       avatar_url: avatarFileUrl
         ? avatarFileUrl
@@ -145,16 +153,20 @@ export class UsersService {
     await this.userRepository.save(newUser);
 
     if (createCompanyDto && type === 'recruiter') {
-      this.rabbitMqJobClient.send(
-        { cmd: 'create-company' },
-        {
-          createCompanyDto: JSON.parse(createCompanyDto),
-          userId: newUser.id,
-        },
+      const data = await lastValueFrom<Company>(
+        this.rabbitMqJobClient.send(
+          { cmd: 'create-company' },
+          {
+            createCompanyDto: JSON.parse(createCompanyDto),
+            userId: newUser.id,
+          },
+        ),
       );
+
+      if (!data) throw new RpcException('Failed when creating new company.');
     }
 
-    if (skills && skills.length) {
+    if (skills && (JSON.parse(skills) as string[]).length) {
       for (const skill of skills) {
         let findSkill = await this.skillRepository.findOneBy({ name: skill });
 

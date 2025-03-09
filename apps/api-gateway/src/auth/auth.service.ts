@@ -9,7 +9,7 @@ import { User } from 'apps/users/src/entities/users.entity';
 import { CreateCompanyDto, CreateUserDto, LoginDto } from 'libs/common/dtos';
 import { ForgetPasswordDto } from 'libs/common/dtos/forget-password.dto';
 import { UpdatePasswordDto } from 'libs/common/dtos/update-password.dto';
-import { catchError } from 'rxjs';
+import { catchError, firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class AuthService {
@@ -78,8 +78,21 @@ export class AuthService {
     );
   };
 
-  public handleSignup = (createUserDto: CreateUserDto) => {
-    return this.rabbitMqUserClient.send({ cmd: 'create-user' }, createUserDto);
+  public handleSignup = async (
+    createUserDto: CreateUserDto,
+    files?: Array<Express.Multer.File>,
+  ) => {
+    const result = await firstValueFrom(
+      this.rabbitMqUserClient.send(
+        { cmd: 'create-user' },
+        {
+          createUserDto,
+          files,
+        },
+      ),
+    );
+
+    return result;
   };
 
   public handleRefreshToken = (email: string) => {

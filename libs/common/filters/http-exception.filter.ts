@@ -7,18 +7,32 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
 
-@Catch(HttpException)
+@Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   constructor(private readonly configService: ConfigService) {}
 
-  catch(exception: HttpException, host: ArgumentsHost) {
-    console.log(exception);
+  catch(exception: unknown, host: ArgumentsHost) {
+    console.error('[Exception Filter]', exception);
 
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
-    const status = exception.getStatus();
-    const message = exception.message || 'Internal Server Error!';
+
+    let status = 500;
+    let message = 'Internal Server Error';
+
+    if (exception instanceof HttpException) {
+      status = exception.getStatus();
+      message = exception.message || 'An error occurred';
+    } else if (exception instanceof Error) {
+      message = exception.message;
+    } else if (
+      typeof exception === 'object' &&
+      exception !== null &&
+      'message' in exception
+    ) {
+      message = String((exception as Record<string, string>)?.message);
+    }
 
     response.status(status).json({
       statusCode: status,
