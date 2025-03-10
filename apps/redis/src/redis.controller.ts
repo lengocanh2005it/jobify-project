@@ -1,8 +1,10 @@
-import { Controller } from '@nestjs/common';
+import { Controller, UseInterceptors } from '@nestjs/common';
 import { RedisService } from './redis.service';
 import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 
 @Controller()
+@UseInterceptors(ServicesExceptionInterceptor)
 export class RedisController {
   constructor(private readonly redisService: RedisService) {}
 
@@ -12,16 +14,16 @@ export class RedisController {
     @Payload('data') data: string,
     @Payload('ttl') ttl: number,
   ) {
-    await this.redisService.setKey(key, data, ttl);
+    return this.redisService.setKey(key, data, ttl);
   }
 
   @MessagePattern('get-key')
   async getKey(@Payload() key: string) {
-    return await this.redisService.getKey(key);
+    return this.redisService.getKey(key);
   }
 
   @EventPattern('del-key')
   async delKey(@Payload() key: string) {
-    await this.redisService.deleteKey(key);
+    return this.redisService.deleteKey(key);
   }
 }

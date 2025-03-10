@@ -22,7 +22,7 @@ export class ConversationsController {
 
   @Delete(':id')
   @ResponseMessage('Conversation deleted successfully!')
-  deleteConversation(
+  async deleteConversation(
     @Req() request: Request,
     @Param('id', ParseUUIDPipe) conversationId: string,
   ) {

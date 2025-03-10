@@ -25,127 +25,114 @@ export class ReviewsService {
     createReviewDto: CreateReviewDto,
     userId: string,
   ) => {
-    try {
-      const {
-        company_id: companyId,
+    const { company_id: companyId, comment, ratings_number } = createReviewDto;
+
+    const company = await lastValueFrom<Company | undefined>(
+      this.rabbitMqJobClient.send({ cmd: 'get-company' }, companyId),
+    );
+
+    if (!company)
+      throw new RpcException(`Company With ID: '${companyId}' Not Found.`);
+
+    let newReview = await this.reviewRepository.findOne({
+      where: {
+        candidate: { id: userId },
         comment,
         ratings_number,
-      } = createReviewDto;
+      },
+      relations: ['candidate'],
+    });
 
-      const company = await lastValueFrom<Company | undefined>(
-        this.rabbitMqJobClient.send({ cmd: 'get-company' }, companyId),
+    if (newReview)
+      throw new RpcException(
+        `You have already reviewed this company and cannot submit another review.`,
       );
 
-      if (!company)
-        throw new RpcException(`Company With ID: '${companyId}' Not Found.`);
+    newReview = this.reviewRepository.create({ comment, ratings_number });
 
-      let newReview = await this.reviewRepository.findOne({
-        where: {
-          candidate: { id: userId },
-          comment,
-          ratings_number,
-        },
-        relations: ['candidate'],
-      });
+    await this.reviewRepository.save(newReview);
 
-      if (newReview)
-        throw new RpcException(
-          `You have already reviewed this company and cannot submit another review.`,
-        );
+    await this.dataSource
+      .createQueryBuilder()
+      .relation(Review, 'candidate')
+      .of(newReview.id)
+      .set(userId);
 
-      newReview = this.reviewRepository.create({ comment, ratings_number });
+    await this.dataSource
+      .createQueryBuilder()
+      .relation(Review, 'company')
+      .of(newReview.id)
+      .set(companyId);
 
-      await this.reviewRepository.save(newReview);
+    const { title, description, key } = NotificationTypes.NEW_REVIEW_RECEIVED;
 
-      await this.dataSource
-        .createQueryBuilder()
-        .relation(Review, 'candidate')
-        .of(newReview.id)
-        .set(userId);
+    this.rabbitMQNotificationClient.emit('create-notification', {
+      data: {
+        title,
+        message: description,
+        type: key,
+      },
+      userIds: company.recruiters.map((re) => re.id),
+    });
 
-      await this.dataSource
-        .createQueryBuilder()
-        .relation(Review, 'company')
-        .of(newReview.id)
-        .set(companyId);
-
-      const { title, description, key } = NotificationTypes.NEW_REVIEW_RECEIVED;
-
-      this.rabbitMQNotificationClient.emit('create-notification', {
-        data: {
-          title,
-          message: description,
-          type: key,
-        },
-        userIds: company.recruiters.map((re) => re.id),
-      });
-
-      return await this.reviewRepository.findOne({
-        where: { id: newReview.id },
-        relations: ['candidate', 'company'],
-        select: {
+    return await this.reviewRepository.findOne({
+      where: { id: newReview.id },
+      relations: ['candidate', 'company'],
+      select: {
+        id: true,
+        ratings_number: true,
+        comment: true,
+        company: {
+          name: true,
+          bio: true,
           id: true,
-          ratings_number: true,
-          comment: true,
-          company: {
-            name: true,
-            bio: true,
-            id: true,
-            address: true,
-            website: true,
-          },
-          candidate: {
-            id: true,
-            email: true,
-            phone_number: true,
-            full_name: true,
-            bio: true,
-          },
+          address: true,
+          website: true,
         },
-      });
-    } catch (err) {
-      console.error('Error from reviews service: ', err);
-      throw err;
-    }
+        candidate: {
+          id: true,
+          email: true,
+          phone_number: true,
+          full_name: true,
+          bio: true,
+        },
+      },
+    });
   };
 
   public handleGetReviews = async (user: User) => {
-    try {
-      const { role, company } = user;
+    const { role, company } = user;
 
-      return await this.reviewRepository.find({
-        relations: ['candidate', 'company'],
-        where:
-          role.name === 'recruiter'
-            ? {
-                company: {
-                  id: company.id,
-                },
-              }
-            : {},
-        select: {
+    return await this.reviewRepository.find({
+      relations: ['candidate', 'company'],
+      where:
+        role.name === 'recruiter'
+          ? {
+              company: {
+                id: company.id,
+              },
+            }
+          : {},
+      select: {
+        id: true,
+        ratings_number: true,
+        comment: true,
+        company: {
+          name: true,
+          bio: true,
           id: true,
-          ratings_number: true,
-          comment: true,
-          company: {
-            name: true,
-            bio: true,
-            id: true,
-            address: true,
-            website: true,
-          },
-          candidate: {
-            id: true,
-            email: true,
-            phone_number: true,
-            full_name: true,
-            bio: true,
-          },
+          address: true,
+          website: true,
         },
-      });
-    } catch (err) {
-      console.error(err);
-    }
+        candidate: {
+          id: true,
+          email: true,
+          phone_number: true,
+          full_name: true,
+          bio: true,
+        },
+      },
+    });
   };
 
   public handleUpdateReview = async (
@@ -153,135 +140,120 @@ export class ReviewsService {
     reviewId: string,
     user: User,
   ) => {
-    try {
-      const { role, id } = user;
+    const { role, id } = user;
 
-      const review = await this.reviewRepository.findOne({
-        where: { id: reviewId },
-        relations: ['candidate'],
-      });
+    const review = await this.reviewRepository.findOne({
+      where: { id: reviewId },
+      relations: ['candidate'],
+    });
 
-      if (!review)
-        throw new RpcException(`Review With ID: '${reviewId}' Not Found.`);
+    if (!review)
+      throw new RpcException(`Review With ID: '${reviewId}' Not Found.`);
 
-      if (role.name === 'candidate' && review.candidate.id !== id)
-        throw new RpcException(
-          `You can only update the review that belongs to you.`,
-        );
+    if (role.name === 'candidate' && review.candidate.id !== id)
+      throw new RpcException(
+        `You can only update the review that belongs to you.`,
+      );
 
-      await this.reviewRepository.update({ id: reviewId }, updateReviewDto);
+    await this.reviewRepository.update({ id: reviewId }, updateReviewDto);
 
-      return await this.reviewRepository.findOne({
-        where: { id: reviewId },
-        relations: ['candidate', 'company'],
-        select: {
+    return await this.reviewRepository.findOne({
+      where: { id: reviewId },
+      relations: ['candidate', 'company'],
+      select: {
+        id: true,
+        ratings_number: true,
+        comment: true,
+        company: {
+          name: true,
+          bio: true,
           id: true,
-          ratings_number: true,
-          comment: true,
-          company: {
-            name: true,
-            bio: true,
-            id: true,
-            address: true,
-            website: true,
-          },
-          candidate: {
-            id: true,
-            email: true,
-            phone_number: true,
-            full_name: true,
-            bio: true,
-          },
+          address: true,
+          website: true,
         },
-      });
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
+        candidate: {
+          id: true,
+          email: true,
+          phone_number: true,
+          full_name: true,
+          bio: true,
+        },
+      },
+    });
   };
 
   public handleDeleteReview = async (reviewId: string, user: User) => {
-    try {
-      const { id, role } = user;
+    const { id, role } = user;
 
-      const review = await this.reviewRepository.findOne({
-        where: { id: reviewId },
-        relations: ['company', 'company.recruiters'],
-      });
+    const review = await this.reviewRepository.findOne({
+      where: { id: reviewId },
+      relations: ['company', 'company.recruiters'],
+    });
 
-      if (!review)
-        throw new RpcException(`Review with id: '${reviewId}' not found.`);
+    if (!review)
+      throw new RpcException(`Review with id: '${reviewId}' not found.`);
 
-      if (role.name === 'candidate' && review.candidate.id !== id)
-        throw new RpcException(
-          `You can only delete the review that belongs to you.`,
-        );
+    if (role.name === 'candidate' && review.candidate.id !== id)
+      throw new RpcException(
+        `You can only delete the review that belongs to you.`,
+      );
 
-      const { title, description, key } = NotificationTypes.REVIEW_DELETED;
+    const { title, description, key } = NotificationTypes.REVIEW_DELETED;
 
-      this.rabbitMQNotificationClient.emit('create-notification', {
-        data: {
-          title,
-          message: description,
-          type: key,
-        },
-        userIds: review.company.recruiters.map((r) => r.id),
-      });
+    this.rabbitMQNotificationClient.emit('create-notification', {
+      data: {
+        title,
+        message: description,
+        type: key,
+      },
+      userIds: review.company.recruiters.map((r) => r.id),
+    });
 
-      await this.reviewRepository.delete({ id: reviewId });
+    await this.reviewRepository.delete({ id: reviewId });
 
-      return { message: 'Review deleted successfully!' };
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
+    return { message: 'Review deleted successfully!' };
   };
 
   public handleGetReview = async (reviewId: string, user: User) => {
-    try {
-      const { id, role } = user;
+    const { id, role } = user;
 
-      const review = await this.reviewRepository.findOne({
-        where: { id: reviewId },
-        relations: ['candidate', 'company', 'company.recruiters'],
-        select: {
+    const review = await this.reviewRepository.findOne({
+      where: { id: reviewId },
+      relations: ['candidate', 'company', 'company.recruiters'],
+      select: {
+        id: true,
+        ratings_number: true,
+        comment: true,
+        company: {
+          name: true,
+          bio: true,
           id: true,
-          ratings_number: true,
-          comment: true,
-          company: {
-            name: true,
-            bio: true,
-            id: true,
-            address: true,
-            website: true,
-          },
-          candidate: {
-            id: true,
-            email: true,
-            phone_number: true,
-            full_name: true,
-            bio: true,
-          },
+          address: true,
+          website: true,
         },
-      });
+        candidate: {
+          id: true,
+          email: true,
+          phone_number: true,
+          full_name: true,
+          bio: true,
+        },
+      },
+    });
 
-      if (role.name === 'candidate' && review?.candidate.id !== id)
-        throw new RpcException(
-          `You can only get the review that belongs to you.`,
-        );
+    if (role.name === 'candidate' && review?.candidate.id !== id)
+      throw new RpcException(
+        `You can only get the review that belongs to you.`,
+      );
 
-      if (
-        role.name === 'recruiter' &&
-        !review?.company.recruiters.some((re) => re.id === id)
-      )
-        throw new RpcException(
-          'You can only get the review of the company that you belongs to.',
-        );
+    if (
+      role.name === 'recruiter' &&
+      !review?.company.recruiters.some((re) => re.id === id)
+    )
+      throw new RpcException(
+        'You can only get the review of the company that you belongs to.',
+      );
 
-      return review;
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
+    return review;
   };
 }

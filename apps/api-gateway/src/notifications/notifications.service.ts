@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities/users.entity';
 import { SearchNotificationsDto } from 'libs/common/dtos/search-notifications.dto';
+import { lastValueFrom } from 'rxjs';
 
 @Injectable()
 export class NotificationsService {
@@ -10,33 +11,42 @@ export class NotificationsService {
     private readonly rabbitMqNotificationClient: ClientProxy,
   ) {}
 
-  public getNotifications = (user: User, filters?: SearchNotificationsDto) => {
-    return this.rabbitMqNotificationClient.send(
-      { cmd: 'get-notifications' },
-      {
-        user,
-        filters,
-      },
+  public getNotifications = async (
+    user: User,
+    filters?: SearchNotificationsDto,
+  ) => {
+    return await lastValueFrom(
+      this.rabbitMqNotificationClient.send(
+        { cmd: 'get-notifications' },
+        {
+          user,
+          filters,
+        },
+      ),
     );
   };
 
-  public getNotification = (notificationId: string, user: User) => {
-    return this.rabbitMqNotificationClient.send(
-      { cmd: 'get-notification' },
-      {
-        notificationId,
-        user,
-      },
+  public getNotification = async (notificationId: string, user: User) => {
+    return await lastValueFrom(
+      this.rabbitMqNotificationClient.send(
+        { cmd: 'get-notification' },
+        {
+          notificationId,
+          user,
+        },
+      ),
     );
   };
 
-  public deleteNotification = (notificationId: string, user: User) => {
-    return this.rabbitMqNotificationClient.send(
-      { cmd: 'delete-notification' },
-      {
-        notificationId,
-        user,
-      },
+  public deleteNotification = async (notificationId: string, user: User) => {
+    return await lastValueFrom(
+      this.rabbitMqNotificationClient.send(
+        { cmd: 'delete-notification' },
+        {
+          notificationId,
+          user,
+        },
+      ),
     );
   };
 }

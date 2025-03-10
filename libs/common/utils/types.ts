@@ -33,6 +33,11 @@ export type JwtPayload = {
   exp: number;
 };
 
+export type RpcExceptionType = {
+  statusCode: number;
+  message: string;
+};
+
 declare module 'express' {
   interface Request {
     user?: User;

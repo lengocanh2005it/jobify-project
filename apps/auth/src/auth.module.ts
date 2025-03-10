@@ -2,14 +2,15 @@ import { CommonModule } from '@app/common';
 import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { Notification } from 'apps/notifications/src/entities/notifications.entity';
 import { Role } from 'apps/users/src/entities/roles.entity';
+import { Skill } from 'apps/users/src/entities/skills.entity';
 import { User } from 'apps/users/src/entities/users.entity';
 import { UsersModule } from 'apps/users/src/users.module';
 import { UsersService } from 'apps/users/src/users.service';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { Notification } from 'apps/notifications/src/entities/notifications.entity';
-import { Skill } from 'apps/users/src/entities/skills.entity';
 
 @Module({
   imports: [
@@ -97,6 +98,14 @@ import { Skill } from 'apps/users/src/entities/skills.entity';
     CommonModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, UsersService],
+  providers: [
+    AuthService,
+    UsersService,
+    {
+      provide: 'SERVICE_NAME',
+      useValue: 'Auth Service',
+    },
+    ServicesExceptionInterceptor,
+  ],
 })
 export class AuthModule {}

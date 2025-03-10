@@ -6,33 +6,38 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
+import { RpcExceptionType } from 'libs/common/utils/types';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   constructor(private readonly configService: ConfigService) {}
 
   catch(exception: unknown, host: ArgumentsHost) {
-    console.error('[Exception Filter]', exception);
-
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
     let status = 500;
     let message = 'Internal Server Error';
+    let serviceName = 'Unknown Service';
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
-      message = exception.message || 'An error occurred';
+      message = exception.message ?? 'Internal Server Error';
     } else if (exception instanceof Error) {
       message = exception.message;
-    } else if (
-      typeof exception === 'object' &&
-      exception !== null &&
-      'message' in exception
-    ) {
-      message = String((exception as Record<string, string>)?.message);
+    } else if (typeof exception === 'object' && exception) {
+      const err = exception as RpcExceptionType & { service?: string };
+      status = err.statusCode ?? 500;
+      message = err.message ?? 'Internal Server Error';
+      serviceName = err.service ?? 'Unknown Service';
     }
+
+    console.error({
+      service: serviceName,
+      statusCode: status,
+      message: message,
+    });
 
     response.status(status).json({
       statusCode: status,

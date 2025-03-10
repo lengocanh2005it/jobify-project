@@ -1,17 +1,19 @@
-import { Controller } from '@nestjs/common';
+import { Controller, UseInterceptors } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { LoginDto } from 'libs/common/dtos/login.dto';
 import { UpdatePasswordDto } from 'libs/common/dtos/update-password.dto';
 import { AuthService } from './auth.service';
 import { User } from 'apps/users/src/entities/users.entity';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 
 @Controller()
+@UseInterceptors(ServicesExceptionInterceptor)
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @MessagePattern({ cmd: 'login' })
   async handleLogin(@Payload() loginDto: LoginDto) {
-    return await this.authService.handleLogin(loginDto);
+    return this.authService.handleLogin(loginDto);
   }
 
   @MessagePattern({ cmd: 'update-password' })
@@ -19,10 +21,7 @@ export class AuthController {
     @Payload('updatePasswordDto') updatePasswordDto: UpdatePasswordDto,
     @Payload('userId') userId: string,
   ) {
-    return await this.authService.handleUpdatePassword(
-      updatePasswordDto,
-      userId,
-    );
+    return this.authService.handleUpdatePassword(updatePasswordDto, userId);
   }
 
   @MessagePattern({ cmd: 'forget-password' })
@@ -35,16 +34,16 @@ export class AuthController {
 
   @MessagePattern({ cmd: 'refresh-token' })
   async handleRefreshToken(@Payload() email: string) {
-    return await this.authService.handleRefreshToken(email);
+    return this.authService.handleRefreshToken(email);
   }
 
   @MessagePattern({ cmd: 'verify-email' })
   async handleVerifyEmail(@Payload() email: string) {
-    return await this.authService.handleVerifyEmail(email);
+    return this.authService.handleVerifyEmail(email);
   }
 
   @MessagePattern({ cmd: 'sign-out' })
   async handleSignout(@Payload() user: User) {
-    return await this.authService.handleSignout(user);
+    return this.authService.handleSignout(user);
   }
 }

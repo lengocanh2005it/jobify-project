@@ -1,16 +1,18 @@
-import { Controller } from '@nestjs/common';
+import { Controller, UseInterceptors } from '@nestjs/common';
 import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
-import { PREMIUM_PRICE } from 'libs/common/constants';
-import { PaymentsService } from './payments.service';
 import { User } from 'apps/users/src/entities/users.entity';
+import { PREMIUM_PRICE } from 'libs/common/constants';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
+import { PaymentsService } from './payments.service';
 
 @Controller()
+@UseInterceptors(ServicesExceptionInterceptor)
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
   @MessagePattern({ cmd: 'create-payment' })
   async handleCreateCheckoutSession(@Payload() user: User) {
-    return await this.paymentsService.handleCreateCheckoutSession(
+    return this.paymentsService.handleCreateCheckoutSession(
       PREMIUM_PRICE,
       'usd',
       user,
@@ -24,11 +26,11 @@ export class PaymentsController {
   ) {
     const bodyBuffer = Buffer.from(body, 'utf-8');
 
-    return await this.paymentsService.handleStripeWebhook(sig, bodyBuffer);
+    return this.paymentsService.handleStripeWebhook(sig, bodyBuffer);
   }
 
   @MessagePattern({ cmd: 'get-payments' })
   async handleGetPayments() {
-    return await this.paymentsService.handleGetPayments();
+    return this.paymentsService.handleGetPayments();
   }
 }

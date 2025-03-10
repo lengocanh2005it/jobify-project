@@ -10,6 +10,7 @@ import { User } from 'apps/users/src/entities/users.entity';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { Notification } from 'apps/notifications/src/entities/notifications.entity';
 import { SavedJob } from 'apps/jobs/src/entities/saved-jobs.entity';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 
 @Module({
   imports: [
@@ -48,6 +49,13 @@ import { SavedJob } from 'apps/jobs/src/entities/saved-jobs.entity';
     ]),
   ],
   controllers: [JobsController],
-  providers: [JobsService],
+  providers: [
+    JobsService,
+    {
+      provide: 'SERVICE_NAME',
+      useValue: 'Jobs Service',
+    },
+    ServicesExceptionInterceptor,
+  ],
 })
 export class JobsModule {}

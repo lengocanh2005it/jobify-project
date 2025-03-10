@@ -54,148 +54,122 @@ export class AuthService {
     updatePasswordDto: UpdatePasswordDto,
     userId: string,
   ) => {
-    try {
-      const { password, newPassword, otp } = updatePasswordDto;
+    const { password, newPassword, otp } = updatePasswordDto;
 
-      const user = await lastValueFrom<User | null>(
-        this.rabbitMqUserClient.send({ cmd: 'get-password' }, userId),
-      );
+    const user = await lastValueFrom<User | null>(
+      this.rabbitMqUserClient.send({ cmd: 'get-password' }, userId),
+    );
 
-      if (!user) throw new RpcException(`User With ID: '${userId}' Not Found.`);
+    if (!user) throw new RpcException(`User With ID: '${userId}' Not Found.`);
 
-      const isMatchPassword = await bcrypt.compare(user.password, password);
+    const isMatchPassword = await bcrypt.compare(user.password, password);
 
-      if (!isMatchPassword)
-        throw new RpcException(`Current password isn't correct.`);
+    if (!isMatchPassword)
+      throw new RpcException(`Current password isn't correct.`);
 
-      const otpInRedis = await lastValueFrom<string | null>(
-        this.rabbitMqRedisClient.send({ cmd: 'get-key' }, `${user.email}:otp`),
-      );
+    const otpInRedis = await lastValueFrom<string | null>(
+      this.rabbitMqRedisClient.send({ cmd: 'get-key' }, `${user.email}:otp`),
+    );
 
-      if (otp !== otpInRedis) throw new RpcException(`OTP isn't correct.`);
+    if (otp !== otpInRedis) throw new RpcException(`OTP isn't correct.`);
 
-      return this.rabbitMqUserClient.send(
-        { cmd: 'update-pw-user' },
-        { newPassword, userId: user.id },
-      );
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
+    return this.rabbitMqUserClient.send(
+      { cmd: 'update-pw-user' },
+      { newPassword, userId: user.id },
+    );
   };
 
   public handleForgetPassword = (email: string, type: string) => {
-    try {
-      this.rabbitMqEmailClient.emit('send-email', { email, type });
+    this.rabbitMqEmailClient.emit('send-email', { email, type });
 
-      return {
-        message: `OTP has been sent to email: "${email}"`,
-      };
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
+    return {
+      message: `OTP has been sent to email: "${email}"`,
+    };
   };
 
   public handleRefreshToken = async (email: string) => {
-    try {
-      const cachedRefreshToken = await lastValueFrom<string | null>(
-        this.rabbitMqRedisClient.send('get-key', `${email}:refresh-token`),
+    const cachedRefreshToken = await lastValueFrom<string | null>(
+      this.rabbitMqRedisClient.send('get-key', `${email}:refresh-token`),
+    );
+
+    if (!cachedRefreshToken)
+      throw new RpcException(
+        `Email '${email}' doesn't have any refresh token cached in Redis.'`,
       );
 
-      if (!cachedRefreshToken)
-        throw new RpcException(
-          `Email '${email}' doesn't have any refresh token cached in Redis.'`,
-        );
+    const jwtPayload = await this.jwtService.verifyAsync<JwtPayload>(
+      cachedRefreshToken,
+      {
+        secret: this.configService.get<string>('jwt_secret_key') ?? '',
+      },
+    );
 
-      const jwtPayload = await this.jwtService.verifyAsync<JwtPayload>(
-        cachedRefreshToken,
-        {
-          secret: this.configService.get<string>('jwt_secret_key') ?? '',
-        },
-      );
+    const { userId, role } = jwtPayload;
 
-      const { userId, role } = jwtPayload;
+    const payload = {
+      userId,
+      role,
+    };
 
-      const payload = {
-        userId,
-        role,
-      };
+    const accessToken = this.jwtService.sign(payload);
 
-      const accessToken = this.jwtService.sign(payload);
+    const newRefreshToken = this.jwtService.sign(payload, {
+      expiresIn: this.configService.get<string>('refresh_token_life'),
+    });
 
-      const newRefreshToken = this.jwtService.sign(payload, {
-        expiresIn: this.configService.get<string>('refresh_token_life'),
-      });
+    this.rabbitMqRedisClient.emit('set-key', {
+      key: `${email}:refresh-token`,
+      data: newRefreshToken,
+      ttl: 30 * 60,
+    });
 
-      this.rabbitMqRedisClient.emit('set-key', {
-        key: `${email}:refresh-token`,
-        data: newRefreshToken,
-        ttl: 30 * 60,
-      });
-
-      return {
-        accessToken,
-        refreshToken: newRefreshToken,
-      };
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
+    return {
+      accessToken,
+      refreshToken: newRefreshToken,
+    };
   };
 
   public handleVerifyEmail = async (email: string) => {
-    try {
-      const user = await lastValueFrom<User | null>(
-        this.rabbitMqUserClient.send(
-          { cmd: 'get-user-by-field' },
-          {
-            field: 'email',
-            value: email,
-          },
-        ),
-      );
+    const user = await lastValueFrom<User | null>(
+      this.rabbitMqUserClient.send(
+        { cmd: 'get-user-by-field' },
+        {
+          field: 'email',
+          value: email,
+        },
+      ),
+    );
 
-      if (!user)
-        throw new RpcException(`User with email: '${email}' not found.`);
+    if (!user) throw new RpcException(`User with email: '${email}' not found.`);
 
-      this.rabbitMqEmailClient.emit('send-email', {
-        email,
-        type: 'verify-email',
-      });
+    this.rabbitMqEmailClient.emit('send-email', {
+      email,
+      type: 'verify-email',
+    });
 
-      return {
-        success: `OTP has been sent to email: '${email}'.`,
-      };
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
+    return {
+      success: `OTP has been sent to email: '${email}'.`,
+    };
   };
 
   public handleSignout = async (user: User) => {
-    try {
-      const findUser = await lastValueFrom<User | null>(
-        this.rabbitMqUserClient.send({ cmd: 'get-user-jwt' }, user.id),
+    const findUser = await lastValueFrom<User | null>(
+      this.rabbitMqUserClient.send({ cmd: 'get-user-jwt' }, user.id),
+    );
+
+    if (!findUser)
+      throw new RpcException(
+        `User with id: '${user.id}' not found in system database.`,
       );
 
-      if (!findUser)
-        throw new RpcException(
-          `User with id: '${user.id}' not found in system database.`,
-        );
+    const { email } = user;
 
-      const { email } = user;
+    this.rabbitMqRedisClient.emit('del-key', `${email}:refresh-token`);
 
-      this.rabbitMqRedisClient.emit('del-key', `${email}:refresh-token`);
+    this.rabbitMqRedisClient.emit('del-key', `${email}:otp`);
 
-      this.rabbitMqRedisClient.emit('del-key', `${email}:otp`);
-
-      return {
-        success: 'Signed out successfully.',
-      };
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
+    return {
+      success: 'Signed out successfully.',
+    };
   };
 }

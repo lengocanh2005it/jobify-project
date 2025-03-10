@@ -14,14 +14,14 @@ export class PaymentsController {
   @ResponseMessage('Checkout session created successfully.')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
-  handleCreatePayment(@Req() request: Request) {
+  async handleCreatePayment(@Req() request: Request) {
     const user = request.user as User;
 
     return this.paymentsService.handleCreatePayment(user);
   }
 
   @Post('stripe/webhooks')
-  handleStripeWebhook(@Req() req: Request) {
+  async handleStripeWebhook(@Req() req: Request) {
     const sig = req.headers['stripe-signature'] as string;
 
     return this.paymentsService.handleStripeWebhooks(sig, req.body as string);
@@ -31,7 +31,7 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Get all payments successfully!')
   @Roles(Role.ADMIN)
-  getPayments() {
+  async getPayments() {
     return this.paymentsService.handleGetPayments();
   }
 }

@@ -34,7 +34,7 @@ export class MessagesController {
   @Post()
   @ResponseMessage('New message created successfully!')
   @UseInterceptors(FileInterceptor('file'))
-  createMessage(
+  async createMessage(
     @Req() request: Request,
     @Body() createMessageDto: CreateMessagesDto,
     @UploadedFile() file?: Express.Multer.File,
@@ -50,7 +50,7 @@ export class MessagesController {
 
   @Get()
   @ResponseMessage('Messages fetched successfully!')
-  getMessages(@Req() request: Request) {
+  async getMessages(@Req() request: Request) {
     const user = request.user as User;
 
     return this.messagesService.handleGetMessages(user);
@@ -60,7 +60,7 @@ export class MessagesController {
   @ResponseMessage(
     'Messages in the conversation with the user have been retrieved successfully!',
   )
-  getMessagesOfConversation(
+  async getMessagesOfConversation(
     @Req() request: Request,
     @Param('otherUserId', ParseUUIDPipe) otherUserId: string,
     @Query() searchMessagesDto?: SearchMessagesDto,
@@ -76,7 +76,7 @@ export class MessagesController {
 
   @Patch(':id/conversations/:conversationId')
   @ResponseMessage('Message updated successfully!')
-  updateMessage(
+  async updateMessage(
     @Req() request: Request,
     @Body() updateMessageDto: UpdateMessageDto,
     @Param('id', ParseUUIDPipe) messageId: string,
@@ -94,7 +94,7 @@ export class MessagesController {
 
   @Delete(':id')
   @ResponseMessage('Message deleted successfully!')
-  deleteMessage(
+  async deleteMessage(
     @Req() request: Request,
     @Param('id', ParseUUIDPipe) messageId: string,
   ) {

@@ -19,7 +19,7 @@ export class UploadsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
   @UseInterceptors(FilesInterceptor('files', 10))
-  uploadsFile(@UploadedFiles() files: Array<Express.Multer.File>) {
+  async uploadsFile(@UploadedFiles() files: Array<Express.Multer.File>) {
     return this.uploadsService.handleUploadsFile(files);
   }
 }

@@ -4,6 +4,7 @@ import { User } from 'apps/users/src/entities/users.entity';
 import { CreateMessagesDto } from 'libs/common/dtos/create-messages.dto';
 import { SearchMessagesDto } from 'libs/common/dtos/search-messages.dto';
 import { UpdateMessageDto } from 'libs/common/dtos/update-message.dto';
+import { lastValueFrom } from 'rxjs';
 
 @Injectable()
 export class MessagesService {
@@ -12,60 +13,70 @@ export class MessagesService {
     private readonly rabbitMqMessageClient: ClientProxy,
   ) {}
 
-  public handleCreateMessage = (
+  public handleCreateMessage = async (
     user: User,
     createMessagesDto: CreateMessagesDto,
     file?: Express.Multer.File,
   ) => {
-    return this.rabbitMqMessageClient.send(
-      { cmd: 'create-message' },
-      {
-        user,
-        createMessagesDto,
-        file,
-      },
+    return await lastValueFrom(
+      this.rabbitMqMessageClient.send(
+        { cmd: 'create-message' },
+        {
+          user,
+          createMessagesDto,
+          file,
+        },
+      ),
     );
   };
 
-  public handleGetMessages = (user: User) => {
-    return this.rabbitMqMessageClient.send({ cmd: 'get-messages' }, user);
+  public handleGetMessages = async (user: User) => {
+    return await lastValueFrom(
+      this.rabbitMqMessageClient.send({ cmd: 'get-messages' }, user),
+    );
   };
 
-  public handleGetMessagesOfConversation = (
+  public handleGetMessagesOfConversation = async (
     otherUserId: string,
     user: User,
     searchMessagesDto?: SearchMessagesDto,
   ) => {
-    return this.rabbitMqMessageClient.send(
-      { cmd: 'get-messages-conversation' },
-      { user, otherUserId, searchMessagesDto },
+    return await lastValueFrom(
+      this.rabbitMqMessageClient.send(
+        { cmd: 'get-messages-conversation' },
+        { user, otherUserId, searchMessagesDto },
+      ),
     );
   };
 
-  public handleUpdateMessage = (
+  public handleUpdateMessage = async (
     user: User,
     conversationId: string,
     messageId: string,
     updateMessageDto: UpdateMessageDto,
   ) => {
-    return this.rabbitMqMessageClient.send(
-      { cmd: 'update-message' },
-      {
-        user,
-        conversationId,
-        updateMessageDto,
-        messageId,
-      },
+    return await lastValueFrom(
+      this.rabbitMqMessageClient.send(
+        { cmd: 'update-message' },
+        {
+          user,
+          conversationId,
+          updateMessageDto,
+          messageId,
+        },
+      ),
     );
   };
 
-  public handleDeleteMessage = (user: User, messageId: string) => {
-    return this.rabbitMqMessageClient.send(
-      { cmd: 'delete-message' },
-      {
-        user,
-        messageId,
-      },
+  public handleDeleteMessage = async (user: User, messageId: string) => {
+    return await lastValueFrom(
+      this.rabbitMqMessageClient.send(
+        { cmd: 'delete-message' },
+        {
+          user,
+          messageId,
+        },
+      ),
     );
   };
 }

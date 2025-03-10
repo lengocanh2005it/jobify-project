@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { EmailsController } from './emails.controller';
 import { EmailsService } from './emails.service';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 
 @Module({
   imports: [
@@ -22,6 +23,13 @@ import { EmailsService } from './emails.service';
     ]),
   ],
   controllers: [EmailsController],
-  providers: [EmailsService],
+  providers: [
+    EmailsService,
+    {
+      provide: 'SERVICE_NAME',
+      useValue: 'Uploads Service',
+    },
+    ServicesExceptionInterceptor,
+  ],
 })
 export class EmailsModule {}

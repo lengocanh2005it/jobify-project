@@ -27,7 +27,7 @@ export class ReviewsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.CANDIDATE)
   @ResponseMessage('New review created successfully!')
-  createReview(
+  async createReview(
     @Body() createReviewDto: CreateReviewDto,
     @Req() request: Request,
   ) {
@@ -40,7 +40,7 @@ export class ReviewsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.RECRUITER)
   @ResponseMessage('Reviews fetched successfully!')
-  getReviews(@Req() request: Request) {
+  async getReviews(@Req() request: Request) {
     const user = request.user as User;
 
     return this.reviewsService.handleGetReviews(user);
@@ -50,7 +50,7 @@ export class ReviewsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.CANDIDATE)
   @ResponseMessage('Review updated successfully!')
-  updateReview(
+  async updateReview(
     @Body() updateReviewDto: UpdateReviewDto,
     @Param('id', ParseUUIDPipe) reviewId: string,
     @Req() request: Request,
@@ -68,7 +68,7 @@ export class ReviewsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Review deleted successfully!')
   @Roles(Role.ADMIN, Role.CANDIDATE)
-  deleteReview(
+  async deleteReview(
     @Param('id', ParseUUIDPipe) reviewId: string,
     @Req() request: Request,
   ) {
@@ -81,7 +81,7 @@ export class ReviewsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
   @ResponseMessage('Review fetched successfully!')
-  getReview(
+  async getReview(
     @Param('id', ParseUUIDPipe) reviewId: string,
     @Req() request: Request,
   ) {

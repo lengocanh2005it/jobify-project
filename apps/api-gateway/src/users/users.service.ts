@@ -9,7 +9,7 @@ import { User } from 'apps/users/src/entities/users.entity';
 import { CreateUserDto, UpdateUserDto } from 'libs/common/dtos';
 import { AssignCompanyToRecruitersDto } from 'libs/common/dtos/assign-company-to-recruiters.dto';
 import { PaginateQuery } from 'nestjs-paginate';
-import { catchError } from 'rxjs';
+import { catchError, lastValueFrom } from 'rxjs';
 
 @Injectable()
 export class UsersService {
@@ -17,82 +17,82 @@ export class UsersService {
     @Inject('USERS_SERVICE') private readonly rabbitMqUsersClient: ClientProxy,
   ) {}
 
-  public getUsers = (query: PaginateQuery) => {
-    return this.rabbitMqUsersClient.send(
-      { cmd: 'get-users' },
-      {
-        query,
-      },
+  public getUsers = async (query: PaginateQuery) => {
+    return await lastValueFrom(
+      this.rabbitMqUsersClient.send(
+        { cmd: 'get-users' },
+        {
+          query,
+        },
+      ),
     );
   };
 
-  public createUser = (
+  public createUser = async (
     createUserDto: CreateUserDto,
     files?: Array<Express.Multer.File>,
   ) => {
-    return this.rabbitMqUsersClient
-      .send(
+    return await lastValueFrom(
+      this.rabbitMqUsersClient.send(
         { cmd: 'create-user' },
         {
           createUserDto,
           files,
         },
-      )
-      .pipe(
-        catchError((err: Error) => {
-          if (err.message.includes('Role Not Found'))
-            throw new NotFoundException('Role Not Found.');
-
-          if (err.message.includes('Email has been existed.'))
-            throw new BadRequestException('Email has been existed.');
-
-          throw new BadRequestException('Error from Users Service');
-        }),
-      );
-  };
-
-  public handleGetUser = (userId: string, user: User) => {
-    return this.rabbitMqUsersClient.send(
-      { cmd: 'get-user' },
-      {
-        userId,
-        user,
-      },
+      ),
     );
   };
 
-  public handleUpdateUser = (
+  public handleGetUser = async (userId: string, user: User) => {
+    return await lastValueFrom(
+      this.rabbitMqUsersClient.send(
+        { cmd: 'get-user' },
+        {
+          userId,
+          user,
+        },
+      ),
+    );
+  };
+
+  public handleUpdateUser = async (
     userId: string,
     updateUserDto: UpdateUserDto,
     user: User,
     files?: Array<Express.Multer.File>,
   ) => {
-    return this.rabbitMqUsersClient.send(
-      { cmd: 'update-user' },
-      { updateUserDto, userId, user, files },
+    return await lastValueFrom(
+      this.rabbitMqUsersClient.send(
+        { cmd: 'update-user' },
+        { updateUserDto, userId, user, files },
+      ),
     );
   };
 
-  public handleDeleteUser = (userId: string, user: User) => {
-    return this.rabbitMqUsersClient.send(
-      { cmd: 'delete-user' },
-      {
-        userId,
-        user,
-      },
+  public handleDeleteUser = async (userId: string, user: User) => {
+    return await lastValueFrom(
+      this.rabbitMqUsersClient.send(
+        { cmd: 'delete-user' },
+        {
+          userId,
+          user,
+        },
+      ),
     );
   };
 
-  public handleAssignCompanyToRecruiters = (
+  public handleAssignCompanyToRecruiters = async (
     assignCompanyToRecruitersDto: AssignCompanyToRecruitersDto,
     user: User,
   ) => {
-    return this.rabbitMqUsersClient.send(
-      { cmd: 'assign-company' },
-      {
-        assignCompanyToRecruitersDto,
-        user,
-      },
+    return await lastValueFrom(
+      this.rabbitMqUsersClient.send(
+        { cmd: 'assign-company' },
+        {
+          assignCompanyToRecruitersDto,
+          user,
+        },
+      ),
     );
   };
 }

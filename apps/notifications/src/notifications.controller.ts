@@ -1,11 +1,13 @@
-import { Controller } from '@nestjs/common';
+import { Controller, UseInterceptors } from '@nestjs/common';
 import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities/users.entity';
 import { SearchNotificationsDto } from 'libs/common/dtos/search-notifications.dto';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 import { CreateNotificationDto } from 'libs/common/utils/types';
 import { NotificationsService } from './notifications.service';
 
 @Controller()
+@UseInterceptors(ServicesExceptionInterceptor)
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
@@ -14,7 +16,7 @@ export class NotificationsController {
     @Payload('data') createNotificationDto: CreateNotificationDto,
     @Payload('userIds') userIds: string[],
   ) {
-    await this.notificationsService.handleCreateNotifications(
+    return this.notificationsService.handleCreateNotifications(
       userIds,
       createNotificationDto,
     );

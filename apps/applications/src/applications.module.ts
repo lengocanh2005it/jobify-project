@@ -5,6 +5,7 @@ import { CommonModule } from '@app/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Application } from 'apps/applications/src/entities/applications.entity';
 import { ClientsModule, Transport } from '@nestjs/microservices';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 
 @Module({
   imports: [
@@ -58,6 +59,13 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
     ]),
   ],
   controllers: [ApplicationsController],
-  providers: [ApplicationsService],
+  providers: [
+    ApplicationsService,
+    {
+      provide: 'SERVICE_NAME',
+      useValue: 'Applications Service',
+    },
+    ServicesExceptionInterceptor,
+  ],
 })
 export class ApplicationsModule {}

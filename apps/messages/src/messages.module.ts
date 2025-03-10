@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Message } from 'apps/messages/src/entities/messages.entity';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { Conversation } from 'apps/messages/src/entities/conversations.entity';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 
 @Module({
   imports: [
@@ -59,6 +60,13 @@ import { Conversation } from 'apps/messages/src/entities/conversations.entity';
     TypeOrmModule.forFeature([Message, Conversation]),
   ],
   controllers: [MessagesController],
-  providers: [MessagesService],
+  providers: [
+    MessagesService,
+    {
+      provide: 'SERVICE_NAME',
+      useValue: 'Messages Service',
+    },
+    ServicesExceptionInterceptor,
+  ],
 })
 export class MessagesModule {}

@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities/users.entity';
+import { lastValueFrom } from 'rxjs';
 
 @Injectable()
 export class ConversationsService {
@@ -9,13 +10,18 @@ export class ConversationsService {
     private readonly rabbitMqMessageClient: ClientProxy,
   ) {}
 
-  public handleDeleteConversation = (user: User, conversationId: string) => {
-    return this.rabbitMqMessageClient.send(
-      { cmd: 'delete-conversation' },
-      {
-        user,
-        conversationId,
-      },
+  public handleDeleteConversation = async (
+    user: User,
+    conversationId: string,
+  ) => {
+    return await lastValueFrom(
+      this.rabbitMqMessageClient.send(
+        { cmd: 'delete-conversation' },
+        {
+          user,
+          conversationId,
+        },
+      ),
     );
   };
 }

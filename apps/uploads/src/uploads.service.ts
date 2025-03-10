@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as cloudinary from 'cloudinary';
-import * as path from 'path';
 import * as fs from 'fs';
 import { UrlResponseType } from 'libs/common/utils/types';
+import * as path from 'path';
 
 @Injectable()
 export class UploadsService {
@@ -20,43 +20,38 @@ export class UploadsService {
   ): Promise<UrlResponseType[]> {
     const urlsArray: UrlResponseType[] = [];
 
-    try {
-      for (const file of files) {
-        if (!file || !file.buffer) {
-          throw new Error('Invalid file data.');
-        }
-
-        const tempFilePath = path.join(
-          process.cwd(),
-          'libs/common',
-          'uploads',
-          file.originalname,
-        );
-
-        await fs.promises.writeFile(tempFilePath, Buffer.from(file.buffer));
-
-        const result = await cloudinary.v2.uploader.upload(tempFilePath, {
-          resource_type: 'auto',
-          type: 'upload',
-          timeout: 60000,
-          access_mode: 'public',
-          invalidate: true,
-          use_filename: true,
-          unique_filename: false,
-        });
-
-        await fs.promises.unlink(tempFilePath);
-
-        urlsArray.push({
-          fieldname: file.fieldname,
-          url: result.secure_url,
-        });
+    for (const file of files) {
+      if (!file || !file.buffer) {
+        throw new Error('Invalid file data.');
       }
 
-      return urlsArray;
-    } catch (err) {
-      console.error(err);
-      throw err;
+      const tempFilePath = path.join(
+        process.cwd(),
+        'libs/common',
+        'uploads',
+        file.originalname,
+      );
+
+      await fs.promises.writeFile(tempFilePath, Buffer.from(file.buffer));
+
+      const result = await cloudinary.v2.uploader.upload(tempFilePath, {
+        resource_type: 'auto',
+        type: 'upload',
+        timeout: 60000,
+        access_mode: 'public',
+        invalidate: true,
+        use_filename: true,
+        unique_filename: false,
+      });
+
+      await fs.promises.unlink(tempFilePath);
+
+      urlsArray.push({
+        fieldname: file.fieldname,
+        url: result.secure_url,
+      });
     }
+
+    return urlsArray;
   }
 }

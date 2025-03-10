@@ -5,6 +5,7 @@ import { UploadsService } from './uploads.service';
 import { MulterModule } from '@nestjs/platform-express';
 import * as multer from 'multer';
 import * as path from 'path';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 
 @Module({
   imports: [
@@ -20,6 +21,13 @@ import * as path from 'path';
     CommonModule,
   ],
   controllers: [UploadsController],
-  providers: [UploadsService],
+  providers: [
+    UploadsService,
+    {
+      provide: 'SERVICE_NAME',
+      useValue: 'Uploads Service',
+    },
+    ServicesExceptionInterceptor,
+  ],
 })
 export class UploadsModule {}

@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Interview } from 'apps/interviews/src/entities/interviews.entity';
 import { InterviewsController } from './interviews.controller';
 import { InterviewsService } from './interviews.service';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 
 @Module({
   imports: [
@@ -47,6 +48,13 @@ import { InterviewsService } from './interviews.service';
     ]),
   ],
   controllers: [InterviewsController],
-  providers: [InterviewsService],
+  providers: [
+    InterviewsService,
+    {
+      provide: 'SERVICE_NAME',
+      useValue: 'Interviews Service',
+    },
+    ServicesExceptionInterceptor,
+  ],
 })
 export class InterviewsModule {}

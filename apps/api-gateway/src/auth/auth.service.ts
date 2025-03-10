@@ -1,15 +1,10 @@
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities/users.entity';
 import { CreateCompanyDto, CreateUserDto, LoginDto } from 'libs/common/dtos';
 import { ForgetPasswordDto } from 'libs/common/dtos/forget-password.dto';
 import { UpdatePasswordDto } from 'libs/common/dtos/update-password.dto';
-import { catchError, firstValueFrom } from 'rxjs';
+import { lastValueFrom } from 'rxjs';
 
 @Injectable()
 export class AuthService {
@@ -19,62 +14,55 @@ export class AuthService {
     @Inject('USERS_SERVICE') private readonly rabbitMqUserClient: ClientProxy,
   ) {}
 
-  public handleLogin = (loginDto: LoginDto) => {
-    return this.rabbitMqAuthClient.send({ cmd: 'login' }, loginDto).pipe(
-      catchError((err: Error) => {
-        if (err.message.includes('User Not Found'))
-          throw new NotFoundException('User Not Found.');
-
-        if (err.message.includes('Password is not correct'))
-          throw new BadRequestException('Password is incorrect.');
-
-        throw new BadRequestException('Error from Auth Service');
-      }),
+  public handleLogin = async (loginDto: LoginDto) => {
+    return await lastValueFrom(
+      this.rabbitMqAuthClient.send({ cmd: 'login' }, loginDto),
     );
   };
 
-  public handleCreateCompany = (
+  public handleCreateCompany = async (
     userId: string,
     createCompanyDto: CreateCompanyDto,
   ) => {
-    return this.rabbitMqJobClient.send(
-      { cmd: 'create-company' },
-      { createCompanyDto, userId },
+    return await lastValueFrom(
+      this.rabbitMqJobClient.send(
+        { cmd: 'create-company' },
+        { createCompanyDto, userId },
+      ),
     );
   };
 
-  public handleGetProfile = (userId: string) => {
-    return this.rabbitMqUserClient
-      .send({ cmd: 'get-profile' }, { userId })
-      .pipe(
-        catchError((err: Error) => {
-          if (err.message.includes('User Not Found.'))
-            throw new NotFoundException('User Not Found.');
-
-          throw new BadRequestException('Error from Users Service');
-        }),
-      );
+  public handleGetProfile = async (userId: string) => {
+    return await lastValueFrom(
+      this.rabbitMqUserClient.send({ cmd: 'get-profile' }, { userId }),
+    );
   };
 
-  public handleUpdatePassword = (
+  public handleUpdatePassword = async (
     updatePasswordDto: UpdatePasswordDto,
     userId: string,
   ) => {
-    return this.rabbitMqAuthClient.send(
-      { cmd: 'update-password' },
-      { updatePasswordDto, userId },
+    return await lastValueFrom(
+      this.rabbitMqAuthClient.send(
+        { cmd: 'update-password' },
+        { updatePasswordDto, userId },
+      ),
     );
   };
 
-  public handleForgetPassword = (forgetPasswordDto: ForgetPasswordDto) => {
+  public handleForgetPassword = async (
+    forgetPasswordDto: ForgetPasswordDto,
+  ) => {
     const { email, type } = forgetPasswordDto;
 
-    return this.rabbitMqAuthClient.send(
-      { cmd: 'forget-password' },
-      {
-        email,
-        type,
-      },
+    return await lastValueFrom(
+      this.rabbitMqAuthClient.send(
+        { cmd: 'forget-password' },
+        {
+          email,
+          type,
+        },
+      ),
     );
   };
 
@@ -82,7 +70,7 @@ export class AuthService {
     createUserDto: CreateUserDto,
     files?: Array<Express.Multer.File>,
   ) => {
-    const result = await firstValueFrom(
+    return await lastValueFrom(
       this.rabbitMqUserClient.send(
         { cmd: 'create-user' },
         {
@@ -91,19 +79,23 @@ export class AuthService {
         },
       ),
     );
-
-    return result;
   };
 
-  public handleRefreshToken = (email: string) => {
-    return this.rabbitMqAuthClient.send({ cmd: 'refresh-token' }, email);
+  public handleRefreshToken = async (email: string) => {
+    return await lastValueFrom(
+      this.rabbitMqAuthClient.send({ cmd: 'refresh-token' }, email),
+    );
   };
 
-  public handleVerifyEmail = (email: string) => {
-    return this.rabbitMqAuthClient.send({ cmd: 'verify-email' }, email);
+  public handleVerifyEmail = async (email: string) => {
+    return await lastValueFrom(
+      this.rabbitMqAuthClient.send({ cmd: 'verify-email' }, email),
+    );
   };
 
-  public handleSignout = (user: User) => {
-    return this.rabbitMqAuthClient.send({ cmd: 'sign-out' }, user);
+  public handleSignout = async (user: User) => {
+    return await lastValueFrom(
+      this.rabbitMqAuthClient.send({ cmd: 'sign-out' }, user),
+    );
   };
 }

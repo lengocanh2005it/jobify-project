@@ -6,6 +6,7 @@ import { ProcessJobsDto } from 'libs/common/dtos/process-jobs.dto';
 import { SavedJobsDto } from 'libs/common/dtos/saved-jobs.dto';
 import { SearchJobsDto } from 'libs/common/dtos/search-jobs.dto';
 import { UpdateJobDto } from 'libs/common/dtos/update-job.dto';
+import { lastValueFrom } from 'rxjs';
 
 @Injectable()
 export class JobsService {
@@ -13,76 +14,88 @@ export class JobsService {
     @Inject('JOBS_SERVICE') private readonly rabbitMqJobsClient: ClientProxy,
   ) {}
 
-  public handleCreateJob = (createJobDto: CreateJobDto, user: User) => {
-    return this.rabbitMqJobsClient.send(
-      { cmd: 'create-job' },
-      { createJobDto, user },
+  public handleCreateJob = async (createJobDto: CreateJobDto, user: User) => {
+    return await lastValueFrom(
+      this.rabbitMqJobsClient.send(
+        { cmd: 'create-job' },
+        { createJobDto, user },
+      ),
     );
   };
 
-  public handleProcessJobs = (processJobsDto: ProcessJobsDto) => {
-    return this.rabbitMqJobsClient.send(
-      { cmd: 'process-jobs' },
-      processJobsDto,
+  public handleProcessJobs = async (processJobsDto: ProcessJobsDto) => {
+    return await lastValueFrom(
+      this.rabbitMqJobsClient.send({ cmd: 'process-jobs' }, processJobsDto),
     );
   };
 
-  public handleGetJobs = (user: User, filters?: SearchJobsDto) => {
-    return this.rabbitMqJobsClient.send({ cmd: 'get-jobs' }, { filters, user });
-  };
-
-  public handleDeleteJob = (jobId: string, user: User) => {
-    return this.rabbitMqJobsClient.send(
-      { cmd: 'delete-job' },
-      {
-        jobId,
-        user,
-      },
+  public handleGetJobs = async (user: User, filters?: SearchJobsDto) => {
+    return await lastValueFrom(
+      this.rabbitMqJobsClient.send({ cmd: 'get-jobs' }, { filters, user }),
     );
   };
 
-  public handleUpdateJob = (
+  public handleDeleteJob = async (jobId: string, user: User) => {
+    return await lastValueFrom(
+      this.rabbitMqJobsClient.send(
+        { cmd: 'delete-job' },
+        {
+          jobId,
+          user,
+        },
+      ),
+    );
+  };
+
+  public handleUpdateJob = async (
     updateJobDto: UpdateJobDto,
     jobId: string,
     user: User,
   ) => {
-    return this.rabbitMqJobsClient.send(
-      { cmd: 'update-job' },
-      { updateJobDto, jobId, user },
+    return await lastValueFrom(
+      this.rabbitMqJobsClient.send(
+        { cmd: 'update-job' },
+        { updateJobDto, jobId, user },
+      ),
     );
   };
 
-  public handleGetJob = (jobId: string, user: User) => {
-    return this.rabbitMqJobsClient.send({ cmd: 'get-job' }, { jobId, user });
-  };
-
-  public handleSavedJobs = (savedJobsDto: SavedJobsDto, user: User) => {
-    return this.rabbitMqJobsClient.send(
-      { cmd: 'saved-jobs' },
-      {
-        jobIds: savedJobsDto.jobIds,
-        user,
-      },
+  public handleGetJob = async (jobId: string, user: User) => {
+    return await lastValueFrom(
+      this.rabbitMqJobsClient.send({ cmd: 'get-job' }, { jobId, user }),
     );
   };
 
-  public handleRemoveSavedJobs = (
+  public handleSavedJobs = async (savedJobsDto: SavedJobsDto, user: User) => {
+    return await lastValueFrom(
+      this.rabbitMqJobsClient.send(
+        { cmd: 'saved-jobs' },
+        {
+          jobIds: savedJobsDto.jobIds,
+          user,
+        },
+      ),
+    );
+  };
+
+  public handleRemoveSavedJobs = async (
     removeSavedJobsDto: SavedJobsDto,
     user: User,
   ) => {
-    return this.rabbitMqJobsClient.send(
-      { cmd: 'remove-saved-jobs' },
-      {
-        jobIds: removeSavedJobsDto.jobIds,
-        user,
-      },
+    return await lastValueFrom(
+      this.rabbitMqJobsClient.send(
+        { cmd: 'remove-saved-jobs' },
+        {
+          jobIds: removeSavedJobsDto.jobIds,
+          user,
+        },
+      ),
     );
   };
 
-  public handleGetAllApplicationsOfJobs = (recruiterId: string) => {
-    return this.rabbitMqJobsClient.send(
-      { cmd: 'get-jobs-recruiter' },
-      recruiterId,
+  public handleGetAllApplicationsOfJobs = async (recruiterId: string) => {
+    return await lastValueFrom(
+      this.rabbitMqJobsClient.send({ cmd: 'get-jobs-recruiter' }, recruiterId),
     );
   };
 }

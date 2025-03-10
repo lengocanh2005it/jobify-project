@@ -1,20 +1,20 @@
-import { Controller } from '@nestjs/common';
-import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
+import { Controller, UseInterceptors } from '@nestjs/common';
+import { MessagePattern, Payload } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities/users.entity';
 import { ProcessApplicationsDto } from 'libs/common/dtos/process-applications.dto';
 import { SearchApplicationsDto } from 'libs/common/dtos/search-applications.dto';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 import { CreateApplication, UpdateApplication } from 'libs/common/utils/types';
 import { ApplicationsService } from './applications.service';
 
 @Controller()
+@UseInterceptors(ServicesExceptionInterceptor)
 export class ApplicationsController {
   constructor(private readonly applicationsService: ApplicationsService) {}
 
   @MessagePattern({ cmd: 'create-application' })
   async createApplication(@Payload() createApplication: CreateApplication) {
-    return await this.applicationsService.handleCreateApplication(
-      createApplication,
-    );
+    return this.applicationsService.handleCreateApplication(createApplication);
   }
 
   @MessagePattern({ cmd: 'get-applications' })
@@ -30,10 +30,7 @@ export class ApplicationsController {
     @Payload('applicationId') applicationId: string,
     @Payload('user') user: User,
   ) {
-    return await this.applicationsService.handleGetApplication(
-      applicationId,
-      user,
-    );
+    return this.applicationsService.handleGetApplication(applicationId, user);
   }
 
   @MessagePattern({ cmd: 'delete-application' })
@@ -41,7 +38,7 @@ export class ApplicationsController {
     @Payload('applicationId') applicationId: string,
     user: User,
   ) {
-    return await this.applicationsService.handleDeleteApplication(
+    return this.applicationsService.handleDeleteApplication(
       applicationId,
       user,
     );
@@ -52,7 +49,7 @@ export class ApplicationsController {
     @Payload('updateApplication') updateApplication: UpdateApplication,
     @Payload('user') user: User,
   ) {
-    return await this.applicationsService.handleUpdateApplication(
+    return this.applicationsService.handleUpdateApplication(
       updateApplication,
       user,
     );
@@ -64,7 +61,7 @@ export class ApplicationsController {
     processApplicationsDto: ProcessApplicationsDto,
     @Payload('user') user: User,
   ) {
-    return await this.applicationsService.handleProcessApplications(
+    return this.applicationsService.handleProcessApplications(
       processApplicationsDto,
       user,
     );
@@ -72,8 +69,6 @@ export class ApplicationsController {
 
   @MessagePattern({ cmd: 'delete-user-from-application' })
   async handleDeleteUserFromApplication(@Payload() userId: string) {
-    return await this.applicationsService.handleDeleteUserFromApplication(
-      userId,
-    );
+    return this.applicationsService.handleDeleteUserFromApplication(userId);
   }
 }
