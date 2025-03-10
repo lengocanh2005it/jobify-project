@@ -2,11 +2,13 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ClientProxy } from '@nestjs/microservices';
 import { render } from '@react-email/render';
-import { OtpEmail } from 'libs/common/emails/templates';
-import PremiumSubscriptionSuccessEmail from 'libs/common/emails/templates/payment-successful.email';
-import { generateOTP } from 'libs/common/utils/generate-otp.util';
-import { Transporter } from 'nodemailer';
+import {
+  OtpEmail,
+  PremiumSubscriptionSuccessEmail,
+} from 'libs/common/emails/templates';
+import { generateOTP } from 'libs/common/utils';
 import * as nodemailer from 'nodemailer';
+import { Transporter } from 'nodemailer';
 
 @Injectable()
 export class EmailsService {

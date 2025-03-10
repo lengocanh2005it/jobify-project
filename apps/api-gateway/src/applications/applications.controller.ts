@@ -16,22 +16,24 @@ import {
 import { RpcException } from '@nestjs/microservices';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { ApplicationsService } from 'apps/api-gateway/src/applications/applications.service';
-import { User } from 'apps/users/src/entities/users.entity';
+import { User } from 'apps/users/src/entities';
 import { Request } from 'express';
 import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
-import { CreateApplicationDto } from 'libs/common/dtos/create-application.dto';
-import { ProcessApplicationsDto } from 'libs/common/dtos/process-applications.dto';
-import { SearchApplicationsDto } from 'libs/common/dtos/search-applications.dto';
+import {
+  CreateApplicationDto,
+  ProcessApplicationsDto,
+  SearchApplicationsDto,
+} from 'libs/common/dtos';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
-import { CreateApplication, UpdateApplication } from 'libs/common/utils/types';
+import { CreateApplication, UpdateApplication } from 'libs/common/utils';
 
 @Controller('applications')
+@UseGuards(JwtAuthGuard, RoleAuthGuard)
 export class ApplicationsController {
   constructor(private readonly applicationsService: ApplicationsService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.CANDIDATE)
   @ResponseMessage('New application created successfully!')
   @UseInterceptors(AnyFilesInterceptor())
@@ -62,7 +64,6 @@ export class ApplicationsController {
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Applications fetched successfully!')
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
   async getApplications(
@@ -78,7 +79,6 @@ export class ApplicationsController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Application fetched successfully!')
   @Roles(Role.RECRUITER, Role.ADMIN, Role.CANDIDATE)
   async getApplication(
@@ -91,7 +91,6 @@ export class ApplicationsController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Application deleted successfully!')
   @Roles(Role.ADMIN, Role.RECRUITER, Role.CANDIDATE)
   async deleteApplication(
@@ -104,7 +103,6 @@ export class ApplicationsController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Application updated successfully!')
   @UseInterceptors(AnyFilesInterceptor())
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
@@ -133,7 +131,6 @@ export class ApplicationsController {
   }
 
   @Patch('recruiters/process')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Processed applications successfully!')
   @Roles(Role.RECRUITER, Role.ADMIN)
   async processApplications(

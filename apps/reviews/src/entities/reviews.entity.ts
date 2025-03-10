@@ -1,5 +1,5 @@
-import { Company } from 'apps/jobs/src/entities/companies.entity';
-import { User } from 'apps/users/src/entities/users.entity';
+import { Company } from 'apps/jobs/src/entities';
+import { User } from 'apps/users/src/entities';
 import {
   Column,
   CreateDateColumn,
@@ -16,24 +16,24 @@ export class Review {
   readonly id!: string;
 
   @Column({ type: 'int' })
-  readonly ratings_number!: number;
+  ratings_number!: number;
 
   @Column({ type: 'text' })
-  readonly comment!: string;
+  comment!: string;
 
   @ManyToOne(() => User, (user) => user.reviews, {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
   @JoinColumn({ name: 'candidate_id' })
-  readonly candidate!: User;
+  candidate!: User;
 
   @ManyToOne(() => Company, (company) => company.reviews, {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
   @JoinColumn({ name: 'company_id' })
-  readonly company!: Company;
+  company!: Company;
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;

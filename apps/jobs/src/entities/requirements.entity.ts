@@ -1,4 +1,4 @@
-import { Job } from 'apps/jobs/src/entities/jobs.entity';
+import { Job } from 'apps/jobs/src/entities';
 import {
   Column,
   CreateDateColumn,
@@ -15,7 +15,7 @@ export class Requirement {
   readonly id!: string;
 
   @Column({ type: 'text' })
-  readonly requirement!: string;
+  requirement!: string;
 
   @ManyToMany(() => Job, (job) => job.requirements, {
     onDelete: 'CASCADE',
@@ -32,7 +32,7 @@ export class Requirement {
       referencedColumnName: 'id',
     },
   })
-  readonly jobs!: Job[];
+  jobs!: Job[];
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;

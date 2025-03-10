@@ -3,7 +3,7 @@ import { ApplicationsController } from './applications.controller';
 import { ApplicationsService } from './applications.service';
 import { CommonModule } from '@app/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Application } from 'apps/applications/src/entities/applications.entity';
+import { Application } from 'apps/applications/src/entities';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 

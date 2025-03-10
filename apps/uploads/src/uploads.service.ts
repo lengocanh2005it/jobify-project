@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as cloudinary from 'cloudinary';
 import * as fs from 'fs';
-import { UrlResponseType } from 'libs/common/utils/types';
+import { UrlResponseType } from 'libs/common/utils';
 import * as path from 'path';
 
 @Injectable()

@@ -1,5 +1,5 @@
-import { Review } from 'apps/reviews/src/entities/reviews.entity';
-import { User } from 'apps/users/src/entities/users.entity';
+import { Review } from 'apps/reviews/src/entities';
+import { User } from 'apps/users/src/entities';
 import {
   Column,
   CreateDateColumn,
@@ -15,22 +15,22 @@ export class Company {
   readonly id!: string;
 
   @Column()
-  readonly name!: string;
+  name!: string;
 
   @Column({ nullable: true })
-  readonly bio?: string;
+  bio?: string;
 
   @Column()
-  readonly address!: string;
+  address!: string;
 
   @Column({ nullable: true })
-  readonly website?: string;
+  website?: string;
 
   @OneToMany(() => User, (user) => user.company, { cascade: true })
-  readonly recruiters!: User[];
+  recruiters!: User[];
 
   @OneToMany(() => Review, (review) => review.company, { cascade: true })
-  readonly reviews!: Review[];
+  reviews!: Review[];
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;

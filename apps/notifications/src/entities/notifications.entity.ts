@@ -1,5 +1,4 @@
-import { Job } from 'apps/jobs/src/entities/jobs.entity';
-import { UserNotification } from 'apps/notifications/src/entities/user-notification.entity';
+import { UserNotification } from 'apps/notifications/src/entities';
 import {
   Column,
   CreateDateColumn,
@@ -15,20 +14,20 @@ export class Notification {
   readonly id!: string;
 
   @Column()
-  readonly title!: string;
+  title!: string;
 
   @Column({ type: 'text' })
-  readonly message!: string;
+  message!: string;
 
   @Column()
-  readonly type!: string;
+  type!: string;
 
   @OneToMany(
     () => UserNotification,
     (userNotification) => userNotification.notification,
     { cascade: true },
   )
-  readonly userNotifications!: UserNotification[];
+  userNotifications!: UserNotification[];
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;

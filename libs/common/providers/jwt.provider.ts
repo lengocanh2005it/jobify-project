@@ -2,13 +2,13 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ClientProxy } from '@nestjs/microservices';
 import { PassportStrategy } from '@nestjs/passport';
-import { User } from 'apps/users/src/entities/users.entity';
-import { JwtPayload } from 'libs/common/utils/types';
+import { User } from 'apps/users/src/entities';
+import { JwtPayload } from 'libs/common/utils';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { lastValueFrom } from 'rxjs';
 
 @Injectable()
-export class JwtStrategy extends PassportStrategy(Strategy) {
+export class JwtProvider extends PassportStrategy(Strategy) {
   constructor(
     private readonly configService: ConfigService,
     @Inject('USERS_SERVICE') private readonly rabbitMqUserClient: ClientProxy,

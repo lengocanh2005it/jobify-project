@@ -1,6 +1,6 @@
-import { Message } from 'apps/messages/src/entities/messages.entity';
-import { UserNotification } from 'apps/notifications/src/entities/user-notification.entity';
-import { User } from 'apps/users/src/entities/users.entity';
+import { Message } from 'apps/messages/src/entities';
+import { UserNotification } from 'apps/notifications/src/entities';
+import { User } from 'apps/users/src/entities';
 import {
   Column,
   CreateDateColumn,
@@ -19,7 +19,7 @@ export class Conversation {
   readonly id!: string;
 
   @Column({ type: 'text', nullable: true })
-  readonly conversation_name?: string;
+  conversation_name?: string;
 
   @ManyToMany(() => User, (user) => user.conversations, {
     onDelete: 'CASCADE',
@@ -36,12 +36,12 @@ export class Conversation {
       referencedColumnName: 'id',
     },
   })
-  readonly participants!: User[];
+  participants!: User[];
 
   @OneToMany(() => Message, (message) => message.conversation, {
     cascade: true,
   })
-  readonly messages!: Message[];
+  messages!: Message[];
 
   @OneToMany(
     () => UserNotification,
@@ -51,7 +51,7 @@ export class Conversation {
       orphanedRowAction: 'delete',
     },
   )
-  readonly messages_notifications!: UserNotification[];
+  messages_notifications!: UserNotification[];
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;

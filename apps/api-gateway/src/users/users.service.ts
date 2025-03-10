@@ -1,15 +1,13 @@
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { User } from 'apps/users/src/entities/users.entity';
-import { CreateUserDto, UpdateUserDto } from 'libs/common/dtos';
-import { AssignCompanyToRecruitersDto } from 'libs/common/dtos/assign-company-to-recruiters.dto';
+import { User } from 'apps/users/src/entities';
+import {
+  AssignCompanyToRecruitersDto,
+  CreateUserDto,
+  UpdateUserDto,
+} from 'libs/common/dtos';
 import { PaginateQuery } from 'nestjs-paginate';
-import { catchError, lastValueFrom } from 'rxjs';
+import { lastValueFrom } from 'rxjs';
 
 @Injectable()
 export class UsersService {

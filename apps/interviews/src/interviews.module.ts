@@ -2,7 +2,7 @@ import { CommonModule } from '@app/common';
 import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Interview } from 'apps/interviews/src/entities/interviews.entity';
+import { Interview } from 'apps/interviews/src/entities';
 import { InterviewsController } from './interviews.controller';
 import { InterviewsService } from './interviews.service';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';

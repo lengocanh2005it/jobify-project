@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { PaymentsService } from 'apps/api-gateway/src/payments/payments.service';
-import { User } from 'apps/users/src/entities/users.entity';
+import { User } from 'apps/users/src/entities';
 import { Request } from 'express';
 import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';

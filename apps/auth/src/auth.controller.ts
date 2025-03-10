@@ -1,10 +1,9 @@
 import { Controller, UseInterceptors } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import { LoginDto } from 'libs/common/dtos/login.dto';
-import { UpdatePasswordDto } from 'libs/common/dtos/update-password.dto';
-import { AuthService } from './auth.service';
-import { User } from 'apps/users/src/entities/users.entity';
+import { User } from 'apps/users/src/entities';
+import { LoginDto, UpdatePasswordDto } from 'libs/common/dtos';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
+import { AuthService } from './auth.service';
 
 @Controller()
 @UseInterceptors(ServicesExceptionInterceptor)

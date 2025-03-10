@@ -1,5 +1,5 @@
-import { Job } from 'apps/jobs/src/entities/jobs.entity';
-import { User } from 'apps/users/src/entities/users.entity';
+import { Job } from 'apps/jobs/src/entities';
+import { User } from 'apps/users/src/entities';
 import {
   CreateDateColumn,
   Entity,
@@ -19,14 +19,14 @@ export class SavedJob {
     onUpdate: 'CASCADE',
   })
   @JoinColumn({ name: 'user_id' })
-  readonly user!: User;
+  user!: User;
 
   @ManyToOne(() => Job, (job) => job.savedByUsers, {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
   @JoinColumn({ name: 'job_id' })
-  readonly job!: Job;
+  job!: Job;
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly savedAt!: Date;

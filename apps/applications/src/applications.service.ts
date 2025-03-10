@@ -1,19 +1,21 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { Application } from 'apps/applications/src/entities/applications.entity';
-import { Job } from 'apps/jobs/src/entities/jobs.entity';
-import { User } from 'apps/users/src/entities/users.entity';
+import { Application } from 'apps/applications/src/entities';
+import { Job } from 'apps/jobs/src/entities';
+import { User } from 'apps/users/src/entities';
 import { NotificationTypes } from 'libs/common/constants';
-import { ProcessApplicationsDto } from 'libs/common/dtos/process-applications.dto';
-import { SearchApplicationsDto } from 'libs/common/dtos/search-applications.dto';
+import {
+  ProcessApplicationsDto,
+  SearchApplicationsDto,
+} from 'libs/common/dtos';
 import {
   CreateApplication,
   UpdateApplication,
   UrlResponseType,
-} from 'libs/common/utils/types';
+} from 'libs/common/utils';
 import { lastValueFrom } from 'rxjs';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 
 @Injectable()
 export class ApplicationsService {

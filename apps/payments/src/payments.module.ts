@@ -2,7 +2,7 @@ import { CommonModule } from '@app/common';
 import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Transaction } from 'apps/payments/src/entities/transactions.entity';
+import { Transaction } from 'apps/payments/src/entities';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';

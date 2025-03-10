@@ -14,7 +14,7 @@ import { UsersModule } from 'apps/api-gateway/src/users/users.module';
 import { HttpExceptionFilter } from 'libs/common/filters';
 import { ApiResponseInterceptor } from 'libs/common/interceptors';
 import { LoggerMiddleware } from 'libs/common/middlewares';
-import { CustomValidationPipe } from 'libs/common/pipe';
+import { CustomValidationPipe } from 'libs/common/pipes';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConversationsModule } from 'apps/api-gateway/src/messages/conversations/conversations.module';

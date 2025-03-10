@@ -1,4 +1,4 @@
-import { User } from 'apps/users/src/entities/users.entity';
+import { User } from 'apps/users/src/entities';
 import {
   Column,
   CreateDateColumn,
@@ -14,13 +14,13 @@ export class Role {
   readonly id!: string;
 
   @Column()
-  readonly name!: string;
+  name!: string;
 
   @Column({ nullable: true })
-  readonly description?: string;
+  description?: string;
 
   @OneToMany(() => User, (user) => user.role, { cascade: true })
-  readonly users!: User[];
+  users!: User[];
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;

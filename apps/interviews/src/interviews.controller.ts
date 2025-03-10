@@ -1,13 +1,15 @@
 import { Controller, UseInterceptors } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import { User } from 'apps/users/src/entities/users.entity';
-import { CreateInterviewDto } from 'libs/common/dtos/create-interview.dto';
-import { ProcessInterviewsDto } from 'libs/common/dtos/process-interviews.dto';
-import { SearchInterviewsDto } from 'libs/common/dtos/search-interviews.dto';
-import { UpdateInterviewDto } from 'libs/common/dtos/update-interview.dto';
-import { InterviewsService } from './interviews.service';
-import { CandidatesProcessInterviewsDto } from 'libs/common/dtos/candidates-process-interviews.dto';
+import { User } from 'apps/users/src/entities';
+import {
+  CandidatesProcessInterviewsDto,
+  CreateInterviewDto,
+  ProcessInterviewsDto,
+  SearchInterviewsDto,
+  UpdateInterviewDto,
+} from 'libs/common/dtos';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
+import { InterviewsService } from './interviews.service';
 
 @Controller()
 @UseInterceptors(ServicesExceptionInterceptor)

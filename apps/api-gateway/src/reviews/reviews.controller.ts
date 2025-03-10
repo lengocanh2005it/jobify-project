@@ -11,20 +11,19 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ReviewsService } from 'apps/api-gateway/src/reviews/reviews.service';
-import { User } from 'apps/users/src/entities/users.entity';
+import { User } from 'apps/users/src/entities';
 import { Request } from 'express';
 import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
-import { CreateReviewDto } from 'libs/common/dtos/create-review.dto';
-import { UpdateReviewDto } from 'libs/common/dtos/update-review.dto';
+import { CreateReviewDto, UpdateReviewDto } from 'libs/common/dtos';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 
 @Controller('reviews')
+@UseGuards(JwtAuthGuard, RoleAuthGuard)
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.CANDIDATE)
   @ResponseMessage('New review created successfully!')
   async createReview(
@@ -37,7 +36,6 @@ export class ReviewsController {
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.RECRUITER)
   @ResponseMessage('Reviews fetched successfully!')
   async getReviews(@Req() request: Request) {
@@ -47,7 +45,6 @@ export class ReviewsController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.CANDIDATE)
   @ResponseMessage('Review updated successfully!')
   async updateReview(
@@ -65,7 +62,6 @@ export class ReviewsController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Review deleted successfully!')
   @Roles(Role.ADMIN, Role.CANDIDATE)
   async deleteReview(
@@ -78,7 +74,6 @@ export class ReviewsController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
   @ResponseMessage('Review fetched successfully!')
   async getReview(

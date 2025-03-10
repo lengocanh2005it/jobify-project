@@ -1,16 +1,13 @@
+import { CommonModule } from '@app/common';
 import { Module } from '@nestjs/common';
+import { ClientsModule, Transport } from '@nestjs/microservices';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Company, Job, Requirement, SavedJob } from 'apps/jobs/src/entities';
+import { Notification } from 'apps/notifications/src/entities';
+import { User } from 'apps/users/src/entities';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 import { JobsController } from './jobs.controller';
 import { JobsService } from './jobs.service';
-import { CommonModule } from '@app/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Company } from 'apps/jobs/src/entities/companies.entity';
-import { Job } from 'apps/jobs/src/entities/jobs.entity';
-import { Requirement } from 'apps/jobs/src/entities/requirements.entity';
-import { User } from 'apps/users/src/entities/users.entity';
-import { ClientsModule, Transport } from '@nestjs/microservices';
-import { Notification } from 'apps/notifications/src/entities/notifications.entity';
-import { SavedJob } from 'apps/jobs/src/entities/saved-jobs.entity';
-import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 
 @Module({
   imports: [

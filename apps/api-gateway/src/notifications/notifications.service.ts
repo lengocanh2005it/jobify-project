@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { User } from 'apps/users/src/entities/users.entity';
-import { SearchNotificationsDto } from 'libs/common/dtos/search-notifications.dto';
+import { User } from 'apps/users/src/entities';
+import { SearchNotificationsDto } from 'libs/common/dtos';
 import { lastValueFrom } from 'rxjs';
 
 @Injectable()

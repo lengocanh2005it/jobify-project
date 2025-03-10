@@ -1,9 +1,9 @@
 import { Controller, UseInterceptors } from '@nestjs/common';
 import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
-import { User } from 'apps/users/src/entities/users.entity';
-import { SearchNotificationsDto } from 'libs/common/dtos/search-notifications.dto';
+import { User } from 'apps/users/src/entities';
+import { SearchNotificationsDto } from 'libs/common/dtos';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
-import { CreateNotificationDto } from 'libs/common/utils/types';
+import { CreateNotificationDto } from 'libs/common/utils';
 import { NotificationsService } from './notifications.service';
 
 @Controller()

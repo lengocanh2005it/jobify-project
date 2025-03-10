@@ -1,6 +1,6 @@
 import { Controller, UseInterceptors } from '@nestjs/common';
 import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
-import { User } from 'apps/users/src/entities/users.entity';
+import { User } from 'apps/users/src/entities';
 import { PREMIUM_PRICE } from 'libs/common/constants';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 import { PaymentsService } from './payments.service';

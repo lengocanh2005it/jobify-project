@@ -1,9 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { User } from 'apps/users/src/entities/users.entity';
-import { ProcessApplicationsDto } from 'libs/common/dtos/process-applications.dto';
-import { SearchApplicationsDto } from 'libs/common/dtos/search-applications.dto';
-import { CreateApplication, UpdateApplication } from 'libs/common/utils/types';
+import { User } from 'apps/users/src/entities';
+import {
+  ProcessApplicationsDto,
+  SearchApplicationsDto,
+} from 'libs/common/dtos';
+import { CreateApplication, UpdateApplication } from 'libs/common/utils';
 import { lastValueFrom } from 'rxjs';
 
 @Injectable()

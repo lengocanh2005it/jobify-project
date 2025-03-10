@@ -1,11 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { User } from 'apps/users/src/entities/users.entity';
-import { CreateJobDto } from 'libs/common/dtos';
-import { ProcessJobsDto } from 'libs/common/dtos/process-jobs.dto';
-import { SavedJobsDto } from 'libs/common/dtos/saved-jobs.dto';
-import { SearchJobsDto } from 'libs/common/dtos/search-jobs.dto';
-import { UpdateJobDto } from 'libs/common/dtos/update-job.dto';
+import { User } from 'apps/users/src/entities';
+import {
+  CreateJobDto,
+  ProcessJobsDto,
+  SavedJobsDto,
+  SearchJobsDto,
+  UpdateJobDto,
+} from 'libs/common/dtos';
 import { lastValueFrom } from 'rxjs';
 
 @Injectable()
