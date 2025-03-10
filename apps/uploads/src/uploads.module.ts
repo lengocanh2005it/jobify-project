@@ -1,25 +1,11 @@
 import { CommonModule } from '@app/common';
 import { Module } from '@nestjs/common';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 import { UploadsController } from './uploads.controller';
 import { UploadsService } from './uploads.service';
-import { MulterModule } from '@nestjs/platform-express';
-import * as multer from 'multer';
-import * as path from 'path';
-import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 
 @Module({
-  imports: [
-    MulterModule.register({
-      storage: multer.diskStorage({
-        destination: './libs/common/files',
-        filename: (req, file, cb) => {
-          const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-          cb(null, `${uniqueSuffix}${path.extname(file.originalname)}`);
-        },
-      }),
-    }),
-    CommonModule,
-  ],
+  imports: [CommonModule],
   controllers: [UploadsController],
   providers: [
     UploadsService,

@@ -313,6 +313,15 @@ export class UsersService {
     if (findUser.id !== id && role.name !== 'admin')
       throw new RpcException('You can only update profile yourself.');
 
+    if (
+      (!updateUserDto || !Object.keys(updateUserDto).length) &&
+      !files?.length
+    )
+      throw new RpcException({
+        statusCode: 400,
+        message: 'You must be provide some information to update your profile.',
+      });
+
     const {
       skills,
       updateCompanyDto,
@@ -427,7 +436,7 @@ export class UsersService {
         ...(formattedCertifications && formattedCertifications.length
           ? { certifications: formattedCertifications }
           : {}),
-        expected_salary: Number(expected_salary),
+        ...(expected_salary && { expected_salary: Number(expected_salary) }),
         ...(avatarFileUrl ? { avatar_url: avatarFileUrl } : {}),
         ...(cvFileUrl ? { resume_link: cvFileUrl } : {}),
       },

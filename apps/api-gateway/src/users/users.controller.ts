@@ -35,7 +35,7 @@ export class UsersController {
   @Get()
   @ResponseMessage('All users fetched successfully.')
   @Roles(Role.ADMIN)
-  async getUsers(@Req() request: Request, @Paginate() query: PaginateQuery) {
+  async getUsers(@Paginate() query: PaginateQuery) {
     return this.usersService.getUsers(query);
   }
 

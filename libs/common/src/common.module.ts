@@ -3,9 +3,11 @@ import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { ClientsModule, Transport } from '@nestjs/microservices';
+import { MulterModule } from '@nestjs/platform-express';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CustomValidationPipe } from 'libs/common/pipes/validation.pipe';
 import { JwtProvider } from 'libs/common/providers/jwt.provider';
+import * as multer from 'multer';
 import { CommonService } from './common.service';
 
 @Global()
@@ -57,8 +59,18 @@ import { CommonService } from './common.service';
         },
       },
     ]),
+    MulterModule.register({
+      storage: multer.diskStorage({
+        destination: './libs/common/files',
+        filename: (req, file, cb) => {
+          const timestamp = Date.now();
+          const sanitizedOriginalName = file.originalname.replace(/\s+/g, '_');
+          cb(null, `${timestamp}-${sanitizedOriginalName}`);
+        },
+      }),
+    }),
   ],
   providers: [CommonService, CustomValidationPipe, JwtProvider],
-  exports: [JwtModule, ConfigModule, TypeOrmModule],
+  exports: [JwtModule, ConfigModule, TypeOrmModule, MulterModule],
 })
 export class CommonModule {}
