@@ -45,28 +45,64 @@ export class UsersService {
   ) {}
 
   public getUsers = async (query: PaginateQuery) => {
-    const qb = this.userRepository.createQueryBuilder('user');
+    const qb = this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .select([
+        'user.id',
+        'user.email',
+        'user.address',
+        'user.full_name',
+        'user.phone_number',
+        'user.bio',
+        'user.avatar_url',
+        'user.is_premium',
+        'user.expected_salary',
+        'user.premium_expiry',
+        'user.createdAt',
+        'role.name',
+      ]);
 
-    qb.leftJoinAndSelect('user.role', 'role');
+    const search = query.search;
 
-    qb.select([
-      'user.id',
-      'user.email',
-      'user.address',
-      'user.full_name',
-      'user.phone_number',
-      'user.bio',
-      'user.avatar_url',
-      'user.is_premium',
-      'user.expected_salary',
-      'user.premium_expiry',
-      'user.createdAt',
-      'role.name',
-    ]);
+    if (search) {
+      if (search.includes(':')) {
+        const [column, value] = search.split(':').map((s) => s.trim());
+
+        const allowedColumns = [
+          'email',
+          'full_name',
+          'address',
+          'phone_number',
+          'role.name',
+        ];
+
+        if (allowedColumns.includes(column)) {
+          if (column === 'role.name') {
+            qb.andWhere(`role.name LIKE :value`, { value: `%${value}%` });
+          } else {
+            qb.andWhere(`user.${column} LIKE :value`, { value: `%${value}%` });
+          }
+        }
+      } else {
+        qb.andWhere(
+          `(
+            user.email LIKE :search OR 
+            user.full_name LIKE :search OR 
+            user.address LIKE :search OR 
+            user.phone_number LIKE :search OR 
+            user.bio LIKE :search OR
+            role.name LIKE :search
+          )`,
+          { search: `%${search}%` },
+        );
+      }
+    }
+
+    qb.andWhere('role.name != :roleName', { roleName: 'admin' });
 
     return paginate(query, qb, {
       sortableColumns: ['id', 'email'],
-      searchableColumns: ['email', 'address', 'phone_number'],
       defaultSortBy: [['id', 'ASC']],
       maxLimit: 100,
       select: query.select ?? [],
