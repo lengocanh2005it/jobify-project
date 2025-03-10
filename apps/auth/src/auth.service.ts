@@ -2,12 +2,11 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
-import { User } from 'apps/users/src/entities/users.entity';
+import { User } from 'apps/users/src/entities';
 import { UsersService } from 'apps/users/src/users.service';
 import * as bcrypt from 'bcrypt';
-import { LoginDto } from 'libs/common/dtos/login.dto';
-import { UpdatePasswordDto } from 'libs/common/dtos/update-password.dto';
-import { JwtPayload } from 'libs/common/utils/types';
+import { LoginDto, UpdatePasswordDto } from 'libs/common/dtos';
+import { JwtPayload } from 'libs/common/utils';
 import { lastValueFrom } from 'rxjs';
 
 @Injectable()

@@ -1,10 +1,9 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { Interview } from 'apps/interviews/src/entities/interviews.entity';
-import { Company } from 'apps/jobs/src/entities/companies.entity';
-import { Job } from 'apps/jobs/src/entities/jobs.entity';
-import { User } from 'apps/users/src/entities/users.entity';
+import { Interview } from 'apps/interviews/src/entities';
+import { Company, Job } from 'apps/jobs/src/entities';
+import { User } from 'apps/users/src/entities';
 import {
   ApprovalStatus,
   InterviewStatus,
@@ -12,11 +11,13 @@ import {
   NotificationTypes,
   Role,
 } from 'libs/common/constants';
-import { CandidatesProcessInterviewsDto } from 'libs/common/dtos/candidates-process-interviews.dto';
-import { CreateInterviewDto } from 'libs/common/dtos/create-interview.dto';
-import { ProcessInterviewsDto } from 'libs/common/dtos/process-interviews.dto';
-import { SearchInterviewsDto } from 'libs/common/dtos/search-interviews.dto';
-import { UpdateInterviewDto } from 'libs/common/dtos/update-interview.dto';
+import {
+  CandidatesProcessInterviewsDto,
+  CreateInterviewDto,
+  ProcessInterviewsDto,
+  SearchInterviewsDto,
+  UpdateInterviewDto,
+} from 'libs/common/dtos';
 import { omit } from 'lodash';
 import { lastValueFrom } from 'rxjs';
 import { DataSource, Repository } from 'typeorm';

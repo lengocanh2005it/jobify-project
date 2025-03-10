@@ -1,14 +1,16 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Conversation } from 'apps/messages/src/entities/conversations.entity';
-import { Message } from 'apps/messages/src/entities/messages.entity';
-import { User } from 'apps/users/src/entities/users.entity';
+import { Conversation } from 'apps/messages/src/entities';
+import { Message } from 'apps/messages/src/entities';
+import { User } from 'apps/users/src/entities';
 import { NotificationTypes } from 'libs/common/constants';
-import { CreateMessagesDto } from 'libs/common/dtos/create-messages.dto';
-import { SearchMessagesDto } from 'libs/common/dtos/search-messages.dto';
-import { UpdateMessageDto } from 'libs/common/dtos/update-message.dto';
-import { UrlResponseType } from 'libs/common/utils/types';
+import {
+  CreateMessagesDto,
+  SearchMessagesDto,
+  UpdateMessageDto,
+} from 'libs/common/dtos';
+import { UrlResponseType } from 'libs/common/utils';
 import { lastValueFrom } from 'rxjs';
 import { In, Repository } from 'typeorm';
 

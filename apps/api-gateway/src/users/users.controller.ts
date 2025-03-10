@@ -14,30 +14,32 @@ import {
 } from '@nestjs/common';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { UsersService } from 'apps/api-gateway/src/users/users.service';
-import { User } from 'apps/users/src/entities/users.entity';
+import { User } from 'apps/users/src/entities';
 import { Request } from 'express';
 import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
-import { CreateUserDto, UpdateUserDto } from 'libs/common/dtos';
-import { AssignCompanyToRecruitersDto } from 'libs/common/dtos/assign-company-to-recruiters.dto';
+import {
+  AssignCompanyToRecruitersDto,
+  CreateUserDto,
+  UpdateUserDto,
+} from 'libs/common/dtos';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
-import { FileValidationPipe } from 'libs/common/pipe/file-validation.pipe';
+import { FileValidationPipe } from 'libs/common/pipes';
 import { Paginate, PaginateQuery } from 'nestjs-paginate';
 
 @Controller('users')
+@UseGuards(JwtAuthGuard, RoleAuthGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
   @ResponseMessage('All users fetched successfully.')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN)
   async getUsers(@Req() request: Request, @Paginate() query: PaginateQuery) {
     return this.usersService.getUsers(query);
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Get user successfully.')
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
   async getUser(
@@ -50,7 +52,6 @@ export class UsersController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @UseInterceptors(AnyFilesInterceptor())
   @Roles(Role.ADMIN)
   async createUser(
@@ -61,7 +62,6 @@ export class UsersController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
   @ResponseMessage('Profile of user updated successfully!')
   @UseInterceptors(AnyFilesInterceptor())
@@ -82,7 +82,6 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.RECRUITER)
   async deleteUser(
     @Param('id', ParseUUIDPipe) userId: string,
@@ -94,7 +93,6 @@ export class UsersController {
   }
 
   @Patch('company/assign')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.RECRUITER)
   async assignCompanyToRecruiters(
     @Body() assignCompanyToRecruitersDto: AssignCompanyToRecruitersDto,

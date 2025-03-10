@@ -1,9 +1,11 @@
 import { Controller, UseInterceptors } from '@nestjs/common';
 import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
-import { User } from 'apps/users/src/entities/users.entity';
-import { AssignCompanyToRecruitersDto } from 'libs/common/dtos/assign-company-to-recruiters.dto';
-import { CreateUserDto } from 'libs/common/dtos/create-user.dto';
-import { UpdateUserDto } from 'libs/common/dtos/update-user.dto';
+import { User } from 'apps/users/src/entities';
+import {
+  AssignCompanyToRecruitersDto,
+  CreateUserDto,
+  UpdateUserDto,
+} from 'libs/common/dtos';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 import { PaginateQuery } from 'nestjs-paginate';
 import { UsersService } from './users.service';

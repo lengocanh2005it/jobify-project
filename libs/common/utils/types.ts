@@ -1,4 +1,4 @@
-import { User } from 'apps/users/src/entities/users.entity';
+import { User } from 'apps/users/src/entities';
 import { Role } from 'libs/common/constants';
 
 export type CreateNotificationDto = {

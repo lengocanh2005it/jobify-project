@@ -1,13 +1,15 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { Application } from 'apps/applications/src/entities/applications.entity';
-import { Notification } from 'apps/notifications/src/entities/notifications.entity';
-import { UserNotification } from 'apps/notifications/src/entities/user-notification.entity';
-import { User } from 'apps/users/src/entities/users.entity';
+import { Application } from 'apps/applications/src/entities';
+import {
+  Notification,
+  UserNotification,
+} from 'apps/notifications/src/entities';
+import { User } from 'apps/users/src/entities';
 import { NotificationTypes } from 'libs/common/constants';
-import { SearchNotificationsDto } from 'libs/common/dtos/search-notifications.dto';
-import { CreateNotificationDto } from 'libs/common/utils/types';
+import { SearchNotificationsDto } from 'libs/common/dtos';
+import { CreateNotificationDto } from 'libs/common/utils';
 import { omit } from 'lodash';
 import { lastValueFrom } from 'rxjs';
 import { DataSource, Repository } from 'typeorm';

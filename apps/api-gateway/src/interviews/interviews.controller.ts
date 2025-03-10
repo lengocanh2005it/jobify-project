@@ -12,24 +12,26 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { InterviewsService } from 'apps/api-gateway/src/interviews/interviews.service';
-import { User } from 'apps/users/src/entities/users.entity';
+import { User } from 'apps/users/src/entities';
 import { Request } from 'express';
 import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
-import { CandidatesProcessInterviewsDto } from 'libs/common/dtos/candidates-process-interviews.dto';
-import { CreateInterviewDto } from 'libs/common/dtos/create-interview.dto';
-import { ProcessInterviewsDto } from 'libs/common/dtos/process-interviews.dto';
-import { SearchInterviewsDto } from 'libs/common/dtos/search-interviews.dto';
-import { UpdateInterviewDto } from 'libs/common/dtos/update-interview.dto';
+import {
+  CandidatesProcessInterviewsDto,
+  CreateInterviewDto,
+  ProcessInterviewsDto,
+  SearchInterviewsDto,
+  UpdateInterviewDto,
+} from 'libs/common/dtos';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 
 @Controller('interviews')
+@UseGuards(JwtAuthGuard, RoleAuthGuard)
 export class InterviewsController {
   constructor(private readonly interviewsService: InterviewsService) {}
 
   @Get()
   @ResponseMessage('Interviews fetch successfully!')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.RECRUITER, Role.CANDIDATE)
   async getInterviews(
     @Req() request: Request,
@@ -44,7 +46,6 @@ export class InterviewsController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
   @ResponseMessage('Interviews fetched successfully!')
   async getInterview(
@@ -58,7 +59,6 @@ export class InterviewsController {
 
   @Post()
   @ResponseMessage('New interview created successfully!')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.RECRUITER)
   async createInterview(
     @Body() createInterviewDto: CreateInterviewDto,
@@ -74,14 +74,12 @@ export class InterviewsController {
 
   @Patch('admin/process')
   @ResponseMessage('Processed interviews successfully!')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN)
   async processInterviews(@Body() processInterviewDto: ProcessInterviewsDto) {
     return this.interviewsService.handleProcessInterviews(processInterviewDto);
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.RECRUITER)
   @ResponseMessage('Interview updated successfully!')
   async updateInterview(
@@ -99,7 +97,6 @@ export class InterviewsController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.RECRUITER)
   async deleteInterview(
     @Param('id', ParseUUIDPipe) id: string,
@@ -111,7 +108,6 @@ export class InterviewsController {
   }
 
   @Patch('candidates/process')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.CANDIDATE)
   async candidatesProcessInterviews(
     @Req() request: Request,

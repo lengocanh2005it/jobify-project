@@ -1,9 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { User } from 'apps/users/src/entities/users.entity';
-import { CreateCompanyDto, CreateUserDto, LoginDto } from 'libs/common/dtos';
-import { ForgetPasswordDto } from 'libs/common/dtos/forget-password.dto';
-import { UpdatePasswordDto } from 'libs/common/dtos/update-password.dto';
+import { User } from 'apps/users/src/entities';
+import {
+  CreateCompanyDto,
+  CreateUserDto,
+  ForgetPasswordDto,
+  LoginDto,
+  UpdatePasswordDto,
+} from 'libs/common/dtos';
 import { lastValueFrom } from 'rxjs';
 
 @Injectable()

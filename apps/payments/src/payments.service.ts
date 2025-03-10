@@ -2,8 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { Transaction } from 'apps/payments/src/entities/transactions.entity';
-import { User } from 'apps/users/src/entities/users.entity';
+import { Transaction } from 'apps/payments/src/entities';
+import { User } from 'apps/users/src/entities';
 import Stripe from 'stripe';
 import { DataSource, Repository } from 'typeorm';
 

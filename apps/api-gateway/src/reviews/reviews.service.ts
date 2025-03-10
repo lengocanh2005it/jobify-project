@@ -1,8 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { User } from 'apps/users/src/entities/users.entity';
-import { CreateReviewDto } from 'libs/common/dtos/create-review.dto';
-import { UpdateReviewDto } from 'libs/common/dtos/update-review.dto';
+import { User } from 'apps/users/src/entities';
+import { CreateReviewDto, UpdateReviewDto } from 'libs/common/dtos';
 import { lastValueFrom } from 'rxjs';
 
 @Injectable()

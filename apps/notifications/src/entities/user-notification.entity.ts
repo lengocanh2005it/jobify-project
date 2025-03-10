@@ -1,9 +1,9 @@
-import { Application } from 'apps/applications/src/entities/applications.entity';
-import { Interview } from 'apps/interviews/src/entities/interviews.entity';
-import { Job } from 'apps/jobs/src/entities/jobs.entity';
-import { Conversation } from 'apps/messages/src/entities/conversations.entity';
-import { Notification } from 'apps/notifications/src/entities/notifications.entity';
-import { User } from 'apps/users/src/entities/users.entity';
+import { Application } from 'apps/applications/src/entities';
+import { Interview } from 'apps/interviews/src/entities';
+import { Job } from 'apps/jobs/src/entities';
+import { Conversation } from 'apps/messages/src/entities';
+import { Notification } from 'apps/notifications/src/entities';
+import { User } from 'apps/users/src/entities';
 import {
   Column,
   CreateDateColumn,
@@ -20,14 +20,14 @@ export class UserNotification {
   readonly id!: string;
 
   @Column({ type: 'boolean', default: false })
-  readonly is_read!: boolean;
+  is_read!: boolean;
 
   @ManyToOne(() => User, (user) => user.userNotifications, {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
   @JoinColumn({ name: 'user_id' })
-  readonly user!: User;
+  user!: User;
 
   @ManyToOne(
     () => Notification,
@@ -38,7 +38,7 @@ export class UserNotification {
     },
   )
   @JoinColumn({ name: 'notification_id' })
-  readonly notification!: Notification;
+  notification!: Notification;
 
   @ManyToOne(() => Job, (job) => job.userNotifications, {
     onDelete: 'CASCADE',
@@ -46,7 +46,7 @@ export class UserNotification {
     nullable: true,
   })
   @JoinColumn({ name: 'job_id' })
-  readonly job?: Job;
+  job?: Job;
 
   @ManyToOne(
     () => Application,
@@ -57,14 +57,14 @@ export class UserNotification {
     },
   )
   @JoinColumn({ name: 'application_id' })
-  readonly application!: Application;
+  application!: Application;
 
   @ManyToOne(() => Interview, (interview) => interview.userNotifications, {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
   @JoinColumn({ name: 'interview_id' })
-  readonly interview!: Interview;
+  interview!: Interview;
 
   @ManyToOne(
     () => Conversation,
@@ -76,7 +76,7 @@ export class UserNotification {
     },
   )
   @JoinColumn({ name: 'conversation_id' })
-  readonly conversation?: Conversation;
+  conversation?: Conversation;
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;

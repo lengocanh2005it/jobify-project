@@ -1,18 +1,17 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { Company } from 'apps/jobs/src/entities/companies.entity';
-import { Job } from 'apps/jobs/src/entities/jobs.entity';
-import { Requirement } from 'apps/jobs/src/entities/requirements.entity';
-import { SavedJob } from 'apps/jobs/src/entities/saved-jobs.entity';
-import { User } from 'apps/users/src/entities/users.entity';
+import { Company, Job, Requirement, SavedJob } from 'apps/jobs/src/entities';
+import { User } from 'apps/users/src/entities';
 import { NotificationTypes, Role } from 'libs/common/constants';
-import { CreateJobDto } from 'libs/common/dtos';
-import { CreateCompanyDto } from 'libs/common/dtos/create-company.dto';
-import { ProcessJobsDto } from 'libs/common/dtos/process-jobs.dto';
-import { SearchJobsDto } from 'libs/common/dtos/search-jobs.dto';
-import { UpdateCompanyDto } from 'libs/common/dtos/update-company.dto';
-import { UpdateJobDto } from 'libs/common/dtos/update-job.dto';
+import {
+  CreateCompanyDto,
+  CreateJobDto,
+  ProcessJobsDto,
+  SearchJobsDto,
+  UpdateCompanyDto,
+  UpdateJobDto,
+} from 'libs/common/dtos';
 import { lastValueFrom } from 'rxjs';
 import { DataSource, Repository } from 'typeorm';
 

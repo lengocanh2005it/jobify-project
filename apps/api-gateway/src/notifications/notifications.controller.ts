@@ -9,21 +9,21 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { NotificationsService } from 'apps/api-gateway/src/notifications/notifications.service';
-import { User } from 'apps/users/src/entities/users.entity';
+import { User } from 'apps/users/src/entities';
 import { Request } from 'express';
 import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
-import { SearchNotificationsDto } from 'libs/common/dtos/search-notifications.dto';
+import { SearchNotificationsDto } from 'libs/common/dtos';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 
 @Controller('notifications')
+@UseGuards(JwtAuthGuard, RoleAuthGuard)
+@Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
   @Get()
   @ResponseMessage('Notifications fetched successfully!')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
-  @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
   async getNotifications(
     @Req() request: Request,
     @Query() filters?: SearchNotificationsDto,
@@ -34,9 +34,7 @@ export class NotificationsController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Notification details fetched successfully!')
-  @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
   getNotification(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: Request,
@@ -47,9 +45,7 @@ export class NotificationsController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Notification deleted successfully!')
-  @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
   deleteNotification(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: Request,

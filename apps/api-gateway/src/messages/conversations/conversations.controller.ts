@@ -7,12 +7,11 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ConversationsService } from 'apps/api-gateway/src/messages/conversations/conversation.service';
-import { User } from 'apps/users/src/entities/users.entity';
+import { User } from 'apps/users/src/entities';
 import { Request } from 'express';
 import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
-import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
-import { PremiumGuard } from 'libs/common/guards/premium.guard';
+import { JwtAuthGuard, RoleAuthGuard, PremiumGuard } from 'libs/common/guards';
 
 @Controller('conversations')
 @UseGuards(JwtAuthGuard, RoleAuthGuard, PremiumGuard)

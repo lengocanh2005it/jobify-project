@@ -3,9 +3,9 @@ import { MessagesController } from './messages.controller';
 import { MessagesService } from './messages.service';
 import { CommonModule } from '@app/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Message } from 'apps/messages/src/entities/messages.entity';
+import { Message } from 'apps/messages/src/entities';
 import { ClientsModule, Transport } from '@nestjs/microservices';
-import { Conversation } from 'apps/messages/src/entities/conversations.entity';
+import { Conversation } from 'apps/messages/src/entities';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 
 @Module({

@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
-import { RpcExceptionType } from 'libs/common/utils/types';
+import { RpcExceptionType } from 'libs/common/utils';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {

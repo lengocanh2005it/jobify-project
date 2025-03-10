@@ -3,7 +3,7 @@ import { ReviewsController } from './reviews.controller';
 import { ReviewsService } from './reviews.service';
 import { CommonModule } from '@app/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Review } from 'apps/reviews/src/entities/reviews.entity';
+import { Review } from 'apps/reviews/src/entities';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 

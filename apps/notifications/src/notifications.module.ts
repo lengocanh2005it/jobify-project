@@ -1,8 +1,8 @@
 import { CommonModule } from '@app/common';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Notification } from 'apps/notifications/src/entities/notifications.entity';
-import { UserNotification } from 'apps/notifications/src/entities/user-notification.entity';
+import { Notification } from 'apps/notifications/src/entities';
+import { UserNotification } from 'apps/notifications/src/entities';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
 import { ClientsModule, Transport } from '@nestjs/microservices';

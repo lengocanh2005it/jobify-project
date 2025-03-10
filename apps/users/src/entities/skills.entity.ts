@@ -1,4 +1,4 @@
-import { User } from 'apps/users/src/entities/users.entity';
+import { User } from 'apps/users/src/entities';
 import {
   Column,
   CreateDateColumn,
@@ -15,7 +15,7 @@ export class Skill {
   readonly id!: string;
 
   @Column({ unique: true })
-  readonly name!: string;
+  name!: string;
 
   @ManyToMany(() => User, (user) => user.skills)
   @JoinTable({
@@ -29,7 +29,7 @@ export class Skill {
       referencedColumnName: 'id',
     },
   })
-  readonly users!: User[];
+  users!: User[];
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;

@@ -1,10 +1,9 @@
 import { Controller, UseInterceptors } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import { CreateReviewDto } from 'libs/common/dtos/create-review.dto';
-import { UpdateReviewDto } from 'libs/common/dtos/update-review.dto';
-import { ReviewsService } from './reviews.service';
-import { User } from 'apps/users/src/entities/users.entity';
+import { User } from 'apps/users/src/entities';
+import { CreateReviewDto, UpdateReviewDto } from 'libs/common/dtos';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
+import { ReviewsService } from './reviews.service';
 
 @Controller()
 @UseInterceptors(ServicesExceptionInterceptor)

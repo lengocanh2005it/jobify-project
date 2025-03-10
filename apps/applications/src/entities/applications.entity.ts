@@ -1,6 +1,6 @@
-import { Job } from 'apps/jobs/src/entities/jobs.entity';
-import { UserNotification } from 'apps/notifications/src/entities/user-notification.entity';
-import { User } from 'apps/users/src/entities/users.entity';
+import { Job } from 'apps/jobs/src/entities';
+import { UserNotification } from 'apps/notifications/src/entities';
+import { User } from 'apps/users/src/entities';
 import {
   Column,
   CreateDateColumn,
@@ -19,34 +19,34 @@ export class Application {
   readonly id!: string;
 
   @Column({ type: 'text' })
-  readonly resume_link!: string;
+  resume_link!: string;
 
   @Column({ type: 'text', nullable: true })
-  readonly cover_letter_link?: string;
+  cover_letter_link?: string;
 
   @Column({
     type: 'enum',
     enum: ['pending', 'approved', 'rejected'],
     default: 'pending',
   })
-  readonly status!: string;
+  status!: string;
 
   @Column({ type: 'timestamp' })
-  readonly applied_at!: Date;
+  applied_at!: Date;
 
   @ManyToOne(() => User, (user) => user.applications, {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
   @JoinColumn({ name: 'candidate_id' })
-  readonly candidate!: User;
+  candidate!: User;
 
   @ManyToOne(() => Job, (job) => job.applications, {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
   @JoinColumn({ name: 'job_id' })
-  readonly job!: Job;
+  job!: Job;
 
   @OneToMany(
     () => UserNotification,
@@ -55,7 +55,7 @@ export class Application {
       cascade: true,
     },
   )
-  readonly userNotifications!: UserNotification[];
+  userNotifications!: UserNotification[];
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;

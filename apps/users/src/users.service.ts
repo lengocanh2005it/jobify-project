@@ -2,10 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { Company } from 'apps/jobs/src/entities/companies.entity';
-import { Role } from 'apps/users/src/entities/roles.entity';
-import { Skill } from 'apps/users/src/entities/skills.entity';
-import { User } from 'apps/users/src/entities/users.entity';
+import { Company } from 'apps/jobs/src/entities';
+import { Role, Skill, User } from 'apps/users/src/entities';
 import * as bcrypt from 'bcrypt';
 import {
   CANDIDATE_APPLICATION_LIMIT,
@@ -13,12 +11,15 @@ import {
   NotificationTypes,
   RECRUITER_JOB_LIMIT,
   RECRUITER_PREMIUM_LIMIT,
+  SKILL_KEYWORDS,
 } from 'libs/common/constants';
-import { SKILL_KEYWORDS } from 'libs/common/constants/skills.constant';
-import { CreateUserDto, LoginDto, UpdateUserDto } from 'libs/common/dtos';
-import { AssignCompanyToRecruitersDto } from 'libs/common/dtos/assign-company-to-recruiters.dto';
-import { handleEncodedPassword } from 'libs/common/utils';
-import { UrlResponseType } from 'libs/common/utils/types';
+import {
+  AssignCompanyToRecruitersDto,
+  CreateUserDto,
+  LoginDto,
+  UpdateUserDto,
+} from 'libs/common/dtos';
+import { handleEncodedPassword, UrlResponseType } from 'libs/common/utils';
 import { omit } from 'lodash';
 import { paginate, PaginateQuery } from 'nestjs-paginate';
 import { lastValueFrom } from 'rxjs';

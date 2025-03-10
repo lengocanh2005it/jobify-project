@@ -1,12 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { Company } from 'apps/jobs/src/entities/companies.entity';
-import { Review } from 'apps/reviews/src/entities/reviews.entity';
-import { User } from 'apps/users/src/entities/users.entity';
+import { Company } from 'apps/jobs/src/entities';
+import { Review } from 'apps/reviews/src/entities';
+import { User } from 'apps/users/src/entities';
 import { NotificationTypes } from 'libs/common/constants';
-import { CreateReviewDto } from 'libs/common/dtos/create-review.dto';
-import { UpdateReviewDto } from 'libs/common/dtos/update-review.dto';
+import { CreateReviewDto, UpdateReviewDto } from 'libs/common/dtos';
 import { lastValueFrom } from 'rxjs';
 import { DataSource, Repository } from 'typeorm';
 

@@ -1,9 +1,11 @@
 import { Controller, UseInterceptors } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import { User } from 'apps/users/src/entities/users.entity';
-import { CreateMessagesDto } from 'libs/common/dtos/create-messages.dto';
-import { SearchMessagesDto } from 'libs/common/dtos/search-messages.dto';
-import { UpdateMessageDto } from 'libs/common/dtos/update-message.dto';
+import { User } from 'apps/users/src/entities';
+import {
+  CreateMessagesDto,
+  SearchMessagesDto,
+  UpdateMessageDto,
+} from 'libs/common/dtos';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 import { MessagesService } from './messages.service';
 

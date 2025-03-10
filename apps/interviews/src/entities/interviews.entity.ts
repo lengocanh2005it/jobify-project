@@ -1,6 +1,6 @@
-import { Job } from 'apps/jobs/src/entities/jobs.entity';
-import { UserNotification } from 'apps/notifications/src/entities/user-notification.entity';
-import { User } from 'apps/users/src/entities/users.entity';
+import { Job } from 'apps/jobs/src/entities';
+import { UserNotification } from 'apps/notifications/src/entities';
+import { User } from 'apps/users/src/entities';
 import {
   ApprovalStatus,
   InterviewResult,
@@ -25,86 +25,86 @@ export class Interview {
   readonly id!: string;
 
   @Column()
-  readonly title!: string;
+  title!: string;
 
   @Column({ nullable: true })
-  readonly description?: string;
+  description?: string;
 
   @Column({ type: 'enum', enum: InterviewType })
-  readonly interview_type!: InterviewType;
+  interview_type!: InterviewType;
 
   @Column({ nullable: true })
-  readonly interview_link?: string;
+  interview_link?: string;
 
   @Column({ nullable: true })
-  readonly interview_address!: string;
+  interview_address!: string;
 
   @Column({ nullable: true })
-  readonly cancel_reason?: string;
+  cancel_reason?: string;
 
   @Column({ type: 'timestamp' })
-  readonly interview_date!: Date;
+  interview_date!: Date;
 
   @Column({
     type: 'enum',
     enum: InterviewStatus,
     default: InterviewStatus.SCHEDULED,
   })
-  readonly status!: InterviewStatus;
+  status!: InterviewStatus;
 
   @Column({ nullable: true })
-  readonly note?: string;
+  note?: string;
 
   @Column({
     type: 'enum',
     enum: ApprovalStatus,
     default: ApprovalStatus.PENDING,
   })
-  readonly approval_status!: ApprovalStatus;
+  approval_status!: ApprovalStatus;
 
   @Column({ type: 'enum', enum: Role, nullable: true })
-  readonly cancelled_by?: Role;
+  cancelled_by?: Role;
 
   @Column({
     type: 'enum',
     enum: InterviewResult,
     default: InterviewResult.PENDING,
   })
-  readonly result!: InterviewResult;
+  result!: InterviewResult;
 
   @Column({ type: 'text', nullable: true })
-  readonly result_note?: string;
+  result_note?: string;
 
   @Column({ type: 'int', nullable: true })
-  readonly score?: number;
+  score?: number;
 
   @ManyToOne(() => User, (user) => user.candidate_interviews, {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
   @JoinColumn({ name: 'candidate_id' })
-  readonly candidate!: User;
+  candidate!: User;
 
   @ManyToOne(() => User, (user) => user.recruiter_interviews, {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
   @JoinColumn({ name: 'recruiter_id' })
-  readonly recruiter!: User;
+  recruiter!: User;
 
   @OneToMany(
     () => UserNotification,
     (userNotification) => userNotification.interview,
     { cascade: true },
   )
-  readonly userNotifications!: UserNotification[];
+  userNotifications!: UserNotification[];
 
   @ManyToOne(() => Job, (job) => job.interviews, {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
   @JoinColumn({ name: 'job_id' })
-  readonly job!: Job;
+  job!: Job;
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;

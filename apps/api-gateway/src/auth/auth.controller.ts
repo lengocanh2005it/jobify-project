@@ -10,17 +10,21 @@ import {
 } from '@nestjs/common';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { AuthService } from 'apps/api-gateway/src/auth/auth.service';
-import { User } from 'apps/users/src/entities/users.entity';
+import { User } from 'apps/users/src/entities';
 import { Request } from 'express';
 import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
-import { CreateCompanyDto, CreateUserDto, LoginDto } from 'libs/common/dtos';
-import { ForgetPasswordDto } from 'libs/common/dtos/forget-password.dto';
-import { RefreshTokenDto } from 'libs/common/dtos/refresh-token.dto';
-import { UpdatePasswordDto } from 'libs/common/dtos/update-password.dto';
-import { VerifyEmailDto } from 'libs/common/dtos/verify-email.dto';
+import {
+  CreateCompanyDto,
+  CreateUserDto,
+  ForgetPasswordDto,
+  LoginDto,
+  RefreshTokenDto,
+  UpdatePasswordDto,
+  VerifyEmailDto,
+} from 'libs/common/dtos';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
-import { FileValidationPipe } from 'libs/common/pipe/file-validation.pipe';
+import { FileValidationPipe } from 'libs/common/pipes';
 
 @Controller('auth')
 export class AuthController {

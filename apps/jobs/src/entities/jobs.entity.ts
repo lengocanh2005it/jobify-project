@@ -1,10 +1,8 @@
-import { Application } from 'apps/applications/src/entities/applications.entity';
-import { Interview } from 'apps/interviews/src/entities/interviews.entity';
-import { Requirement } from 'apps/jobs/src/entities/requirements.entity';
-import { SavedJob } from 'apps/jobs/src/entities/saved-jobs.entity';
-import { Notification } from 'apps/notifications/src/entities/notifications.entity';
-import { UserNotification } from 'apps/notifications/src/entities/user-notification.entity';
-import { User } from 'apps/users/src/entities/users.entity';
+import { Application } from 'apps/applications/src/entities';
+import { Interview } from 'apps/interviews/src/entities';
+import { Requirement, SavedJob } from 'apps/jobs/src/entities';
+import { UserNotification } from 'apps/notifications/src/entities';
+import { User } from 'apps/users/src/entities';
 import {
   Column,
   CreateDateColumn,
@@ -13,7 +11,6 @@ import {
   ManyToMany,
   ManyToOne,
   OneToMany,
-  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -24,72 +21,72 @@ export class Job {
   readonly id!: string;
 
   @Column()
-  readonly title!: string;
+  title!: string;
 
   @Column()
-  readonly address!: string;
+  address!: string;
 
   @Column({ type: 'enum', enum: ['full_time', 'part_time', 'remote'] })
-  readonly job_type!: string;
+  job_type!: string;
 
   @Column({ type: 'decimal', scale: 2, precision: 10 })
-  readonly salary_min!: number;
+  salary_min!: number;
 
   @Column({ type: 'decimal', scale: 2, precision: 10 })
-  readonly salary_max!: number;
+  salary_max!: number;
 
   @Column({ type: 'text' })
-  readonly description!: string;
+  description!: string;
 
   @Column({ type: 'enum', enum: ['open', 'closed'] })
-  readonly status!: string;
+  status!: string;
 
   @Column({ type: 'timestamp' })
-  readonly posted_at!: Date;
+  posted_at!: Date;
 
   @Column({ type: 'timestamp' })
-  readonly expired_at!: Date;
+  expired_at!: Date;
 
   @Column({ type: 'boolean', default: false })
-  readonly is_approved!: boolean;
+  is_approved!: boolean;
 
   @Column({ nullable: true })
-  readonly cancel_reason?: string;
+  cancel_reason?: string;
 
   @Column({ nullable: true })
-  readonly cancelled_by?: string;
+  cancelled_by?: string;
 
   @ManyToOne(() => User, (user) => user.jobs, {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
   @JoinColumn({ name: 'recruiter_id' })
-  readonly recruiter!: User;
+  recruiter!: User;
 
   @OneToMany(() => Application, (application) => application.job, {
     cascade: true,
   })
-  readonly applications!: Application[];
+  applications!: Application[];
 
   @ManyToMany(() => Requirement, (requirement) => requirement.jobs, {
     cascade: true,
   })
-  readonly requirements!: Requirement[];
+  requirements!: Requirement[];
 
   @OneToMany(() => SavedJob, (savedJob) => savedJob.job, { cascade: true })
-  readonly savedByUsers!: SavedJob[];
+  savedByUsers!: SavedJob[];
 
   @OneToMany(() => Interview, (interview) => interview.job, {
     cascade: true,
   })
-  readonly interviews!: Interview[];
+  interviews!: Interview[];
 
   @OneToMany(
     () => UserNotification,
     (userNotification) => userNotification.job,
     { cascade: true },
   )
-  readonly userNotifications!: UserNotification[];
+  userNotifications!: UserNotification[];
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;

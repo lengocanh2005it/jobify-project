@@ -4,8 +4,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { JwtStrategy } from 'libs/common/guards/strategies/jwt.strategy';
-import { CustomValidationPipe } from 'libs/common/pipe/validation.pipe';
+import { CustomValidationPipe } from 'libs/common/pipes/validation.pipe';
+import { JwtProvider } from 'libs/common/providers/jwt.provider';
 import { CommonService } from './common.service';
 
 @Global()
@@ -58,7 +58,7 @@ import { CommonService } from './common.service';
       },
     ]),
   ],
-  providers: [CommonService, CustomValidationPipe, JwtStrategy],
+  providers: [CommonService, CustomValidationPipe, JwtProvider],
   exports: [JwtModule, ConfigModule, TypeOrmModule],
 })
 export class CommonModule {}

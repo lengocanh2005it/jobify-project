@@ -15,15 +15,16 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { MessagesService } from 'apps/api-gateway/src/messages/messages.service';
-import { User } from 'apps/users/src/entities/users.entity';
+import { User } from 'apps/users/src/entities';
 import { Request } from 'express';
 import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
-import { CreateMessagesDto } from 'libs/common/dtos/create-messages.dto';
-import { SearchMessagesDto } from 'libs/common/dtos/search-messages.dto';
-import { UpdateMessageDto } from 'libs/common/dtos/update-message.dto';
-import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
-import { PremiumGuard } from 'libs/common/guards/premium.guard';
+import {
+  CreateMessagesDto,
+  SearchMessagesDto,
+  UpdateMessageDto,
+} from 'libs/common/dtos';
+import { JwtAuthGuard, RoleAuthGuard, PremiumGuard } from 'libs/common/guards';
 
 @Controller('messages')
 @UseGuards(JwtAuthGuard, RoleAuthGuard, PremiumGuard)
