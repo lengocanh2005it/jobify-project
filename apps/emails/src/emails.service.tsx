@@ -26,37 +26,32 @@ export class EmailsService {
   }
 
   public handleSendEmail = async (email: string, type: string) => {
-    try {
-      if (type === 'payment_successfully') {
-        const content = await render(<PremiumSubscriptionSuccessEmail />);
+    if (type === 'payment_successfully') {
+      const content = await render(<PremiumSubscriptionSuccessEmail />);
 
-        await this.transporter.sendMail({
-          from: 'Jobify Support Team <jobify@supportteams.org>',
-          to: email,
-          subject: 'PAYMENT FOR SUBSCRIPTION SUCCESSFULLY!',
-          html: content,
-        });
-      } else if (type === 'verify-otp' || type === 'verify-email') {
-        const otp = generateOTP();
+      await this.transporter.sendMail({
+        from: 'Jobify Support Team <jobify@supportteams.org>',
+        to: email,
+        subject: 'PAYMENT FOR SUBSCRIPTION SUCCESSFULLY!',
+        html: content,
+      });
+    } else if (type === 'verify-otp' || type === 'verify-email') {
+      const otp = generateOTP();
 
-        this.rabbitMqRedisClient.emit('set-key', {
-          key: `${email}:otp`,
-          data: otp,
-          ttl: 120,
-        });
+      this.rabbitMqRedisClient.emit('set-key', {
+        key: `${email}:otp`,
+        data: otp,
+        ttl: 120,
+      });
 
-        const content = await render(<OtpEmail otp={otp} />);
+      const content = await render(<OtpEmail otp={otp} />);
 
-        await this.transporter.sendMail({
-          from: 'Jobify Support Team <jobify@supportteams.org>',
-          to: email,
-          subject: 'OTP VERIFICATION CODE',
-          html: content,
-        });
-      }
-    } catch (err) {
-      console.error(err);
-      throw err;
+      await this.transporter.sendMail({
+        from: 'Jobify Support Team <jobify@supportteams.org>',
+        to: email,
+        subject: 'OTP VERIFICATION CODE',
+        html: content,
+      });
     }
   };
 }

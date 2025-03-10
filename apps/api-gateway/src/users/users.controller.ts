@@ -32,7 +32,7 @@ export class UsersController {
   @ResponseMessage('All users fetched successfully.')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN)
-  getUsers(@Req() request: Request, @Paginate() query: PaginateQuery) {
+  async getUsers(@Req() request: Request, @Paginate() query: PaginateQuery) {
     return this.usersService.getUsers(query);
   }
 
@@ -40,7 +40,10 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Get user successfully.')
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
-  getUser(@Param('id', ParseUUIDPipe) userId: string, @Req() request: Request) {
+  async getUser(
+    @Param('id', ParseUUIDPipe) userId: string,
+    @Req() request: Request,
+  ) {
     const user = request.user as User;
 
     return this.usersService.handleGetUser(userId, user);
@@ -50,7 +53,7 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @UseInterceptors(AnyFilesInterceptor())
   @Roles(Role.ADMIN)
-  createUser(
+  async createUser(
     @UploadedFiles() files: Array<Express.Multer.File>,
     @Body() createUserDto: CreateUserDto,
   ) {
@@ -62,7 +65,7 @@ export class UsersController {
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
   @ResponseMessage('Profile of user updated successfully!')
   @UseInterceptors(AnyFilesInterceptor())
-  updateUser(
+  async updateUser(
     @Param('id', ParseUUIDPipe) userId: string,
     @Body() updateUserDto: UpdateUserDto,
     @Req() request: Request,
@@ -81,7 +84,7 @@ export class UsersController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.RECRUITER)
-  deleteUser(
+  async deleteUser(
     @Param('id', ParseUUIDPipe) userId: string,
     @Req() request: Request,
   ) {
@@ -93,7 +96,7 @@ export class UsersController {
   @Patch('company/assign')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.RECRUITER)
-  assignCompanyToRecruiters(
+  async assignCompanyToRecruiters(
     @Body() assignCompanyToRecruitersDto: AssignCompanyToRecruitersDto,
     @Req() request: Request,
   ) {

@@ -8,6 +8,7 @@ import { Skill } from 'apps/users/src/entities/skills.entity';
 import { User } from 'apps/users/src/entities/users.entity';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 
 @Module({
   imports: [
@@ -72,6 +73,13 @@ import { UsersService } from './users.service';
     TypeOrmModule.forFeature([User, Role, Notification, Skill]),
   ],
   controllers: [UsersController],
-  providers: [UsersService],
+  providers: [
+    UsersService,
+    {
+      provide: 'SERVICE_NAME',
+      useValue: 'Users Service',
+    },
+    ServicesExceptionInterceptor,
+  ],
 })
 export class UsersModule {}

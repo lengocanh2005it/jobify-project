@@ -1,19 +1,21 @@
-import { Controller } from '@nestjs/common';
+import { Controller, UseInterceptors } from '@nestjs/common';
 import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
+import { User } from 'apps/users/src/entities/users.entity';
+import { AssignCompanyToRecruitersDto } from 'libs/common/dtos/assign-company-to-recruiters.dto';
 import { CreateUserDto } from 'libs/common/dtos/create-user.dto';
 import { UpdateUserDto } from 'libs/common/dtos/update-user.dto';
-import { UsersService } from './users.service';
-import { AssignCompanyToRecruitersDto } from 'libs/common/dtos/assign-company-to-recruiters.dto';
-import { User } from 'apps/users/src/entities/users.entity';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 import { PaginateQuery } from 'nestjs-paginate';
+import { UsersService } from './users.service';
 
 @Controller()
+@UseInterceptors(ServicesExceptionInterceptor)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @MessagePattern({ cmd: 'get-users' })
   async getUsers(@Payload('query') query: PaginateQuery) {
-    return await this.usersService.getUsers(query);
+    return this.usersService.getUsers(query);
   }
 
   @MessagePattern({ cmd: 'create-user' })
@@ -21,12 +23,12 @@ export class UsersController {
     @Payload('createUserDto') createUserDto: CreateUserDto,
     @Payload('files') files?: Array<Express.Multer.File>,
   ) {
-    return await this.usersService.createUser(createUserDto, files);
+    return this.usersService.createUser(createUserDto, files);
   }
 
   @MessagePattern({ cmd: 'get-profile' })
   async getProfile(@Payload('userId') userId: string) {
-    return await this.usersService.handleGetProfile(userId);
+    return this.usersService.handleGetProfile(userId);
   }
 
   @MessagePattern({ cmd: 'get-user' })
@@ -34,7 +36,7 @@ export class UsersController {
     @Payload('userId') userId: string,
     @Payload('user') user: User,
   ) {
-    return await this.usersService.handleGetUser(userId, user);
+    return this.usersService.handleGetUser(userId, user);
   }
 
   @MessagePattern({ cmd: 'update-user' })
@@ -44,7 +46,7 @@ export class UsersController {
     @Payload('user') user: User,
     @Payload('files') files?: Array<Express.Multer.File>,
   ) {
-    return await this.usersService.handleUpdateUser(
+    return this.usersService.handleUpdateUser(
       userId,
       updateUserDto,
       user,
@@ -57,12 +59,12 @@ export class UsersController {
     @Payload('userId') userId: string,
     @Payload('user') user: User,
   ) {
-    return await this.usersService.handleDeleteUser(userId, user);
+    return this.usersService.handleDeleteUser(userId, user);
   }
 
   @MessagePattern({ cmd: 'get-password' })
   async getPasswordOfUser(@Payload() userId: string) {
-    return await this.usersService.handleGetPasswordOfUser(userId);
+    return this.usersService.handleGetPasswordOfUser(userId);
   }
 
   @MessagePattern({ cmd: 'update-pw-user' })
@@ -70,19 +72,17 @@ export class UsersController {
     @Payload('newPassword') newPassword: string,
     @Payload('userId') userId: string,
   ) {
-    return await this.usersService.handleUpdatePassword(newPassword, userId);
+    return this.usersService.handleUpdatePassword(newPassword, userId);
   }
 
   @MessagePattern({ cmd: 'get-users-matched-requirements' })
   async handleGetUsersMatchedRequirements(@Payload() requirements: string[]) {
-    return await this.usersService.handleGetUsersMatchedRequirements(
-      requirements,
-    );
+    return this.usersService.handleGetUsersMatchedRequirements(requirements);
   }
 
   @EventPattern('update-premium')
   async handleUpdatePremium(@Payload() userId: string) {
-    return await this.usersService.handleUpdatePremium(userId);
+    return this.usersService.handleUpdatePremium(userId);
   }
 
   @MessagePattern({ cmd: 'assign-company' })
@@ -91,7 +91,7 @@ export class UsersController {
     assignCompanyToRecruitersDto: AssignCompanyToRecruitersDto,
     @Payload('user') user: User,
   ) {
-    return await this.usersService.handleAssignCompanyToRecruiters(
+    return this.usersService.handleAssignCompanyToRecruiters(
       assignCompanyToRecruitersDto,
       user,
     );
@@ -102,12 +102,12 @@ export class UsersController {
     @Payload('field') field: string,
     @Payload('value') value: string,
   ) {
-    return await this.usersService.handleGetUserByField(field, value);
+    return this.usersService.handleGetUserByField(field, value);
   }
 
   @MessagePattern({ cmd: 'get-user-jwt' })
   async handleGetUserJwt(@Payload() userId: string) {
-    return await this.usersService.handleGetUserJwt(userId);
+    return this.usersService.handleGetUserJwt(userId);
   }
 
   @EventPattern('update-user-limit')
@@ -115,6 +115,6 @@ export class UsersController {
     @Payload('userId') userId: string,
     @Payload('type') type: 'increase' | 'decrease',
   ) {
-    return await this.usersService.handleUpdateUserLimit(userId, type);
+    return this.usersService.handleUpdateUserLimit(userId, type);
   }
 }

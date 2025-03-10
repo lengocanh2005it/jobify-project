@@ -35,7 +35,7 @@ export class ApplicationsController {
   @Roles(Role.CANDIDATE)
   @ResponseMessage('New application created successfully!')
   @UseInterceptors(AnyFilesInterceptor())
-  createApplication(
+  async createApplication(
     @Body() createApplicationDto: CreateApplicationDto,
     @Req() request: Request,
     @UploadedFiles() files: Array<Express.Multer.File>,
@@ -65,7 +65,7 @@ export class ApplicationsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Applications fetched successfully!')
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
-  getApplications(
+  async getApplications(
     @Req() request: Request,
     @Query() searchApplicationsDto: SearchApplicationsDto,
   ) {
@@ -81,7 +81,7 @@ export class ApplicationsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Application fetched successfully!')
   @Roles(Role.RECRUITER, Role.ADMIN, Role.CANDIDATE)
-  getApplication(
+  async getApplication(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: Request,
   ) {
@@ -94,7 +94,7 @@ export class ApplicationsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Application deleted successfully!')
   @Roles(Role.ADMIN, Role.RECRUITER, Role.CANDIDATE)
-  deleteApplication(
+  async deleteApplication(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: Request,
   ) {
@@ -108,7 +108,7 @@ export class ApplicationsController {
   @ResponseMessage('Application updated successfully!')
   @UseInterceptors(AnyFilesInterceptor())
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
-  updateApplication(
+  async updateApplication(
     @Param('id', ParseUUIDPipe) id: string,
     @UploadedFiles() files: Array<Express.Multer.File>,
     @Req() request: Request,
@@ -136,7 +136,7 @@ export class ApplicationsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Processed applications successfully!')
   @Roles(Role.RECRUITER, Role.ADMIN)
-  processApplications(
+  async processApplications(
     @Body() processApplicationsDto: ProcessApplicationsDto,
     @Req() request: Request,
   ) {

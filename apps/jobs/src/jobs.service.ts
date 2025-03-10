@@ -69,405 +69,383 @@ export class JobsService {
   };
 
   public handleCreateJob = async (createJobDto: CreateJobDto, user: User) => {
-    try {
-      const { role, id, job_posted_count } = user;
+    const { role, id, job_posted_count } = user;
 
-      let recruiterId = id;
+    let recruiterId = id;
 
-      if (role.name === 'admin') {
-        const { recruiter_id } = createJobDto;
+    if (role.name === 'admin') {
+      const { recruiter_id } = createJobDto;
 
-        if (!recruiter_id)
-          throw new RpcException(
-            'Admin must specify a recruiter_id in CreateJobDto.',
-          );
-
-        recruiterId = recruiter_id;
-      }
-
-      if (role.name === 'recruiter' && !job_posted_count)
+      if (!recruiter_id)
         throw new RpcException(
-          `You have exhausted your job posting limit. Please wait until it resets or contact support.`,
+          'Admin must specify a recruiter_id in CreateJobDto.',
         );
 
-      const { posted_at, expired_at, title, description } = createJobDto;
-
-      const { requirements, ...resCreateJobDto } = createJobDto;
-
-      const now = new Date();
-
-      const postedDate = new Date(posted_at);
-
-      const expiredDate = new Date(expired_at);
-
-      if (now.getTime() > postedDate.getTime())
-        throw new RpcException(
-          'Posted date must be greater than or equal to current date.',
-        );
-
-      if (postedDate.getTime() > expiredDate.getTime())
-        throw new RpcException(
-          'Expired date must be greater than posted date.',
-        );
-
-      const existingJob = await this.jobRepository.findOne({
-        where: { title, description, recruiter: { id: recruiterId } },
-        relations: ['recruiter'],
-      });
-
-      if (existingJob)
-        throw new RpcException(
-          `This job has been posted by ${role.name === 'admin' ? `recruiter with id '${recruiterId}'` : 'you'}`,
-        );
-
-      const newJob = this.jobRepository.create(resCreateJobDto);
-
-      await this.jobRepository.save(newJob);
-
-      if (requirements && requirements.length) {
-        for (const requirement of requirements) {
-          let newRequirement = await this.requirementRepository.findOneBy({
-            requirement,
-          });
-
-          if (!newRequirement) {
-            newRequirement = this.requirementRepository.create({ requirement });
-
-            await this.requirementRepository.save(newRequirement);
-          }
-
-          await this.dataSource
-            .createQueryBuilder()
-            .relation(Job, 'requirements')
-            .of(newJob.id)
-            .add(newRequirement.id);
-        }
-      }
-
-      await this.dataSource
-        .createQueryBuilder()
-        .relation(Job, 'recruiter')
-        .of(newJob.id)
-        .set(recruiterId);
-
-      const savedJob = (await this.jobRepository.findOne({
-        where: { id: newJob.id },
-        relations: ['recruiter', 'requirements'],
-      })) as Job;
-
-      const { password, createdAt, updatedAt, ...res } = savedJob.recruiter;
-
-      return {
-        ...savedJob,
-        recruiter: res,
-      };
-    } catch (err) {
-      console.error(err);
-      throw err;
+      recruiterId = recruiter_id;
     }
+
+    if (role.name === 'recruiter' && !job_posted_count)
+      throw new RpcException(
+        `You have exhausted your job posting limit. Please wait until it resets or contact support.`,
+      );
+
+    const { posted_at, expired_at, title, description } = createJobDto;
+
+    const { requirements, ...resCreateJobDto } = createJobDto;
+
+    const now = new Date();
+
+    const postedDate = new Date(posted_at);
+
+    const expiredDate = new Date(expired_at);
+
+    if (now.getTime() > postedDate.getTime())
+      throw new RpcException(
+        'Posted date must be greater than or equal to current date.',
+      );
+
+    if (postedDate.getTime() > expiredDate.getTime())
+      throw new RpcException('Expired date must be greater than posted date.');
+
+    const existingJob = await this.jobRepository.findOne({
+      where: { title, description, recruiter: { id: recruiterId } },
+      relations: ['recruiter'],
+    });
+
+    if (existingJob)
+      throw new RpcException(
+        `This job has been posted by ${role.name === 'admin' ? `recruiter with id '${recruiterId}'` : 'you'}`,
+      );
+
+    const newJob = this.jobRepository.create(resCreateJobDto);
+
+    await this.jobRepository.save(newJob);
+
+    if (requirements && requirements.length) {
+      for (const requirement of requirements) {
+        let newRequirement = await this.requirementRepository.findOneBy({
+          requirement,
+        });
+
+        if (!newRequirement) {
+          newRequirement = this.requirementRepository.create({ requirement });
+
+          await this.requirementRepository.save(newRequirement);
+        }
+
+        await this.dataSource
+          .createQueryBuilder()
+          .relation(Job, 'requirements')
+          .of(newJob.id)
+          .add(newRequirement.id);
+      }
+    }
+
+    await this.dataSource
+      .createQueryBuilder()
+      .relation(Job, 'recruiter')
+      .of(newJob.id)
+      .set(recruiterId);
+
+    const savedJob = (await this.jobRepository.findOne({
+      where: { id: newJob.id },
+      relations: ['recruiter', 'requirements'],
+    })) as Job;
+
+    const { password, createdAt, updatedAt, ...res } = savedJob.recruiter;
+
+    return {
+      ...savedJob,
+      recruiter: res,
+    };
   };
 
   public handleProcessJobs = async (processJobsDto: ProcessJobsDto) => {
-    try {
-      const { approvedJobIds, rejectedJobs } = processJobsDto;
+    const { approvedJobIds, rejectedJobs } = processJobsDto;
 
-      if (!approvedJobIds && !rejectedJobs)
-        throw new RpcException(
-          'You must be provide the information of processing the jobs.',
+    if (!approvedJobIds && !rejectedJobs)
+      throw new RpcException(
+        'You must be provide the information of processing the jobs.',
+      );
+
+    const jobs: Record<string, Job[]> = {};
+
+    if (approvedJobIds && approvedJobIds.length) {
+      jobs.approved_jobs = [];
+
+      for (const jobId of approvedJobIds) {
+        const job = await this.jobRepository.findOneBy({ id: jobId });
+
+        if (!job) throw new RpcException(`Job with id: '${jobId}' not found.`);
+
+        if (
+          job.is_approved === true ||
+          (job.is_approved === false && job.cancel_reason && job.cancelled_by)
+        )
+          throw new RpcException(
+            `Job with id: '${jobId}' has already been processed and cannot be processed again.`,
+          );
+
+        await this.jobRepository.update(
+          {
+            id: jobId,
+          },
+          {
+            is_approved: true,
+          },
         );
 
-      const jobs: Record<string, Job[]> = {};
-
-      if (approvedJobIds && approvedJobIds.length) {
-        jobs.approved_jobs = [];
-
-        for (const jobId of approvedJobIds) {
-          const job = await this.jobRepository.findOneBy({ id: jobId });
-
-          if (!job)
-            throw new RpcException(`Job with id: '${jobId}' not found.`);
-
-          if (
-            job.is_approved === true ||
-            (job.is_approved === false && job.cancel_reason && job.cancelled_by)
-          )
-            throw new RpcException(
-              `Job with id: '${jobId}' has already been processed and cannot be processed again.`,
-            );
-
-          await this.jobRepository.update(
-            {
-              id: jobId,
-            },
-            {
+        jobs.approved_jobs.push(
+          (await this.jobRepository.findOne({
+            where: { id: jobId },
+            relations: ['requirements', 'recruiter'],
+            select: {
+              id: true,
+              title: true,
+              address: true,
+              job_type: true,
+              salary_min: true,
+              salary_max: true,
+              description: true,
+              status: true,
+              posted_at: true,
+              expired_at: true,
               is_approved: true,
-            },
-          );
-
-          jobs.approved_jobs.push(
-            (await this.jobRepository.findOne({
-              where: { id: jobId },
-              relations: ['requirements', 'recruiter'],
-              select: {
+              cancel_reason: true,
+              cancelled_by: true,
+              recruiter: {
                 id: true,
-                title: true,
-                address: true,
-                job_type: true,
-                salary_min: true,
-                salary_max: true,
-                description: true,
-                status: true,
-                posted_at: true,
-                expired_at: true,
-                is_approved: true,
-                cancel_reason: true,
-                cancelled_by: true,
-                recruiter: {
-                  id: true,
-                  full_name: true,
-                  email: true,
-                  phone_number: true,
-                },
+                full_name: true,
+                email: true,
+                phone_number: true,
               },
-            })) as Job,
-          );
-        }
-
-        const {
-          title: approvedTitle,
-          description: approvedDescription,
-          key: approvedKey,
-        } = NotificationTypes.JOB_APPROVED;
-
-        this.rabbitMqNotificationClient.emit('create-notification', {
-          data: {
-            title: approvedTitle,
-            message: approvedDescription,
-            type: approvedKey,
-          },
-          userIds: jobs.approved_jobs.map((j) => j.recruiter.id),
-        });
-
-        const { title, description, key } = NotificationTypes.RECOMMENDED_JOB;
-
-        for (const job of jobs.approved_jobs) {
-          const requirements = job.requirements.map((re) => re.requirement);
-
-          const matchedUsers = await lastValueFrom<User[]>(
-            this.rabbitMqUserClient.send(
-              { cmd: 'get-users-matched-requirements' },
-              requirements,
-            ),
-          );
-
-          if (matchedUsers && matchedUsers.length) {
-            this.rabbitMqNotificationClient.emit('create-notification', {
-              data: {
-                title,
-                message: description,
-                type: key,
-                metadata: {
-                  jobId: job.id,
-                },
-              },
-              userIds: matchedUsers.map((user) => user.id),
-            });
-          }
-        }
+            },
+          })) as Job,
+        );
       }
 
-      if (rejectedJobs && rejectedJobs.length) {
-        jobs.rejected_jobs = [];
+      const {
+        title: approvedTitle,
+        description: approvedDescription,
+        key: approvedKey,
+      } = NotificationTypes.JOB_APPROVED;
 
-        for (const rejectedJob of rejectedJobs) {
-          const job = await this.jobRepository.findOneBy({
-            id: rejectedJob.job_id,
+      this.rabbitMqNotificationClient.emit('create-notification', {
+        data: {
+          title: approvedTitle,
+          message: approvedDescription,
+          type: approvedKey,
+        },
+        userIds: jobs.approved_jobs.map((j) => j.recruiter.id),
+      });
+
+      const { title, description, key } = NotificationTypes.RECOMMENDED_JOB;
+
+      for (const job of jobs.approved_jobs) {
+        const requirements = job.requirements.map((re) => re.requirement);
+
+        const matchedUsers = await lastValueFrom<User[]>(
+          this.rabbitMqUserClient.send(
+            { cmd: 'get-users-matched-requirements' },
+            requirements,
+          ),
+        );
+
+        if (matchedUsers && matchedUsers.length) {
+          this.rabbitMqNotificationClient.emit('create-notification', {
+            data: {
+              title,
+              message: description,
+              type: key,
+              metadata: {
+                jobId: job.id,
+              },
+            },
+            userIds: matchedUsers.map((user) => user.id),
           });
-
-          if (!job)
-            throw new RpcException(
-              `Job with id: '${rejectedJob.job_id}' not found.`,
-            );
-
-          if (
-            job.is_approved === true ||
-            (job.is_approved === false && job.cancel_reason && job.cancelled_by)
-          )
-            throw new RpcException(
-              `Job with id: '${rejectedJob.job_id}' has already been processed and cannot be processed again.`,
-            );
-
-          await this.jobRepository.update(
-            {
-              id: rejectedJob.job_id,
-            },
-            {
-              is_approved: false,
-              cancel_reason: rejectedJob.reason,
-              cancelled_by: Role.ADMIN,
-            },
-          );
-
-          jobs.rejected_jobs.push(
-            (await this.jobRepository.findOne({
-              where: { id: rejectedJob.job_id },
-              relations: ['recruiter'],
-              select: {
-                id: true,
-                title: true,
-                address: true,
-                job_type: true,
-                salary_min: true,
-                salary_max: true,
-                description: true,
-                status: true,
-                posted_at: true,
-                expired_at: true,
-                is_approved: true,
-                cancel_reason: true,
-                cancelled_by: true,
-                recruiter: {
-                  id: true,
-                  full_name: true,
-                  email: true,
-                  phone_number: true,
-                },
-                applications: false,
-              },
-            })) as Job,
-          );
         }
+      }
+    }
 
-        const {
-          title: approvedTitle,
-          description: approvedDescription,
-          key: approvedKey,
-        } = NotificationTypes.JOB_REJECTED;
+    if (rejectedJobs && rejectedJobs.length) {
+      jobs.rejected_jobs = [];
 
-        this.rabbitMqNotificationClient.emit('create-notification', {
-          data: {
-            title: approvedTitle,
-            message: approvedDescription,
-            type: approvedKey,
-          },
-          userIds: jobs.rejected_jobs.map((j) => j.recruiter.id),
+      for (const rejectedJob of rejectedJobs) {
+        const job = await this.jobRepository.findOneBy({
+          id: rejectedJob.job_id,
         });
+
+        if (!job)
+          throw new RpcException(
+            `Job with id: '${rejectedJob.job_id}' not found.`,
+          );
+
+        if (
+          job.is_approved === true ||
+          (job.is_approved === false && job.cancel_reason && job.cancelled_by)
+        )
+          throw new RpcException(
+            `Job with id: '${rejectedJob.job_id}' has already been processed and cannot be processed again.`,
+          );
+
+        await this.jobRepository.update(
+          {
+            id: rejectedJob.job_id,
+          },
+          {
+            is_approved: false,
+            cancel_reason: rejectedJob.reason,
+            cancelled_by: Role.ADMIN,
+          },
+        );
+
+        jobs.rejected_jobs.push(
+          (await this.jobRepository.findOne({
+            where: { id: rejectedJob.job_id },
+            relations: ['recruiter'],
+            select: {
+              id: true,
+              title: true,
+              address: true,
+              job_type: true,
+              salary_min: true,
+              salary_max: true,
+              description: true,
+              status: true,
+              posted_at: true,
+              expired_at: true,
+              is_approved: true,
+              cancel_reason: true,
+              cancelled_by: true,
+              recruiter: {
+                id: true,
+                full_name: true,
+                email: true,
+                phone_number: true,
+              },
+              applications: false,
+            },
+          })) as Job,
+        );
       }
 
-      return { jobs };
-    } catch (err) {
-      console.error(err);
-      throw err;
+      const {
+        title: approvedTitle,
+        description: approvedDescription,
+        key: approvedKey,
+      } = NotificationTypes.JOB_REJECTED;
+
+      this.rabbitMqNotificationClient.emit('create-notification', {
+        data: {
+          title: approvedTitle,
+          message: approvedDescription,
+          type: approvedKey,
+        },
+        userIds: jobs.rejected_jobs.map((j) => j.recruiter.id),
+      });
     }
+
+    return { jobs };
   };
 
   public handleGetJobs = async (user: User, filters?: SearchJobsDto) => {
-    try {
-      const { role, company } = user;
+    const { role, company } = user;
 
-      const query = this.jobRepository
-        .createQueryBuilder('job')
-        .leftJoinAndSelect('job.recruiter', 'recruiter')
-        .leftJoinAndSelect('job.requirements', 'requirements')
-        .leftJoinAndSelect('recruiter.company', 'company')
-        .select([
-          'job',
-          'recruiter.id',
-          'recruiter.full_name',
-          'recruiter.email',
-          'recruiter.phone_number',
-          'company.name',
-          'requirements',
-        ]);
+    const query = this.jobRepository
+      .createQueryBuilder('job')
+      .leftJoinAndSelect('job.recruiter', 'recruiter')
+      .leftJoinAndSelect('job.requirements', 'requirements')
+      .leftJoinAndSelect('recruiter.company', 'company')
+      .select([
+        'job',
+        'recruiter.id',
+        'recruiter.full_name',
+        'recruiter.email',
+        'recruiter.phone_number',
+        'company.name',
+        'requirements',
+      ]);
 
-      if (role.name === 'recruiter') {
-        query.andWhere('recruiter.company.id = :id', {
-          id: company.id,
+    if (role.name === 'recruiter') {
+      query.andWhere('recruiter.company.id = :id', {
+        id: company.id,
+      });
+    }
+
+    if (filters) {
+      if (filters.title) {
+        query.andWhere('LOWER(job.title) LIKE LOWER(:title)', {
+          title: `%${filters.title}%`,
         });
       }
 
-      if (filters) {
-        if (filters.title) {
-          query.andWhere('LOWER(job.title) LIKE LOWER(:title)', {
-            title: `%${filters.title}%`,
-          });
-        }
-
-        if (filters.address) {
-          query.andWhere('LOWER(job.address) LIKE LOWER(:address)', {
-            address: `%${filters.address}%`,
-          });
-        }
-
-        if (filters.job_type) {
-          query.andWhere('LOWER(job.job_type) = LOWER(:job_type)', {
-            job_type: filters.job_type,
-          });
-        }
-
-        if (filters.salary_min) {
-          query.andWhere('job.salary_min >= :salary_min', {
-            salary_min: filters.salary_min,
-          });
-        }
-
-        if (filters.salary_max) {
-          query.andWhere('job.salary_max <= :salary_max', {
-            salary_max: filters.salary_max,
-          });
-        }
+      if (filters.address) {
+        query.andWhere('LOWER(job.address) LIKE LOWER(:address)', {
+          address: `%${filters.address}%`,
+        });
       }
 
-      const jobs = await query.getMany();
+      if (filters.job_type) {
+        query.andWhere('LOWER(job.job_type) = LOWER(:job_type)', {
+          job_type: filters.job_type,
+        });
+      }
 
-      return jobs.map(({ recruiter, ...job }) => ({
-        ...job,
-        recruiter: recruiter
-          ? {
-              id: recruiter.id,
-              full_name: recruiter.full_name,
-              email: recruiter.email,
-              phone_number: recruiter.phone_number,
-              company: recruiter?.company?.name ? recruiter.company.name : null,
-            }
-          : null,
-        requirements: job.requirements.map((re) => re.requirement),
-      }));
-    } catch (err) {
-      console.error(err);
+      if (filters.salary_min) {
+        query.andWhere('job.salary_min >= :salary_min', {
+          salary_min: filters.salary_min,
+        });
+      }
+
+      if (filters.salary_max) {
+        query.andWhere('job.salary_max <= :salary_max', {
+          salary_max: filters.salary_max,
+        });
+      }
     }
+
+    const jobs = await query.getMany();
+
+    return jobs.map(({ recruiter, ...job }) => ({
+      ...job,
+      recruiter: recruiter
+        ? {
+            id: recruiter.id,
+            full_name: recruiter.full_name,
+            email: recruiter.email,
+            phone_number: recruiter.phone_number,
+            company: recruiter?.company?.name ? recruiter.company.name : null,
+          }
+        : null,
+      requirements: job.requirements.map((re) => re.requirement),
+    }));
   };
 
   public handleDeleteJob = async (jobId: string, user: User) => {
-    try {
-      const job = await this.jobRepository.findOne({
-        where: {
-          id: jobId,
-        },
-        relations: ['recruiter'],
-      });
+    const job = await this.jobRepository.findOne({
+      where: {
+        id: jobId,
+      },
+      relations: ['recruiter'],
+    });
 
-      if (!job) throw new RpcException(`Job with iD: '${jobId}' not found.`);
+    if (!job) throw new RpcException(`Job with iD: '${jobId}' not found.`);
 
-      const { id, role } = user;
+    const { id, role } = user;
 
-      if (job.recruiter.id !== id && role.name === 'recruiter')
-        throw new RpcException(`You can only delete job that you posted.`);
+    if (job.recruiter.id !== id && role.name === 'recruiter')
+      throw new RpcException(`You can only delete job that you posted.`);
 
-      const jobWithRequirements = await this.jobRepository.findOne({
-        where: {
-          id: jobId,
-        },
-        relations: ['requirements'],
-      });
+    const jobWithRequirements = await this.jobRepository.findOne({
+      where: {
+        id: jobId,
+      },
+      relations: ['requirements'],
+    });
 
-      await this.jobRepository.delete({ id: jobId });
+    await this.jobRepository.delete({ id: jobId });
 
-      return { success: 'Job deleted successfully.' };
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
+    return { success: 'Job deleted successfully.' };
   };
 
   public handleUpdateJob = async (
@@ -475,300 +453,255 @@ export class JobsService {
     jobId: string,
     user: User,
   ) => {
-    try {
-      let job = await this.jobRepository.findOne({
-        where: {
-          id: jobId,
-        },
-        relations: ['recruiter'],
-      });
+    let job = await this.jobRepository.findOne({
+      where: {
+        id: jobId,
+      },
+      relations: ['recruiter'],
+    });
 
-      if (!job) throw new RpcException(`Job With ID: '${jobId}' Not Found.`);
+    if (!job) throw new RpcException(`Job With ID: '${jobId}' Not Found.`);
 
-      const { role, id } = user;
+    const { role, id } = user;
 
-      if (job.recruiter.id !== id && role.name === 'recruiter')
-        throw new RpcException(
-          'You can only update the job that you have posted.',
-        );
-
-      const { requirements, ...res } = updateJobDto;
-
-      await this.jobRepository.update(
-        { id: jobId },
-        {
-          ...res,
-          is_approved: false,
-        },
+    if (job.recruiter.id !== id && role.name === 'recruiter')
+      throw new RpcException(
+        'You can only update the job that you have posted.',
       );
 
-      job = (await this.jobRepository.findOne({
-        where: { id: jobId },
-        relations: ['requirements', 'recruiter'],
-      })) as Job;
+    const { requirements, ...res } = updateJobDto;
 
-      const { recruiter, ...data } = job;
+    await this.jobRepository.update(
+      { id: jobId },
+      {
+        ...res,
+        is_approved: false,
+      },
+    );
 
-      const { password, ...resData } = recruiter;
+    job = (await this.jobRepository.findOne({
+      where: { id: jobId },
+      relations: ['requirements', 'recruiter'],
+    })) as Job;
 
-      return {
-        ...data,
-        recruiter: resData,
-      };
-    } catch (error) {
-      console.error(error);
-    }
+    const { recruiter, ...data } = job;
+
+    const { password, ...resData } = recruiter;
+
+    return {
+      ...data,
+      recruiter: resData,
+    };
   };
 
   public handleGetJob = async (jobId: string, user: User) => {
-    try {
+    const job = await this.jobRepository.findOne({
+      where: { id: jobId },
+      relations: ['requirements', 'recruiter', 'applications'],
+    });
+
+    if (!job) throw new RpcException(`Job With ID: '${jobId}' Not Found.`);
+
+    const { id, role } = user;
+
+    if (job.recruiter.id !== id && role.name === 'recruiter')
+      throw new RpcException(`You can only get a job that you have posted.`);
+
+    if (
+      !job.applications.some((app) => app.candidate.id === id) &&
+      role.name === 'candidate'
+    )
+      throw new RpcException(
+        'You can only get a job that you have applied for.',
+      );
+
+    return job;
+  };
+
+  public handleGetCompany = async (companyId: string) => {
+    const company = await this.companyRepository.findOne({
+      where: { id: companyId },
+      relations: ['recruiters'],
+    });
+
+    if (!company)
+      throw new RpcException(`Company With ID: '${companyId}' Not Found.`);
+
+    return {
+      ...company,
+      recruiters: company.recruiters.map((re) => {
+        const { password, ...res } = re;
+
+        return {
+          ...res,
+        };
+      }),
+    };
+  };
+
+  public handleSavedJobs = async (jobIds: string[], user: User) => {
+    const savedJobs: Job[] = [];
+
+    for (const jobId of jobIds) {
+      const job = await this.jobRepository.findOneBy({ id: jobId });
+
+      if (!job) throw new RpcException(`Job With ID: '${jobId}' Not Found.`);
+
+      if (
+        await this.savedJobRepository.findOne({
+          where: {
+            user: {
+              id: user.id,
+            },
+            job: {
+              id: jobId,
+            },
+          },
+        })
+      )
+        throw new RpcException(
+          `You have already saved the job with id: '${jobId}'`,
+        );
+
+      const newSavedJob = this.savedJobRepository.create({
+        user: { id: user.id },
+        job: { id: job.id },
+      });
+
+      await this.savedJobRepository.save(newSavedJob);
+
+      savedJobs.push(job);
+    }
+
+    return {
+      success: 'Saved these jobs successfully!',
+      savedJobs,
+    };
+  };
+
+  public handleRemoveSavedJobs = async (jobIds: string[], user: User) => {
+    const { id } = user;
+
+    for (const jobId of jobIds) {
       const job = await this.jobRepository.findOne({
         where: { id: jobId },
-        relations: ['requirements', 'recruiter', 'applications'],
+        relations: ['user', 'job'],
       });
 
       if (!job) throw new RpcException(`Job With ID: '${jobId}' Not Found.`);
 
-      const { id, role } = user;
-
-      if (job.recruiter.id !== id && role.name === 'recruiter')
-        throw new RpcException(`You can only get a job that you have posted.`);
-
       if (
-        !job.applications.some((app) => app.candidate.id === id) &&
-        role.name === 'candidate'
+        !(
+          await this.savedJobRepository.find({
+            relations: ['user'],
+          })
+        ).some((job) => job.user.id === id)
       )
         throw new RpcException(
-          'You can only get a job that you have applied for.',
+          `You can only remove the saved job that you saved before.`,
         );
 
-      return job;
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  public handleGetCompany = async (companyId: string) => {
-    try {
-      const company = await this.companyRepository.findOne({
-        where: { id: companyId },
-        relations: ['recruiters'],
+      await this.savedJobRepository.delete({
+        user: { id },
+        job: { id: jobId },
       });
-
-      if (!company)
-        throw new RpcException(`Company With ID: '${companyId}' Not Found.`);
-
-      return {
-        ...company,
-        recruiters: company.recruiters.map((re) => {
-          const { password, ...res } = re;
-
-          return {
-            ...res,
-          };
-        }),
-      };
-    } catch (err) {
-      console.error(err);
-      throw err;
     }
-  };
 
-  public handleSavedJobs = async (jobIds: string[], user: User) => {
-    try {
-      const savedJobs: Job[] = [];
-
-      for (const jobId of jobIds) {
-        const job = await this.jobRepository.findOneBy({ id: jobId });
-
-        if (!job) throw new RpcException(`Job With ID: '${jobId}' Not Found.`);
-
-        if (
-          await this.savedJobRepository.findOne({
-            where: {
-              user: {
-                id: user.id,
-              },
-              job: {
-                id: jobId,
-              },
-            },
-          })
-        )
-          throw new RpcException(
-            `You have already saved the job with id: '${jobId}'`,
-          );
-
-        const newSavedJob = this.savedJobRepository.create({
-          user: { id: user.id },
-          job: { id: job.id },
-        });
-
-        await this.savedJobRepository.save(newSavedJob);
-
-        savedJobs.push(job);
-      }
-
-      return {
-        success: 'Saved these jobs successfully!',
-        savedJobs,
-      };
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
-  };
-
-  public handleRemoveSavedJobs = async (jobIds: string[], user: User) => {
-    try {
-      const { id } = user;
-
-      for (const jobId of jobIds) {
-        const job = await this.jobRepository.findOne({
-          where: { id: jobId },
-          relations: ['user', 'job'],
-        });
-
-        if (!job) throw new RpcException(`Job With ID: '${jobId}' Not Found.`);
-
-        if (
-          !(
-            await this.savedJobRepository.find({
-              relations: ['user'],
-            })
-          ).some((job) => job.user.id === id)
-        )
-          throw new RpcException(
-            `You can only remove the saved job that you saved before.`,
-          );
-
-        await this.savedJobRepository.delete({
-          user: { id },
-          job: { id: jobId },
-        });
-      }
-
-      return {
-        message: 'Remove these jobs successfully!',
-      };
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
+    return {
+      message: 'Remove these jobs successfully!',
+    };
   };
 
   public handleGetAllApplicationsOfJobs = async (recruiterId: string) => {
-    try {
-      const recruiter = await lastValueFrom<User | null>(
-        this.rabbitMqUserClient.send({ cmd: 'get-user' }, recruiterId),
-      );
+    const recruiter = await lastValueFrom<User | null>(
+      this.rabbitMqUserClient.send({ cmd: 'get-user' }, recruiterId),
+    );
 
-      if (!recruiter)
-        throw new RpcException(
-          `Recruiter with ID: '${recruiterId}' Not Found.`,
-        );
+    if (!recruiter)
+      throw new RpcException(`Recruiter with ID: '${recruiterId}' Not Found.`);
 
-      const jobs = await this.jobRepository.find({
-        where: { recruiter: { id: recruiterId } },
-        relations: [
-          'recruiter',
-          'applications',
-          'applications.candidate',
-          'applications.candidate.skills',
-        ],
-      });
+    const jobs = await this.jobRepository.find({
+      where: { recruiter: { id: recruiterId } },
+      relations: [
+        'recruiter',
+        'applications',
+        'applications.candidate',
+        'applications.candidate.skills',
+      ],
+    });
 
-      return jobs.map(({ applications, recruiter, ...res }) => ({
+    return jobs.map(({ applications, recruiter, ...res }) => ({
+      ...res,
+      applications: applications.map(({ candidate, ...res }) => ({
         ...res,
-        applications: applications.map(({ candidate, ...res }) => ({
-          ...res,
-          candidate: {
-            id: candidate.id,
-            full_name: candidate.full_name,
-            email: candidate.email,
-            bio: candidate.bio,
-            phone_number: candidate.phone_number,
-            skills: candidate.skills.map((skill) => skill.name),
-            certifications: candidate.certifications,
-          },
-        })),
-      }));
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
+        candidate: {
+          id: candidate.id,
+          full_name: candidate.full_name,
+          email: candidate.email,
+          bio: candidate.bio,
+          phone_number: candidate.phone_number,
+          skills: candidate.skills.map((skill) => skill.name),
+          certifications: candidate.certifications,
+        },
+      })),
+    }));
   };
 
   public handleGetCompanyByRecruiterId = async (recruiterId: string) => {
-    try {
-      const companies = await this.companyRepository.find({
-        relations: ['recruiters'],
-      });
+    const companies = await this.companyRepository.find({
+      relations: ['recruiters'],
+    });
 
-      const findFirstCompany = companies.find((company) =>
-        company.recruiters.some((re) => re.id === recruiterId),
+    const findFirstCompany = companies.find((company) =>
+      company.recruiters.some((re) => re.id === recruiterId),
+    );
+
+    if (!findFirstCompany)
+      throw new RpcException(
+        `Recruiter with id '${recruiterId}' hasn't been assigned with any companies.`,
       );
 
-      if (!findFirstCompany)
-        throw new RpcException(
-          `Recruiter with id '${recruiterId}' hasn't been assigned with any companies.`,
-        );
-
-      return findFirstCompany;
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
+    return findFirstCompany;
   };
 
   public handleUpdateCompanyOfRecruiter = async (
     updateCompanyDto: UpdateCompanyDto,
     recruiterId: string,
   ) => {
-    try {
-      const { name } = updateCompanyDto;
+    const { name } = updateCompanyDto;
 
-      let company = await this.companyRepository.findOneBy({ name });
+    let company = await this.companyRepository.findOneBy({ name });
 
-      if (!company) {
-        company = this.companyRepository.create(updateCompanyDto);
+    if (!company) {
+      company = this.companyRepository.create(updateCompanyDto);
 
-        await this.companyRepository.save(company);
+      await this.companyRepository.save(company);
 
-        await this.dataSource
-          .createQueryBuilder()
-          .relation(Company, 'recruiters')
-          .of(company.id)
-          .add(recruiterId);
-      } else {
-        await this.companyRepository.update(
-          {
-            id: company.id,
-          },
-          updateCompanyDto,
-        );
-      }
-    } catch (err) {
-      console.error(err);
-      throw err;
+      await this.dataSource
+        .createQueryBuilder()
+        .relation(Company, 'recruiters')
+        .of(company.id)
+        .add(recruiterId);
+    } else {
+      await this.companyRepository.update(
+        {
+          id: company.id,
+        },
+        updateCompanyDto,
+      );
     }
   };
 
   public handleVerifyJob = async (jobId: string) => {
-    try {
-      const job = await this.jobRepository.findOne({
-        where: {
-          id: jobId,
-        },
-        relations: ['recruiter'],
-      });
+    const job = await this.jobRepository.findOne({
+      where: {
+        id: jobId,
+      },
+      relations: ['recruiter'],
+    });
 
-      if (!job) throw new RpcException(`Job with id: '${jobId}' not found.`);
+    if (!job) throw new RpcException(`Job with id: '${jobId}' not found.`);
 
-      return job;
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
+    return job;
   };
 }

@@ -5,6 +5,7 @@ import { CommonModule } from '@app/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Review } from 'apps/reviews/src/entities/reviews.entity';
 import { ClientsModule, Transport } from '@nestjs/microservices';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 
 @Module({
   imports: [
@@ -36,6 +37,13 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
     TypeOrmModule.forFeature([Review]),
   ],
   controllers: [ReviewsController],
-  providers: [ReviewsService],
+  providers: [
+    ReviewsService,
+    {
+      provide: 'SERVICE_NAME',
+      useValue: 'Reviews Service',
+    },
+    ServicesExceptionInterceptor,
+  ],
 })
 export class ReviewsModule {}

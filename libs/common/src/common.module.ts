@@ -2,11 +2,11 @@ import configuration from '@app/common/config/configuration';
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
+import { ClientsModule, Transport } from '@nestjs/microservices';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtStrategy } from 'libs/common/guards/strategies/jwt.strategy';
 import { CustomValidationPipe } from 'libs/common/pipe/validation.pipe';
 import { CommonService } from './common.service';
-import { ClientsModule, Transport } from '@nestjs/microservices';
 
 @Global()
 @Module({

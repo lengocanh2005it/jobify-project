@@ -30,7 +30,7 @@ export class JobsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('New job created successfully.')
   @Roles(Role.RECRUITER, Role.ADMIN)
-  createJob(@Body() createJobDto: CreateJobDto, @Req() request: Request) {
+  async createJob(@Body() createJobDto: CreateJobDto, @Req() request: Request) {
     const user = request.user as User;
 
     return this.jobsService.handleCreateJob(createJobDto, user);
@@ -40,7 +40,7 @@ export class JobsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Jobs has been processed successfully.')
   @Roles(Role.ADMIN)
-  processJobs(@Body() processJobsDto: ProcessJobsDto) {
+  async processJobs(@Body() processJobsDto: ProcessJobsDto) {
     return this.jobsService.handleProcessJobs(processJobsDto);
   }
 
@@ -48,7 +48,7 @@ export class JobsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.RECRUITER, Role.CANDIDATE)
   @ResponseMessage('Job fetched successfully.')
-  getJobs(@Query() filters: SearchJobsDto, @Req() request: Request) {
+  async getJobs(@Query() filters: SearchJobsDto, @Req() request: Request) {
     const user = request.user as User;
 
     return this.jobsService.handleGetJobs(user, filters);
@@ -58,7 +58,7 @@ export class JobsController {
   @ResponseMessage('Job deleted successfully.')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.RECRUITER)
-  deleteJob(@Param('id') id: string, @Req() request: Request) {
+  async deleteJob(@Param('id') id: string, @Req() request: Request) {
     const user = request.user as User;
 
     return this.jobsService.handleDeleteJob(id, user);
@@ -68,7 +68,7 @@ export class JobsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Job updated successfully.')
   @Roles(Role.ADMIN, Role.RECRUITER)
-  updateJob(
+  async updateJob(
     @Body() updateJobDto: UpdateJobDto,
     @Param('id') id: string,
     @Req() request: Request,
@@ -82,7 +82,7 @@ export class JobsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Job fetched successfully.')
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
-  getJob(@Param('id') jobId: string, @Req() request: Request) {
+  async getJob(@Param('id') jobId: string, @Req() request: Request) {
     const user = request.user as User;
 
     return this.jobsService.handleGetJob(jobId, user);
@@ -92,7 +92,7 @@ export class JobsController {
   @ResponseMessage('Job has been saved successfully.')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.CANDIDATE, Role.ADMIN)
-  savedJobs(@Body() savedJobDtos: SavedJobsDto, @Req() request: Request) {
+  async savedJobs(@Body() savedJobDtos: SavedJobsDto, @Req() request: Request) {
     const user = request.user as User;
 
     return this.jobsService.handleSavedJobs(savedJobDtos, user);
@@ -101,7 +101,7 @@ export class JobsController {
   @Patch('saved/remove')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
-  removeSavedJobs(
+  async removeSavedJobs(
     @Body() removeSavedJobsDto: SavedJobsDto,
     @Req() request: Request,
   ) {
@@ -113,7 +113,7 @@ export class JobsController {
   @Get('/recruiters/me')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.RECRUITER)
-  getAllApplicationsOfJobs(@Req() request: Request) {
+  async getAllApplicationsOfJobs(@Req() request: Request) {
     const userId = request.user?.id as string;
 
     return this.jobsService.handleGetAllApplicationsOfJobs(userId);

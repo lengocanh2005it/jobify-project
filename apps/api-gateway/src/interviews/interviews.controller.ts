@@ -31,7 +31,7 @@ export class InterviewsController {
   @ResponseMessage('Interviews fetch successfully!')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.RECRUITER, Role.CANDIDATE)
-  getInterviews(
+  async getInterviews(
     @Req() request: Request,
     @Query() searchInterviewsDto?: SearchInterviewsDto,
   ) {
@@ -47,7 +47,7 @@ export class InterviewsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
   @ResponseMessage('Interviews fetched successfully!')
-  getInterview(
+  async getInterview(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: Request,
   ) {
@@ -60,7 +60,7 @@ export class InterviewsController {
   @ResponseMessage('New interview created successfully!')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.RECRUITER)
-  createInterview(
+  async createInterview(
     @Body() createInterviewDto: CreateInterviewDto,
     @Req() request: Request,
   ) {
@@ -76,7 +76,7 @@ export class InterviewsController {
   @ResponseMessage('Processed interviews successfully!')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN)
-  processInterviews(@Body() processInterviewDto: ProcessInterviewsDto) {
+  async processInterviews(@Body() processInterviewDto: ProcessInterviewsDto) {
     return this.interviewsService.handleProcessInterviews(processInterviewDto);
   }
 
@@ -84,7 +84,7 @@ export class InterviewsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.RECRUITER)
   @ResponseMessage('Interview updated successfully!')
-  updateInterview(
+  async updateInterview(
     @Body() updateInterviewDto: UpdateInterviewDto,
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: Request,
@@ -101,7 +101,7 @@ export class InterviewsController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.RECRUITER)
-  deleteInterview(
+  async deleteInterview(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: Request,
   ) {
@@ -113,7 +113,7 @@ export class InterviewsController {
   @Patch('candidates/process')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.CANDIDATE)
-  candidatesProcessInterviews(
+  async candidatesProcessInterviews(
     @Req() request: Request,
     @Body() candidatesProcessInterviewsDto: CandidatesProcessInterviewsDto,
   ) {

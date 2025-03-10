@@ -1,11 +1,13 @@
-import { Controller } from '@nestjs/common';
+import { Controller, UseInterceptors } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { CreateReviewDto } from 'libs/common/dtos/create-review.dto';
 import { UpdateReviewDto } from 'libs/common/dtos/update-review.dto';
 import { ReviewsService } from './reviews.service';
 import { User } from 'apps/users/src/entities/users.entity';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 
 @Controller()
+@UseInterceptors(ServicesExceptionInterceptor)
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
@@ -14,15 +16,12 @@ export class ReviewsController {
     @Payload('createReviewDto') createReviewDto: CreateReviewDto,
     @Payload('userId') userId: string,
   ) {
-    return await this.reviewsService.handleCreateReview(
-      createReviewDto,
-      userId,
-    );
+    return this.reviewsService.handleCreateReview(createReviewDto, userId);
   }
 
   @MessagePattern({ cmd: 'get-reviews' })
   async getReviews(@Payload() user: User) {
-    return await this.reviewsService.handleGetReviews(user);
+    return this.reviewsService.handleGetReviews(user);
   }
 
   @MessagePattern({ cmd: 'update-review' })
@@ -31,7 +30,7 @@ export class ReviewsController {
     @Payload('reviewId') reviewId: string,
     @Payload('user') user: User,
   ) {
-    return await this.reviewsService.handleUpdateReview(
+    return this.reviewsService.handleUpdateReview(
       updateReviewDto,
       reviewId,
       user,
@@ -43,7 +42,7 @@ export class ReviewsController {
     @Payload('reviewId') reviewId: string,
     @Payload('user') user: User,
   ) {
-    return await this.reviewsService.handleDeleteReview(reviewId, user);
+    return this.reviewsService.handleDeleteReview(reviewId, user);
   }
 
   @MessagePattern({ cmd: 'get-review' })
@@ -51,6 +50,6 @@ export class ReviewsController {
     @Payload('reviewId') reviewId: string,
     @Payload('user') user: User,
   ) {
-    return await this.reviewsService.handleGetReview(reviewId, user);
+    return this.reviewsService.handleGetReview(reviewId, user);
   }
 }

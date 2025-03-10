@@ -1,4 +1,4 @@
-import { Controller } from '@nestjs/common';
+import { Controller, UseInterceptors } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities/users.entity';
 import { CreateInterviewDto } from 'libs/common/dtos/create-interview.dto';
@@ -7,8 +7,10 @@ import { SearchInterviewsDto } from 'libs/common/dtos/search-interviews.dto';
 import { UpdateInterviewDto } from 'libs/common/dtos/update-interview.dto';
 import { InterviewsService } from './interviews.service';
 import { CandidatesProcessInterviewsDto } from 'libs/common/dtos/candidates-process-interviews.dto';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 
 @Controller()
+@UseInterceptors(ServicesExceptionInterceptor)
 export class InterviewsController {
   constructor(private readonly interviewsService: InterviewsService) {}
 

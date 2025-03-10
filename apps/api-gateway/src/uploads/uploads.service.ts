@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
+import { lastValueFrom } from 'rxjs';
 
 @Injectable()
 export class UploadsService {
@@ -8,7 +9,9 @@ export class UploadsService {
     private readonly rabbitMqUploadsClient: ClientProxy,
   ) {}
 
-  public handleUploadsFile = (files: Array<Express.Multer.File>) => {
-    return this.rabbitMqUploadsClient.send({ cmd: 'upload-files' }, files);
+  public handleUploadsFile = async (files: Array<Express.Multer.File>) => {
+    return await lastValueFrom(
+      this.rabbitMqUploadsClient.send({ cmd: 'upload-files' }, files),
+    );
   };
 }

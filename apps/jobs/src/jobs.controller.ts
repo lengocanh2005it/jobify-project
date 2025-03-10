@@ -1,15 +1,17 @@
-import { Controller } from '@nestjs/common';
-import { JobsService } from './jobs.service';
+import { Controller, UseInterceptors } from '@nestjs/common';
 import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
-import { CreateCompanyDto } from 'libs/common/dtos/create-company.dto';
-import { CreateJobDto } from 'libs/common/dtos';
-import { UpdateJobDto } from 'libs/common/dtos/update-job.dto';
-import { SearchJobsDto } from 'libs/common/dtos/search-jobs.dto';
 import { User } from 'apps/users/src/entities/users.entity';
-import { UpdateCompanyDto } from 'libs/common/dtos/update-company.dto';
+import { CreateJobDto } from 'libs/common/dtos';
+import { CreateCompanyDto } from 'libs/common/dtos/create-company.dto';
 import { ProcessJobsDto } from 'libs/common/dtos/process-jobs.dto';
+import { SearchJobsDto } from 'libs/common/dtos/search-jobs.dto';
+import { UpdateCompanyDto } from 'libs/common/dtos/update-company.dto';
+import { UpdateJobDto } from 'libs/common/dtos/update-job.dto';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
+import { JobsService } from './jobs.service';
 
 @Controller()
+@UseInterceptors(ServicesExceptionInterceptor)
 export class JobsController {
   constructor(private readonly jobsService: JobsService) {}
 

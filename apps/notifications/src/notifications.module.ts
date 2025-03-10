@@ -1,11 +1,12 @@
 import { CommonModule } from '@app/common';
 import { Module } from '@nestjs/common';
-import { ClientsModule, Transport } from '@nestjs/microservices';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Notification } from 'apps/notifications/src/entities/notifications.entity';
 import { UserNotification } from 'apps/notifications/src/entities/user-notification.entity';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
+import { ClientsModule, Transport } from '@nestjs/microservices';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 
 @Module({
   imports: [
@@ -26,6 +27,13 @@ import { NotificationsService } from './notifications.service';
     TypeOrmModule.forFeature([Notification, UserNotification]),
   ],
   controllers: [NotificationsController],
-  providers: [NotificationsService],
+  providers: [
+    NotificationsService,
+    {
+      provide: 'SERVICE_NAME',
+      useValue: 'Notifications Service',
+    },
+    ServicesExceptionInterceptor,
+  ],
 })
 export class NotificationsModule {}

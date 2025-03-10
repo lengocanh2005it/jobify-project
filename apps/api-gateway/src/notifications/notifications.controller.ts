@@ -24,7 +24,7 @@ export class NotificationsController {
   @ResponseMessage('Notifications fetched successfully!')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
-  getNotifications(
+  async getNotifications(
     @Req() request: Request,
     @Query() filters?: SearchNotificationsDto,
   ) {

@@ -6,6 +6,7 @@ import { CreateInterviewDto } from 'libs/common/dtos/create-interview.dto';
 import { ProcessInterviewsDto } from 'libs/common/dtos/process-interviews.dto';
 import { SearchInterviewsDto } from 'libs/common/dtos/search-interviews.dto';
 import { UpdateInterviewDto } from 'libs/common/dtos/update-interview.dto';
+import { lastValueFrom } from 'rxjs';
 
 @Injectable()
 export class InterviewsService {
@@ -14,81 +15,97 @@ export class InterviewsService {
     private readonly rabbitMqInterviewClient: ClientProxy,
   ) {}
 
-  public handleCreateInterview = (
+  public handleCreateInterview = async (
     createInterviewDto: CreateInterviewDto,
     user: User,
   ) => {
-    return this.rabbitMqInterviewClient.send(
-      { cmd: 'create-interview' },
-      { createInterviewDto, user },
+    return await lastValueFrom(
+      this.rabbitMqInterviewClient.send(
+        { cmd: 'create-interview' },
+        { createInterviewDto, user },
+      ),
     );
   };
 
-  public handleProcessInterviews(processInterviewsDto: ProcessInterviewsDto) {
-    return this.rabbitMqInterviewClient.send(
-      { cmd: 'process-interviews' },
-      processInterviewsDto,
+  public async handleProcessInterviews(
+    processInterviewsDto: ProcessInterviewsDto,
+  ) {
+    return await lastValueFrom(
+      this.rabbitMqInterviewClient.send(
+        { cmd: 'process-interviews' },
+        processInterviewsDto,
+      ),
     );
   }
 
-  public handleUpdateInterview = (
+  public handleUpdateInterview = async (
     updateInterviewDto: UpdateInterviewDto,
     interviewId: string,
     user: User,
   ) => {
-    return this.rabbitMqInterviewClient.send(
-      { cmd: 'update-interview' },
-      {
-        updateInterviewDto,
-        interviewId,
-        user,
-      },
+    return await lastValueFrom(
+      this.rabbitMqInterviewClient.send(
+        { cmd: 'update-interview' },
+        {
+          updateInterviewDto,
+          interviewId,
+          user,
+        },
+      ),
     );
   };
 
-  public handleDeleteInterview = (interviewId: string, user: User) => {
-    return this.rabbitMqInterviewClient.send(
-      { cmd: 'delete-interview' },
-      {
-        interviewId,
-        user,
-      },
+  public handleDeleteInterview = async (interviewId: string, user: User) => {
+    return await lastValueFrom(
+      this.rabbitMqInterviewClient.send(
+        { cmd: 'delete-interview' },
+        {
+          interviewId,
+          user,
+        },
+      ),
     );
   };
 
-  public handleGetInterviews(
+  public async handleGetInterviews(
     user: User,
     searchInterviewsDto?: SearchInterviewsDto,
   ) {
-    return this.rabbitMqInterviewClient.send(
-      { cmd: 'get-interviews' },
-      {
-        user,
-        searchInterviewsDto,
-      },
+    return await lastValueFrom(
+      this.rabbitMqInterviewClient.send(
+        { cmd: 'get-interviews' },
+        {
+          user,
+          searchInterviewsDto,
+        },
+      ),
     );
   }
 
-  public handleGetInterview = (interviewId: string, user: User) => {
-    return this.rabbitMqInterviewClient.send(
-      { cmd: 'get-interview' },
-      {
-        interviewId,
-        user,
-      },
+  public handleGetInterview = async (interviewId: string, user: User) => {
+    return await lastValueFrom(
+      this.rabbitMqInterviewClient.send(
+        { cmd: 'get-interview' },
+        {
+          interviewId,
+          user,
+        },
+      ),
     );
   };
 
-  public handleProcessInterviewsOfCandidate = (
+  public handleProcessInterviewsOfCandidate = async (
     user: User,
     candidatesProcessInterviewsDto: CandidatesProcessInterviewsDto,
   ) => {
-    return this.rabbitMqInterviewClient.send(
-      { cmd: 'process-interviews-candidates' },
-      {
-        user,
-        candidatesProcessInterviewsDto,
-      },
+    return await lastValueFrom(
+      this.rabbitMqInterviewClient.send(
+        { cmd: 'process-interviews-candidates' },
+        {
+          user,
+          candidatesProcessInterviewsDto,
+        },
+      ),
     );
   };
 }

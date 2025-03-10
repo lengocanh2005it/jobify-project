@@ -4,6 +4,7 @@ import { User } from 'apps/users/src/entities/users.entity';
 import { ProcessApplicationsDto } from 'libs/common/dtos/process-applications.dto';
 import { SearchApplicationsDto } from 'libs/common/dtos/search-applications.dto';
 import { CreateApplication, UpdateApplication } from 'libs/common/utils/types';
+import { lastValueFrom } from 'rxjs';
 
 @Injectable()
 export class ApplicationsService {
@@ -12,60 +13,72 @@ export class ApplicationsService {
     private readonly rabbitMqApplicationClient: ClientProxy,
   ) {}
 
-  public createApplication = (createApplication: CreateApplication) => {
-    return this.rabbitMqApplicationClient.send(
-      { cmd: 'create-application' },
-      createApplication,
+  public createApplication = async (createApplication: CreateApplication) => {
+    return await lastValueFrom(
+      this.rabbitMqApplicationClient.send(
+        { cmd: 'create-application' },
+        createApplication,
+      ),
     );
   };
 
-  public getApplications = (
+  public getApplications = async (
     user: User,
     searchApplicationsDto?: SearchApplicationsDto,
   ) => {
-    return this.rabbitMqApplicationClient.send(
-      { cmd: 'get-applications' },
-      {
-        user,
-        searchApplicationsDto,
-      },
+    return await lastValueFrom(
+      this.rabbitMqApplicationClient.send(
+        { cmd: 'get-applications' },
+        {
+          user,
+          searchApplicationsDto,
+        },
+      ),
     );
   };
 
-  public getApplication = (applicationId: string, user: User) => {
-    return this.rabbitMqApplicationClient.send(
-      { cmd: 'get-application' },
-      {
-        applicationId,
-        user,
-      },
+  public getApplication = async (applicationId: string, user: User) => {
+    return await lastValueFrom(
+      this.rabbitMqApplicationClient.send(
+        { cmd: 'get-application' },
+        {
+          applicationId,
+          user,
+        },
+      ),
     );
   };
 
-  public deleteApplication = (applicationId: string, user: User) => {
-    return this.rabbitMqApplicationClient.send(
-      { cmd: 'delete-application' },
-      { applicationId, user },
+  public deleteApplication = async (applicationId: string, user: User) => {
+    return await lastValueFrom(
+      this.rabbitMqApplicationClient.send(
+        { cmd: 'delete-application' },
+        { applicationId, user },
+      ),
     );
   };
 
-  public updateApplication = (
+  public updateApplication = async (
     updateApplication: UpdateApplication,
     user: User,
   ) => {
-    return this.rabbitMqApplicationClient.send(
-      { cmd: 'update-application' },
-      { updateApplication, user },
+    return await lastValueFrom(
+      this.rabbitMqApplicationClient.send(
+        { cmd: 'update-application' },
+        { updateApplication, user },
+      ),
     );
   };
 
-  public handleProcessApplications = (
+  public handleProcessApplications = async (
     processApplicationsDto: ProcessApplicationsDto,
     user: User,
   ) => {
-    return this.rabbitMqApplicationClient.send(
-      { cmd: 'process-applications' },
-      { processApplicationsDto, user },
+    return await lastValueFrom(
+      this.rabbitMqApplicationClient.send(
+        { cmd: 'process-applications' },
+        { processApplicationsDto, user },
+      ),
     );
   };
 }

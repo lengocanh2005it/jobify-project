@@ -1,10 +1,11 @@
 import { CommonModule } from '@app/common';
 import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
-import { PaymentsController } from './payments.controller';
-import { PaymentsService } from './payments.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Transaction } from 'apps/payments/src/entities/transactions.entity';
+import { PaymentsController } from './payments.controller';
+import { PaymentsService } from './payments.service';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 
 @Module({
   imports: [
@@ -25,6 +26,13 @@ import { Transaction } from 'apps/payments/src/entities/transactions.entity';
     CommonModule,
   ],
   controllers: [PaymentsController],
-  providers: [PaymentsService],
+  providers: [
+    PaymentsService,
+    {
+      provide: 'SERVICE_NAME',
+      useValue: 'Payments Service',
+    },
+    ServicesExceptionInterceptor,
+  ],
 })
 export class PaymentsModule {}

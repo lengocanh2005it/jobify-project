@@ -32,441 +32,403 @@ export class ApplicationsService {
   public handleCreateApplication = async (
     createApplication: CreateApplication,
   ) => {
-    try {
-      const { jobId, resumeFile, coverLetterFile, userId } = createApplication;
+    const { jobId, resumeFile, coverLetterFile, userId } = createApplication;
 
-      const job = await lastValueFrom<Job | undefined>(
-        this.rabbitMqJobClient.send({ cmd: 'verify-job' }, jobId),
+    const job = await lastValueFrom<Job | undefined>(
+      this.rabbitMqJobClient.send({ cmd: 'verify-job' }, jobId),
+    );
+
+    if (!job) throw new RpcException(`Job with id: '${jobId}' not found.`);
+
+    const user = await lastValueFrom<User | null>(
+      this.rabbitMqUserClient.send({ cmd: 'get-user-jwt' }, userId),
+    );
+
+    if (!user) throw new RpcException(`User with id: '${userId}' not found.`);
+
+    if (!user.application_applied_count)
+      throw new RpcException(
+        `You have already applied ${user.application_applied_count} times. No more applications allowed.`,
       );
 
-      if (!job) throw new RpcException(`Job with id: '${jobId}' not found.`);
+    let application = await this.applicationRepository.findOne({
+      where: {
+        candidate: { id: userId },
+        job: { id: jobId },
+      },
+      relations: ['candidate', 'job', 'job.recruiter'],
+    });
 
-      const user = await lastValueFrom<User | null>(
-        this.rabbitMqUserClient.send({ cmd: 'get-user-jwt' }, userId),
-      );
+    if (application && application.status !== 'rejected')
+      throw new BadRequestException('You have applied for this position.');
 
-      if (!user) throw new RpcException(`User with id: '${userId}' not found.`);
+    const files = [resumeFile];
 
-      if (!user.application_applied_count)
-        throw new RpcException(
-          `You have already applied ${user.application_applied_count} times. No more applications allowed.`,
+    if (coverLetterFile) {
+      files.push(coverLetterFile);
+    }
+
+    const uploadedFiles = await this.uploadFiles(files.filter(Boolean));
+
+    const [resume, coverLetter] = uploadedFiles;
+
+    application = application
+      ? await this.updateApplication(
+          application.id,
+          resume.url,
+          coverLetter?.url,
+        )
+      : await this.createApplication(
+          userId,
+          jobId,
+          resume.url,
+          coverLetter?.url,
         );
 
-      let application = await this.applicationRepository.findOne({
-        where: {
-          candidate: { id: userId },
-          job: { id: jobId },
-        },
-        relations: ['candidate', 'job', 'job.recruiter'],
-      });
+    this.rabbitMqUserClient.emit('update-user-limit', {
+      userId,
+      type: 'decrease',
+    });
 
-      if (application && application.status !== 'rejected')
-        throw new BadRequestException('You have applied for this position.');
+    const { title, description, key } =
+      NotificationTypes.NEW_APPLICATION_RECEIVED;
 
-      const files = [resumeFile];
+    this.rabbitMqNotificationClient.emit('create-notification', {
+      data: { title, message: description, type: key },
+      userIds: [application.job.recruiter.id],
+    });
 
-      if (coverLetterFile) {
-        files.push(coverLetterFile);
-      }
-
-      const uploadedFiles = await this.uploadFiles(files.filter(Boolean));
-
-      const [resume, coverLetter] = uploadedFiles;
-
-      application = application
-        ? await this.updateApplication(
-            application.id,
-            resume.url,
-            coverLetter?.url,
-          )
-        : await this.createApplication(
-            userId,
-            jobId,
-            resume.url,
-            coverLetter?.url,
-          );
-
-      this.rabbitMqUserClient.emit('update-user-limit', {
-        userId,
-        type: 'decrease',
-      });
-
-      const { title, description, key } =
-        NotificationTypes.NEW_APPLICATION_RECEIVED;
-
-      this.rabbitMqNotificationClient.emit('create-notification', {
-        data: { title, message: description, type: key },
-        userIds: [application.job.recruiter.id],
-      });
-
-      return this.formatApplicationResponse(application);
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
+    return this.formatApplicationResponse(application);
   };
 
   public handleGetApplications = async (
     user: User,
     filters?: SearchApplicationsDto,
   ) => {
-    try {
-      const { id, role } = user;
+    const { id, role } = user;
 
-      const query = this.applicationRepository
-        .createQueryBuilder('application')
-        .leftJoinAndSelect('application.candidate', 'candidate')
-        .leftJoinAndSelect('application.job', 'job')
-        .leftJoinAndSelect('job.recruiter', 'recruiter')
-        .select([
-          'application.id',
-          'application.resume_link',
-          'application.cover_letter_link',
-          'application.status',
-          'application.applied_at',
-          'candidate.id',
-          'candidate.email',
-          'candidate.full_name',
-          'candidate.bio',
-          'candidate.phone_number',
-          'candidate.address',
-          'candidate.certifications',
-          'job.id',
-          'job.title',
-          'job.description',
-          'job.salary_min',
-          'job.salary_max',
-          'job.job_type',
-          'job.status',
-          'job.address',
-          'recruiter.id',
-          'recruiter.email',
-          'recruiter.full_name',
-          'recruiter.bio',
-          'recruiter.phone_number',
-          'recruiter.address',
-        ]);
+    const query = this.applicationRepository
+      .createQueryBuilder('application')
+      .leftJoinAndSelect('application.candidate', 'candidate')
+      .leftJoinAndSelect('application.job', 'job')
+      .leftJoinAndSelect('job.recruiter', 'recruiter')
+      .select([
+        'application.id',
+        'application.resume_link',
+        'application.cover_letter_link',
+        'application.status',
+        'application.applied_at',
+        'candidate.id',
+        'candidate.email',
+        'candidate.full_name',
+        'candidate.bio',
+        'candidate.phone_number',
+        'candidate.address',
+        'candidate.certifications',
+        'job.id',
+        'job.title',
+        'job.description',
+        'job.salary_min',
+        'job.salary_max',
+        'job.job_type',
+        'job.status',
+        'job.address',
+        'recruiter.id',
+        'recruiter.email',
+        'recruiter.full_name',
+        'recruiter.bio',
+        'recruiter.phone_number',
+        'recruiter.address',
+      ]);
 
-      if (role.name === 'recruiter') {
-        query.andWhere('job.recruiter.id = :id', { id });
-      } else if (role.name !== 'admin') {
-        query.andWhere('candidate.id = :id', { id });
-      }
-
-      if (filters?.status) {
-        query.andWhere('application.status = :status', {
-          status: filters.status,
-        });
-      }
-
-      if (filters?.jobTitle) {
-        query.andWhere('LOWER(job.title) LIKE LOWER(:jobTitle)', {
-          jobTitle: `%${filters.jobTitle}%`,
-        });
-      }
-
-      if (filters?.appliedAfter) {
-        const appliedAfterDate = new Date(
-          `${filters.appliedAfter}T00:00:00.000Z`,
-        );
-
-        query.andWhere('application.applied_at >= :appliedAfter', {
-          appliedAfter: appliedAfterDate,
-        });
-      }
-
-      if (filters?.appliedBefore) {
-        const appliedBeforeDate = new Date(
-          `${filters.appliedBefore}T00:00:00.000Z`,
-        );
-
-        query.andWhere('application.applied_at <= :appliedBefore', {
-          appliedBefore: appliedBeforeDate,
-        });
-      }
-
-      if (filters?.candidate_email) {
-        query.andWhere('candidate.email = :candidate_email', {
-          candidate_email: filters.candidate_email,
-        });
-      }
-
-      if (filters?.candidate_name) {
-        query.andWhere(
-          'LOWER(candidate.full_name) LIKE LOWER(:candidate_name)',
-          {
-            candidate_name: `%${filters.candidate_name}%`,
-          },
-        );
-      }
-
-      return await query.getMany();
-    } catch (err) {
-      console.error(err);
-      throw err;
+    if (role.name === 'recruiter') {
+      query.andWhere('job.recruiter.id = :id', { id });
+    } else if (role.name !== 'admin') {
+      query.andWhere('candidate.id = :id', { id });
     }
+
+    if (filters?.status) {
+      query.andWhere('application.status = :status', {
+        status: filters.status,
+      });
+    }
+
+    if (filters?.jobTitle) {
+      query.andWhere('LOWER(job.title) LIKE LOWER(:jobTitle)', {
+        jobTitle: `%${filters.jobTitle}%`,
+      });
+    }
+
+    if (filters?.appliedAfter) {
+      const appliedAfterDate = new Date(
+        `${filters.appliedAfter}T00:00:00.000Z`,
+      );
+
+      query.andWhere('application.applied_at >= :appliedAfter', {
+        appliedAfter: appliedAfterDate,
+      });
+    }
+
+    if (filters?.appliedBefore) {
+      const appliedBeforeDate = new Date(
+        `${filters.appliedBefore}T00:00:00.000Z`,
+      );
+
+      query.andWhere('application.applied_at <= :appliedBefore', {
+        appliedBefore: appliedBeforeDate,
+      });
+    }
+
+    if (filters?.candidate_email) {
+      query.andWhere('candidate.email = :candidate_email', {
+        candidate_email: filters.candidate_email,
+      });
+    }
+
+    if (filters?.candidate_name) {
+      query.andWhere('LOWER(candidate.full_name) LIKE LOWER(:candidate_name)', {
+        candidate_name: `%${filters.candidate_name}%`,
+      });
+    }
+
+    return await query.getMany();
   };
 
   public handleGetApplication = async (applicationId: string, user: User) => {
-    try {
-      const { role } = user;
+    const { role } = user;
 
-      const application = await this.applicationRepository.findOne({
-        where: {
-          id: applicationId,
-        },
-        relations: [
-          'candidate',
-          'job',
-          'job.recruiter',
-          'job.recruiter.company',
-        ],
-        select: {
+    const application = await this.applicationRepository.findOne({
+      where: {
+        id: applicationId,
+      },
+      relations: ['candidate', 'job', 'job.recruiter', 'job.recruiter.company'],
+      select: {
+        id: true,
+        resume_link: true,
+        cover_letter_link: true,
+        status: true,
+        applied_at: true,
+        candidate: {
           id: true,
-          resume_link: true,
-          cover_letter_link: true,
+          email: true,
+          phone_number: true,
+          address: true,
+          full_name: true,
+          bio: true,
+          certifications: true,
+        },
+        job: {
+          id: true,
+          title: true,
+          description: true,
+          job_type: true,
+          address: true,
           status: true,
-          applied_at: true,
-          candidate: {
+          posted_at: true,
+          salary_max: true,
+          salary_min: true,
+          recruiter: {
             id: true,
             email: true,
             phone_number: true,
             address: true,
             full_name: true,
             bio: true,
-            certifications: true,
-          },
-          job: {
-            id: true,
-            title: true,
-            description: true,
-            job_type: true,
-            address: true,
-            status: true,
-            posted_at: true,
-            salary_max: true,
-            salary_min: true,
-            recruiter: {
-              id: true,
-              email: true,
-              phone_number: true,
-              address: true,
-              full_name: true,
-              bio: true,
-              company: {
-                name: true,
-              },
+            company: {
+              name: true,
             },
           },
         },
+      },
+    });
+
+    if (!application)
+      throw new RpcException(
+        `Application With ID: '${applicationId}' Not Found.`,
+      );
+
+    this.checkApplicationAccess(application, user, 'get');
+
+    if (role.name === 'admin' || role.name === 'recruiter') {
+      const { title, description, key } =
+        NotificationTypes.JOB_APPLICATION_REVIEWED;
+
+      this.rabbitMqNotificationClient.emit('create-notification', {
+        data: {
+          title,
+          message: description,
+          type: key,
+        },
+        userIds: [application.candidate.id],
       });
-
-      if (!application)
-        throw new RpcException(
-          `Application With ID: '${applicationId}' Not Found.`,
-        );
-
-      this.checkApplicationAccess(application, user, 'get');
-
-      if (role.name === 'admin' || role.name === 'recruiter') {
-        const { title, description, key } =
-          NotificationTypes.JOB_APPLICATION_REVIEWED;
-
-        this.rabbitMqNotificationClient.emit('create-notification', {
-          data: {
-            title,
-            message: description,
-            type: key,
-          },
-          userIds: [application.candidate.id],
-        });
-      }
-
-      return application;
-    } catch (err) {
-      console.error(err);
-      throw err;
     }
+
+    return application;
   };
 
   public handleDeleteApplication = async (
     applicationId: string,
     user: User,
   ) => {
-    try {
-      const application = await this.applicationRepository.findOne({
-        where: {
-          id: applicationId,
-        },
-        relations: ['job', 'job.recruiter', 'candidate'],
-      });
+    const application = await this.applicationRepository.findOne({
+      where: {
+        id: applicationId,
+      },
+      relations: ['job', 'job.recruiter', 'candidate'],
+    });
 
-      if (!application)
-        throw new RpcException(
-          `Application With ID: '${applicationId}' Not Found.`,
-        );
+    if (!application)
+      throw new RpcException(
+        `Application With ID: '${applicationId}' Not Found.`,
+      );
 
-      this.checkApplicationAccess(application, user, 'delete');
+    this.checkApplicationAccess(application, user, 'delete');
 
-      const { title, description, key } = NotificationTypes.APPLICATION_DELETED;
+    const { title, description, key } = NotificationTypes.APPLICATION_DELETED;
 
-      this.rabbitMqNotificationClient.emit('create-notification', {
-        data: {
-          title,
-          message: description,
-          type: key,
-        },
-        userIds: [application.job.recruiter.id],
-      });
+    this.rabbitMqNotificationClient.emit('create-notification', {
+      data: {
+        title,
+        message: description,
+        type: key,
+      },
+      userIds: [application.job.recruiter.id],
+    });
 
-      return { success: 'Application deleted successfully!' };
-    } catch (error) {
-      console.error(error);
-      throw error;
-    }
+    return { success: 'Application deleted successfully!' };
   };
 
   public handleUpdateApplication = async (
     updateApplication: UpdateApplication,
     user: User,
   ) => {
-    try {
-      const { applicationId, resumeFile, coverLetterFile } = updateApplication;
+    const { applicationId, resumeFile, coverLetterFile } = updateApplication;
 
-      let application = await this.applicationRepository.findOne({
-        where: {
-          id: applicationId,
-        },
-        relations: ['job', 'job.recruiter', 'candidate'],
-      });
+    let application = await this.applicationRepository.findOne({
+      where: {
+        id: applicationId,
+      },
+      relations: ['job', 'job.recruiter', 'candidate'],
+    });
 
-      if (!application)
-        throw new RpcException(
-          `Application With ID: '${applicationId}' Not Found.`,
-        );
-
-      this.checkApplicationAccess(application, user, 'update');
-
-      const files = [resumeFile];
-
-      if (coverLetterFile) {
-        files.push(coverLetterFile);
-      }
-
-      const [resume, coverLetter] = await lastValueFrom<UrlResponseType[]>(
-        this.rabbitMqUploadClient.send({ cmd: 'upload-files' }, files),
+    if (!application)
+      throw new RpcException(
+        `Application With ID: '${applicationId}' Not Found.`,
       );
 
-      await this.applicationRepository.update(
-        { id: applicationId },
-        {
-          ...(coverLetter && coverLetterFile
-            ? { cover_letter_link: coverLetter.url }
-            : {}),
-          resume_link: resume.url,
-        },
-      );
+    this.checkApplicationAccess(application, user, 'update');
 
-      application = (await this.applicationRepository.findOne({
-        where: {
-          id: application.id,
-        },
-        relations: ['job', 'job.recruiter', 'candidate'],
-        select: {
+    const files = [resumeFile];
+
+    if (coverLetterFile) {
+      files.push(coverLetterFile);
+    }
+
+    const [resume, coverLetter] = await lastValueFrom<UrlResponseType[]>(
+      this.rabbitMqUploadClient.send({ cmd: 'upload-files' }, files),
+    );
+
+    await this.applicationRepository.update(
+      { id: applicationId },
+      {
+        ...(coverLetter && coverLetterFile
+          ? { cover_letter_link: coverLetter.url }
+          : {}),
+        resume_link: resume.url,
+      },
+    );
+
+    application = (await this.applicationRepository.findOne({
+      where: {
+        id: application.id,
+      },
+      relations: ['job', 'job.recruiter', 'candidate'],
+      select: {
+        id: true,
+        resume_link: true,
+        cover_letter_link: true,
+        status: true,
+        applied_at: true,
+        candidate: {
           id: true,
-          resume_link: true,
-          cover_letter_link: true,
+          email: true,
+          phone_number: true,
+          address: true,
+          full_name: true,
+          bio: true,
+          certifications: true,
+        },
+        job: {
+          id: true,
+          title: true,
+          description: true,
+          job_type: true,
+          address: true,
           status: true,
-          applied_at: true,
-          candidate: {
+          posted_at: true,
+          salary_max: true,
+          salary_min: true,
+          recruiter: {
             id: true,
             email: true,
             phone_number: true,
             address: true,
             full_name: true,
             bio: true,
-            certifications: true,
-          },
-          job: {
-            id: true,
-            title: true,
-            description: true,
-            job_type: true,
-            address: true,
-            status: true,
-            posted_at: true,
-            salary_max: true,
-            salary_min: true,
-            recruiter: {
-              id: true,
-              email: true,
-              phone_number: true,
-              address: true,
-              full_name: true,
-              bio: true,
-              company: {
-                name: true,
-              },
+            company: {
+              name: true,
             },
           },
         },
-      })) as Application;
+      },
+    })) as Application;
 
-      const { title, description, key } =
-        NotificationTypes.APPLICATION_STATUS_UPDATED;
+    const { title, description, key } =
+      NotificationTypes.APPLICATION_STATUS_UPDATED;
 
-      this.rabbitMqNotificationClient.emit('create-notification', {
-        data: {
-          title,
-          message: description,
-          type: key,
-        },
-        userIds: [application.job.recruiter.id],
-      });
+    this.rabbitMqNotificationClient.emit('create-notification', {
+      data: {
+        title,
+        message: description,
+        type: key,
+      },
+      userIds: [application.job.recruiter.id],
+    });
 
-      return application;
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
+    return application;
   };
 
   public handleProcessApplications = async (
     processApplicationsDto: ProcessApplicationsDto,
     user: User,
   ) => {
-    try {
-      const applications: Record<string, Partial<Application>[]> = {};
+    const applications: Record<string, Partial<Application>[]> = {};
 
-      const approvedApplicationIds =
-        processApplicationsDto?.approvedApplicationIds ?? [];
+    const approvedApplicationIds =
+      processApplicationsDto?.approvedApplicationIds ?? [];
 
-      const rejectedApplicationIds =
-        processApplicationsDto?.rejectedApplicationIds ?? [];
+    const rejectedApplicationIds =
+      processApplicationsDto?.rejectedApplicationIds ?? [];
 
-      if (approvedApplicationIds.length) {
-        applications.approvedApplications =
-          await this.handleGenerateProcessApplications(
-            approvedApplicationIds,
-            'approved',
-            user,
-          );
-      }
-
-      if (rejectedApplicationIds?.length) {
-        applications.rejectedApplications =
-          await this.handleGenerateProcessApplications(
-            rejectedApplicationIds,
-            'rejected',
-            user,
-          );
-      }
-
-      return applications;
-    } catch (err) {
-      console.error(err);
-      throw err;
+    if (approvedApplicationIds.length) {
+      applications.approvedApplications =
+        await this.handleGenerateProcessApplications(
+          approvedApplicationIds,
+          'approved',
+          user,
+        );
     }
+
+    if (rejectedApplicationIds?.length) {
+      applications.rejectedApplications =
+        await this.handleGenerateProcessApplications(
+          rejectedApplicationIds,
+          'rejected',
+          user,
+        );
+    }
+
+    return applications;
   };
 
   private handleGenerateProcessApplications = async (
@@ -630,34 +592,29 @@ export class ApplicationsService {
   }
 
   public handleDeleteUserFromApplication = async (userId: string) => {
-    try {
-      const existingUser = await this.applicationRepository.find({
-        where: {
-          candidate: {
-            id: userId,
-          },
-        },
-        relations: ['candidate'],
-      });
-
-      if (!existingUser || !existingUser.length)
-        throw new RpcException(
-          `Candidate with id '${userId}' has not applied for jobs you posted.`,
-        );
-
-      await this.applicationRepository.delete({
+    const existingUser = await this.applicationRepository.find({
+      where: {
         candidate: {
           id: userId,
         },
-      });
+      },
+      relations: ['candidate'],
+    });
 
-      return {
-        success: 'This candidate has been deleted from jobs that you posted.',
-      };
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
+    if (!existingUser || !existingUser.length)
+      throw new RpcException(
+        `Candidate with id '${userId}' has not applied for jobs you posted.`,
+      );
+
+    await this.applicationRepository.delete({
+      candidate: {
+        id: userId,
+      },
+    });
+
+    return {
+      success: 'This candidate has been deleted from jobs that you posted.',
+    };
   };
 
   private uploadFiles = async (files: Array<Express.Multer.File>) => {
