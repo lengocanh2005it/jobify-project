@@ -5,6 +5,7 @@ import { ApplicationsModule } from 'apps/api-gateway/src/applications/applicatio
 import { AuthModule } from 'apps/api-gateway/src/auth/auth.module';
 import { InterviewsModule } from 'apps/api-gateway/src/interviews/interviews.module';
 import { JobsModule } from 'apps/api-gateway/src/jobs/jobs.module';
+import { ConversationsModule } from 'apps/api-gateway/src/messages/conversations/conversations.module';
 import { MessagesModule } from 'apps/api-gateway/src/messages/messages.module';
 import { NotificationsModule } from 'apps/api-gateway/src/notifications/notifications.module';
 import { PaymentsModule } from 'apps/api-gateway/src/payments/payments.module';
@@ -17,7 +18,6 @@ import { LoggerMiddleware } from 'libs/common/middlewares';
 import { CustomValidationPipe } from 'libs/common/pipes';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { ConversationsModule } from 'apps/api-gateway/src/messages/conversations/conversations.module';
 
 @Module({
   imports: [

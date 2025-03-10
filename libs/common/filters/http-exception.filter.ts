@@ -19,11 +19,22 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     let status = 500;
     let message = 'Internal Server Error';
-    let serviceName = 'Unknown Service';
+    let serviceName = 'API Gateway';
 
     if (exception instanceof HttpException) {
-      status = exception.getStatus();
-      message = exception.message ?? 'Internal Server Error';
+      const response = exception.getResponse();
+      if (
+        typeof response === 'object' &&
+        response !== null &&
+        'message' in response &&
+        'statusCode' in response
+      ) {
+        message = response.message as string;
+        status = response.statusCode as number;
+      } else {
+        message = 'Internal Server Error';
+        status = 500;
+      }
     } else if (exception instanceof Error) {
       message = exception.message;
     } else if (typeof exception === 'object' && exception) {
