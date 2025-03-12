@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -26,7 +27,11 @@ import {
   SearchApplicationsDto,
 } from 'libs/common/dtos';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
-import { CreateApplication, UpdateApplication } from 'libs/common/utils';
+import {
+  CreateApplication,
+  generateRpcExceptionResponse,
+  UpdateApplication,
+} from 'libs/common/utils';
 
 @Controller('applications')
 @UseGuards(JwtAuthGuard, RoleAuthGuard)
@@ -45,7 +50,12 @@ export class ApplicationsController {
     const resumeFile = files.find((file) => file.fieldname === 'resume');
 
     if (!resumeFile)
-      throw new RpcException(`You must provide Resume (CV) File.`);
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_GATEWAY,
+          `You must provide Resume (CV) File.`,
+        ),
+      );
 
     const coverLetterFile = files.find(
       (file) => file.fieldname === 'cover_letter',

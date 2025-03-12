@@ -150,7 +150,7 @@ html
           return response.json()
         })
         .then(data => {
-          if (data.accessToken && data.refreshToken) {
+          if (data.data.accessToken && data.data.refreshToken) {
             alert(`Account created successfully. You can close this tab.`);
             return;
           }

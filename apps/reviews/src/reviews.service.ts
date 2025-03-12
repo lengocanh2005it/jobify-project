@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Company } from 'apps/jobs/src/entities';
@@ -6,6 +6,7 @@ import { Review } from 'apps/reviews/src/entities';
 import { User } from 'apps/users/src/entities';
 import { NotificationTypes } from 'libs/common/constants';
 import { CreateReviewDto, UpdateReviewDto } from 'libs/common/dtos';
+import { generateRpcExceptionResponse } from 'libs/common/utils';
 import { lastValueFrom } from 'rxjs';
 import { DataSource, Repository } from 'typeorm';
 
@@ -31,7 +32,12 @@ export class ReviewsService {
     );
 
     if (!company)
-      throw new RpcException(`Company With ID: '${companyId}' Not Found.`);
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Company with id: '${companyId}' not found.`,
+        ),
+      );
 
     let newReview = await this.reviewRepository.findOne({
       where: {
@@ -44,7 +50,10 @@ export class ReviewsService {
 
     if (newReview)
       throw new RpcException(
-        `You have already reviewed this company and cannot submit another review.`,
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `You have already reviewed this company and cannot submit another review.`,
+        ),
       );
 
     newReview = this.reviewRepository.create({ comment, ratings_number });
@@ -147,11 +156,19 @@ export class ReviewsService {
     });
 
     if (!review)
-      throw new RpcException(`Review With ID: '${reviewId}' Not Found.`);
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Review with id: '${reviewId}' not found.`,
+        ),
+      );
 
     if (role.name === 'candidate' && review.candidate.id !== id)
       throw new RpcException(
-        `You can only update the review that belongs to you.`,
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          `You can only update the review that belongs to you.`,
+        ),
       );
 
     await this.reviewRepository.update({ id: reviewId }, updateReviewDto);
@@ -190,11 +207,19 @@ export class ReviewsService {
     });
 
     if (!review)
-      throw new RpcException(`Review with id: '${reviewId}' not found.`);
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Review with id: '${reviewId}' not found.`,
+        ),
+      );
 
     if (role.name === 'candidate' && review.candidate.id !== id)
       throw new RpcException(
-        `You can only delete the review that belongs to you.`,
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          `You can only delete the review that belongs to you.`,
+        ),
       );
 
     const { title, description, key } = NotificationTypes.REVIEW_DELETED;
@@ -242,7 +267,10 @@ export class ReviewsService {
 
     if (role.name === 'candidate' && review?.candidate.id !== id)
       throw new RpcException(
-        `You can only get the review that belongs to you.`,
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          `You can only get the review that belongs to you.`,
+        ),
       );
 
     if (
@@ -250,7 +278,10 @@ export class ReviewsService {
       !review?.company.recruiters.some((re) => re.id === id)
     )
       throw new RpcException(
-        'You can only get the review of the company that you belongs to.',
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          'You can only get the review of the company that you belongs to.',
+        ),
       );
 
     return review;

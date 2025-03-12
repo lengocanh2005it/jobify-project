@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
@@ -6,7 +6,11 @@ import { User } from 'apps/users/src/entities';
 import * as bcrypt from 'bcrypt';
 import { Provider } from 'libs/common/constants';
 import { LoginDto, UpdatePasswordDto } from 'libs/common/dtos';
-import { CreateSocialAccount, JwtPayload } from 'libs/common/utils';
+import {
+  CreateSocialAccount,
+  generateRpcExceptionResponse,
+  JwtPayload,
+} from 'libs/common/utils';
 import { lastValueFrom } from 'rxjs';
 
 @Injectable()
@@ -50,7 +54,13 @@ export class AuthService {
       this.rabbitMqUserClient.send({ cmd: 'get-password' }, userId),
     );
 
-    if (!user) throw new RpcException(`User With ID: '${userId}' Not Found.`);
+    if (!user)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `User with id: '${userId}' not found.`,
+        ),
+      );
 
     const isMatchPassword = await bcrypt.compare(
       user.password ? user.password : '',
@@ -58,13 +68,24 @@ export class AuthService {
     );
 
     if (!isMatchPassword)
-      throw new RpcException(`Current password isn't correct.`);
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `Current password isn't correct.`,
+        ),
+      );
 
     const otpInRedis = await lastValueFrom<string | null>(
       this.rabbitMqRedisClient.send({ cmd: 'get-key' }, `${user.email}:otp`),
     );
 
-    if (otp !== otpInRedis) throw new RpcException(`OTP isn't correct.`);
+    if (otp !== otpInRedis)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `OTP isn't correct.`,
+        ),
+      );
 
     return this.rabbitMqUserClient.send(
       { cmd: 'update-pw-user' },
@@ -87,7 +108,10 @@ export class AuthService {
 
     if (!cachedRefreshToken)
       throw new RpcException(
-        `Email '${email}' doesn't have any refresh token cached in Redis.'`,
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Email '${email}' doesn't have any refresh token cached in Redis.'`,
+        ),
       );
 
     const jwtPayload = await this.jwtService.verifyAsync<JwtPayload>(
@@ -133,7 +157,13 @@ export class AuthService {
       ),
     );
 
-    if (!user) throw new RpcException(`User with email: '${email}' not found.`);
+    if (!user)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `User with email: '${email}' not found.`,
+        ),
+      );
 
     this.rabbitMqEmailClient.emit('send-email', {
       email,
@@ -152,7 +182,10 @@ export class AuthService {
 
     if (!findUser)
       throw new RpcException(
-        `User with id: '${user.id}' not found in system database.`,
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `User with id: '${user.id}' not found.`,
+        ),
       );
 
     const { email } = user;

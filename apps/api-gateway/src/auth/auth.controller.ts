@@ -196,6 +196,7 @@ export class AuthController {
   }
 
   @Post('create-social-account')
+  @ResponseMessage('Social account created successfully.')
   async createSocialAccount(@Body() createSocialAccount: CreateSocialAccount) {
     return this.authService.handleCreateSocialAccount(createSocialAccount);
   }

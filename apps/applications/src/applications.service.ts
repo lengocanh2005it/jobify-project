@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Application } from 'apps/applications/src/entities';
@@ -11,6 +11,7 @@ import {
 } from 'libs/common/dtos';
 import {
   CreateApplication,
+  generateRpcExceptionResponse,
   UpdateApplication,
   UrlResponseType,
 } from 'libs/common/utils';
@@ -40,17 +41,32 @@ export class ApplicationsService {
       this.rabbitMqJobClient.send({ cmd: 'verify-job' }, jobId),
     );
 
-    if (!job) throw new RpcException(`Job with id: '${jobId}' not found.`);
+    if (!job)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Job with id: '${jobId}' not found.`,
+        ),
+      );
 
     const user = await lastValueFrom<User | null>(
       this.rabbitMqUserClient.send({ cmd: 'get-user-jwt' }, userId),
     );
 
-    if (!user) throw new RpcException(`User with id: '${userId}' not found.`);
+    if (!user)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `User with id: '${userId}' not found.`,
+        ),
+      );
 
     if (!user.application_applied_count)
       throw new RpcException(
-        `You have already applied ${user.application_applied_count} times. No more applications allowed.`,
+        generateRpcExceptionResponse(
+          HttpStatus.TOO_MANY_REQUESTS,
+          `You have already applied ${user.application_applied_count} times. No more applications allowed.`,
+        ),
       );
 
     let application = await this.applicationRepository.findOne({
@@ -62,7 +78,12 @@ export class ApplicationsService {
     });
 
     if (application && application.status !== 'rejected')
-      throw new BadRequestException('You have applied for this position.');
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          'You have applied for this position.',
+        ),
+      );
 
     const files = [resumeFile];
 
@@ -246,7 +267,10 @@ export class ApplicationsService {
 
     if (!application)
       throw new RpcException(
-        `Application With ID: '${applicationId}' Not Found.`,
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Application with id: '${applicationId}' not found.`,
+        ),
       );
 
     this.checkApplicationAccess(application, user, 'get');
@@ -281,7 +305,10 @@ export class ApplicationsService {
 
     if (!application)
       throw new RpcException(
-        `Application With ID: '${applicationId}' Not Found.`,
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Application with id: '${applicationId}' not found.`,
+        ),
       );
 
     this.checkApplicationAccess(application, user, 'delete');
@@ -315,7 +342,10 @@ export class ApplicationsService {
 
     if (!application)
       throw new RpcException(
-        `Application With ID: '${applicationId}' Not Found.`,
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Application with id: '${applicationId}' not found.`,
+        ),
       );
 
     this.checkApplicationAccess(application, user, 'update');
@@ -451,7 +481,10 @@ export class ApplicationsService {
 
       if (!application)
         throw new RpcException(
-          `Application With ID: '${applicationId}' Not Found.`,
+          generateRpcExceptionResponse(
+            HttpStatus.NOT_FOUND,
+            `Application with id: '${applicationId}' not found.`,
+          ),
         );
 
       if (application.status === 'rejected' && status === 'rejected') {
@@ -582,13 +615,19 @@ export class ApplicationsService {
 
     if (application.candidate.id !== id && role.name === 'user') {
       throw new RpcException(
-        `You are only allowed to ${action} your own application.`,
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `You are only allowed to ${action} your own application.`,
+        ),
       );
     }
 
     if (application.job.recruiter.id !== id && role.name === 'recruiter') {
       throw new RpcException(
-        `You can only ${action} applications for jobs you have posted.`,
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `You can only ${action} applications for jobs you have posted.`,
+        ),
       );
     }
   }
@@ -605,7 +644,10 @@ export class ApplicationsService {
 
     if (!existingUser || !existingUser.length)
       throw new RpcException(
-        `Candidate with id '${userId}' has not applied for jobs you posted.`,
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          `Candidate with id '${userId}' has not applied for jobs you posted.`,
+        ),
       );
 
     await this.applicationRepository.delete({

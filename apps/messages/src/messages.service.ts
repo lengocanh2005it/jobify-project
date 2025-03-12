@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Conversation } from 'apps/messages/src/entities';
@@ -10,7 +10,10 @@ import {
   SearchMessagesDto,
   UpdateMessageDto,
 } from 'libs/common/dtos';
-import { UrlResponseType } from 'libs/common/utils';
+import {
+  generateRpcExceptionResponse,
+  UrlResponseType,
+} from 'libs/common/utils';
 import { lastValueFrom } from 'rxjs';
 import { In, Repository } from 'typeorm';
 
@@ -38,7 +41,12 @@ export class MessagesService {
     const { receiver_id, content, replied_message_id } = createMessagesDto;
 
     if (!content && !file)
-      throw new RpcException(`You must be provide content of the message.`);
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `You must be provide content of the message.`,
+        ),
+      );
 
     const receiver = await lastValueFrom<User>(
       this.rabbitMqUserClient.send({ cmd: 'get-user-jwt' }, receiver_id),
@@ -50,7 +58,10 @@ export class MessagesService {
 
     if (!receiver || !sender)
       throw new RpcException(
-        `User with id '${!receiver ? receiver_id : id}' not found.`,
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `User with id '${!receiver ? receiver_id : id}' not found.`,
+        ),
       );
 
     let existingParentMessage: Message | null = null;
@@ -61,8 +72,13 @@ export class MessagesService {
       });
 
       if (!existingParentMessage)
-        throw new RpcException(`The message with id: '${replied_message_id}
-          that need to be replied not found.'`);
+        throw new RpcException(
+          generateRpcExceptionResponse(
+            HttpStatus.NOT_FOUND,
+            `The message with id: '${replied_message_id}
+          that need to be replied not found.'`,
+          ),
+        );
     }
 
     let attachmentUrl = '';
@@ -308,7 +324,12 @@ export class MessagesService {
     );
 
     if (!otherUser)
-      throw new RpcException(`User with id: '${otherUserId}' not found.`);
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `User with id: '${otherUserId}' not found.`,
+        ),
+      );
 
     const { id } = user;
 
@@ -414,12 +435,18 @@ export class MessagesService {
 
     if (!conversation)
       throw new RpcException(
-        `Conversation with id: '${conversationId}' not found.`,
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Conversation with id: '${conversationId}' not found.`,
+        ),
       );
 
     if (!conversation.participants.map((pa) => pa.id).includes(id))
       throw new RpcException(
-        `You are only allowed to delete conversations that you are a participant in.`,
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          `You are only allowed to delete conversations that you are a participant in.`,
+        ),
       );
 
     await this.conversationRepository.softDelete({ id: conversationId });
@@ -445,11 +472,19 @@ export class MessagesService {
     });
 
     if (!message)
-      throw new RpcException(`Message with id: '${messageId}' not found.`);
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Message with id: '${messageId}' not found.`,
+        ),
+      );
 
     if (message.conversation.id !== conversationId)
       throw new RpcException(
-        `You can only update messages within the same conversation.`,
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          `You can only update messages within the same conversation.`,
+        ),
       );
 
     const conversation = await this.conversationRepository.findOne({
@@ -459,16 +494,27 @@ export class MessagesService {
 
     if (!conversation)
       throw new RpcException(
-        `Conversation with id: '${conversationId}' not found.`,
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Conversation with id: '${conversationId}' not found.`,
+        ),
       );
 
     if (!conversation.participants.map((pa) => pa.id).includes(id))
       throw new RpcException(
-        `You can only update messages in a conversation if you are a participant in that conversation.`,
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          `You can only update messages in a conversation if you are a participant in that conversation.`,
+        ),
       );
 
     if (message.attachment_url && message.type === 'file')
-      throw new RpcException('You can only update text messages.');
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          'You can only update text messages.',
+        ),
+      );
 
     await this.messageRepository.update(
       {
@@ -524,11 +570,19 @@ export class MessagesService {
     });
 
     if (!message)
-      throw new RpcException(`Message with id: '${messageId}' not found.`);
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Message with id: '${messageId}' not found.`,
+        ),
+      );
 
     if (!message.conversation.participants.map((pa) => pa.id).includes(id))
       throw new RpcException(
-        `You can only delete message in a conversation if you are a participant in that conversation.`,
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          `You can only delete message in a conversation if you are a participant in that conversation.`,
+        ),
       );
 
     await this.messageRepository.softDelete({ id: messageId });
