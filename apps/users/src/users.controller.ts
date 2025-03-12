@@ -1,12 +1,15 @@
 import { Controller, UseInterceptors } from '@nestjs/common';
 import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities';
+import { Provider } from 'libs/common/constants';
 import {
   AssignCompanyToRecruitersDto,
   CreateUserDto,
+  LoginDto,
   UpdateUserDto,
 } from 'libs/common/dtos';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
+import { CreateSocialAccount } from 'libs/common/utils';
 import { PaginateQuery } from 'nestjs-paginate';
 import { UsersService } from './users.service';
 
@@ -118,5 +121,30 @@ export class UsersController {
     @Payload('type') type: 'increase' | 'decrease',
   ) {
     return this.usersService.handleUpdateUserLimit(userId, type);
+  }
+
+  @MessagePattern({ cmd: 'verify-user' })
+  async handleVerifyUser(@Payload() loginDto: LoginDto) {
+    return this.usersService.handleVerifyUser(loginDto);
+  }
+
+  @MessagePattern({ cmd: 'verify-social-account' })
+  async createSocialAccount(
+    @Payload() createSocialAccount: CreateSocialAccount,
+  ) {
+    return this.usersService.handleCreateSocialAccount(createSocialAccount);
+  }
+
+  @MessagePattern({ cmd: 'is-existed-social-account' })
+  async handleCheckExistedSocialAccount(
+    @Payload('provider') provider: Provider,
+    @Payload('provider_id') provider_id: string,
+    @Payload('email') email?: string,
+  ) {
+    return this.usersService.handleCheckExistedSocialAccount(
+      provider,
+      provider_id,
+      email,
+    );
   }
 }

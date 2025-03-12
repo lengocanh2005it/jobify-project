@@ -1,8 +1,10 @@
 import { Controller, UseInterceptors } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities';
+import { Provider } from 'libs/common/constants';
 import { LoginDto, UpdatePasswordDto } from 'libs/common/dtos';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
+import { CreateSocialAccount } from 'libs/common/utils';
 import { AuthService } from './auth.service';
 
 @Controller()
@@ -12,7 +14,7 @@ export class AuthController {
 
   @MessagePattern({ cmd: 'login' })
   async handleLogin(@Payload() loginDto: LoginDto) {
-    return this.authService.handleLogin(loginDto);
+    return await this.authService.handleLogin(loginDto);
   }
 
   @MessagePattern({ cmd: 'update-password' })
@@ -44,5 +46,25 @@ export class AuthController {
   @MessagePattern({ cmd: 'sign-out' })
   async handleSignout(@Payload() user: User) {
     return this.authService.handleSignout(user);
+  }
+
+  @MessagePattern({ cmd: 'create-social-account' })
+  async createSocialAccount(
+    @Payload() createSocialAccount: CreateSocialAccount,
+  ) {
+    return this.authService.handleCreateSocialAccount(createSocialAccount);
+  }
+
+  @MessagePattern({ cmd: 'check-existed-social-account' })
+  async handleCheckedExistedSocialAccount(
+    @Payload('provider') provider: Provider,
+    @Payload('provider_id') provider_id: string,
+    @Payload('email') email?: string,
+  ) {
+    return this.authService.handleCheckExistedSocialAccount(
+      provider,
+      provider_id,
+      email,
+    );
   }
 }

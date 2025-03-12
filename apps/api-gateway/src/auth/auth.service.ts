@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { ClientProxy } from '@nestjs/microservices';
+import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities';
+import { Provider } from 'libs/common/constants';
 import {
   CreateCompanyDto,
   CreateUserDto,
@@ -8,7 +9,8 @@ import {
   LoginDto,
   UpdatePasswordDto,
 } from 'libs/common/dtos';
-import { lastValueFrom } from 'rxjs';
+import { CreateSocialAccount } from 'libs/common/utils';
+import { catchError, lastValueFrom } from 'rxjs';
 
 @Injectable()
 export class AuthService {
@@ -100,6 +102,34 @@ export class AuthService {
   public handleSignout = async (user: User) => {
     return await lastValueFrom(
       this.rabbitMqAuthClient.send({ cmd: 'sign-out' }, user),
+    );
+  };
+
+  public handleCreateSocialAccount = async (
+    createSocialAccount: CreateSocialAccount,
+  ) => {
+    return await lastValueFrom(
+      this.rabbitMqAuthClient.send(
+        { cmd: 'create-social-account' },
+        createSocialAccount,
+      ),
+    );
+  };
+
+  public handleCheckExistedSocialAccount = async (
+    provider: Provider,
+    provider_id: string,
+    email?: string,
+  ) => {
+    return await lastValueFrom<User | null>(
+      this.rabbitMqAuthClient.send(
+        { cmd: 'check-existed-social-account' },
+        {
+          provider,
+          provider_id,
+          email,
+        },
+      ),
     );
   };
 }

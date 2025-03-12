@@ -27,6 +27,13 @@ export enum InterviewResult {
   PENDING = 'pending',
 }
 
+export enum Provider {
+  GOOGLE = 'google',
+  FACEBOOK = 'facebook',
+  LINKEDIN = 'linkedin',
+  LOCAL = 'local',
+}
+
 export const PREMIUM_PRICE = 1200;
 export const RECRUITER_JOB_LIMIT = 10;
 export const CANDIDATE_APPLICATION_LIMIT = 5;

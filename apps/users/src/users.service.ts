@@ -9,8 +9,10 @@ import {
   CANDIDATE_APPLICATION_LIMIT,
   CANDIDATE_PREMIUM_LIMIT,
   NotificationTypes,
+  Provider,
   RECRUITER_JOB_LIMIT,
   RECRUITER_PREMIUM_LIMIT,
+  Role as RoleEnum,
   SKILL_KEYWORDS,
 } from 'libs/common/constants';
 import {
@@ -19,7 +21,11 @@ import {
   LoginDto,
   UpdateUserDto,
 } from 'libs/common/dtos';
-import { handleEncodedPassword, UrlResponseType } from 'libs/common/utils';
+import {
+  CreateSocialAccount,
+  handleEncodedPassword,
+  UrlResponseType,
+} from 'libs/common/utils';
 import { omit } from 'lodash';
 import { paginate, PaginateQuery } from 'nestjs-paginate';
 import { lastValueFrom } from 'rxjs';
@@ -252,11 +258,15 @@ export class UsersService {
     });
 
     if (!findUser)
-      throw new RpcException(
-        `User with email: '${loginDto.email}' not found in database.`,
-      );
+      throw new RpcException({
+        statusCode: 400,
+        message: `User with email: '${loginDto.email}' not found in database.`,
+      });
 
-    const isMatchPassword = await bcrypt.compare(password, findUser.password);
+    const isMatchPassword = await bcrypt.compare(
+      password,
+      findUser?.password ? findUser.password : '',
+    );
 
     if (!isMatchPassword)
       throw new RpcException({
@@ -264,9 +274,7 @@ export class UsersService {
         message: `Password isn't correct.`,
       });
 
-    const { password: _passwordUser, ...res } = findUser;
-
-    return res;
+    return omit(findUser, ['password']);
   };
 
   public handleGetRoleByName = async (roleName: string) => {
@@ -764,5 +772,96 @@ export class UsersService {
     );
 
     return uploaded?.url || '';
+  };
+
+  public handleCreateSocialAccount = async (
+    createSocialAccount: CreateSocialAccount,
+  ) => {
+    const {
+      role,
+      socialLogin: { provider, provider_id, email, full_name, avatar_url },
+    } = createSocialAccount;
+
+    let existingUser = await this.userRepository.findOne({
+      where: {
+        email,
+      },
+      relations: ['role'],
+    });
+
+    if (existingUser)
+      throw new RpcException({
+        statusCode: 400,
+        message: `Email: '${email}' has already been used by another account.`,
+      });
+
+    existingUser = this.userRepository.create({
+      provider,
+      provider_id,
+      ...(email && { email }),
+      full_name,
+      ...(avatar_url && { avatar_url }),
+      ...(role === RoleEnum.RECRUITER
+        ? { job_posted_count: RECRUITER_JOB_LIMIT }
+        : role === RoleEnum.CANDIDATE
+          ? { application_applied_count: CANDIDATE_APPLICATION_LIMIT }
+          : {}),
+    });
+
+    const findRole = await this.handleGetRoleByName(role);
+
+    existingUser.role = findRole;
+
+    await this.userRepository.save(existingUser);
+
+    existingUser = await this.userRepository.findOne({
+      where: {
+        provider_id,
+      },
+      relations: ['role'],
+    });
+
+    return omit(existingUser, ['password']);
+  };
+
+  public handleCheckExistedSocialAccount = async (
+    provider: Provider,
+    provider_id: string,
+    email?: string,
+  ) => {
+    let user: User | null = null;
+
+    if (email) {
+      user = await this.userRepository.findOne({
+        where: {
+          email,
+        },
+        relations: ['role'],
+      });
+
+      if (
+        (user && user.provider !== provider) ||
+        (user && user.provider === provider && user.provider_id !== provider_id)
+      )
+        throw new RpcException(
+          `Email '${email}' has already used by another account.`,
+        );
+
+      if (!user) return null;
+
+      return omit(user, ['password']);
+    }
+
+    user = await this.userRepository.findOne({
+      where: {
+        provider,
+        provider_id,
+      },
+      relations: ['role'],
+    });
+
+    if (user) return omit(user, ['password']);
+
+    return null;
   };
 }

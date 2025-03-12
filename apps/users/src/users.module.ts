@@ -3,12 +3,10 @@ import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Notification } from 'apps/notifications/src/entities';
-import { Role } from 'apps/users/src/entities';
-import { Skill } from 'apps/users/src/entities';
-import { User } from 'apps/users/src/entities';
+import { Role, Skill, User } from 'apps/users/src/entities';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
-import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 
 @Module({
   imports: [

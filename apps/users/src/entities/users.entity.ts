@@ -6,6 +6,7 @@ import { UserNotification } from 'apps/notifications/src/entities';
 import { Transaction } from 'apps/payments/src/entities';
 import { Review } from 'apps/reviews/src/entities';
 import { Role, Skill } from 'apps/users/src/entities';
+import { Provider } from 'libs/common/constants';
 import {
   Column,
   CreateDateColumn,
@@ -23,17 +24,17 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   readonly id!: string;
 
-  @Column({ unique: true })
-  email!: string;
+  @Column({ unique: true, nullable: true })
+  email?: string;
 
-  @Column()
-  password!: string;
+  @Column({ nullable: true })
+  password?: string;
 
-  @Column()
-  phone_number!: string;
+  @Column({ nullable: true })
+  phone_number?: string;
 
-  @Column()
-  address!: string;
+  @Column({ nullable: true })
+  address?: string;
 
   @Column({ nullable: true, type: 'text' })
   bio?: string;
@@ -78,6 +79,12 @@ export class User {
 
   @Column({ type: 'int', nullable: true })
   application_applied_count?: number;
+
+  @Column({ type: 'enum', enum: Provider })
+  provider!: Provider;
+
+  @Column({ nullable: true, type: 'text' })
+  provider_id?: string;
 
   @OneToMany(() => Transaction, (transaction) => transaction.user, {
     cascade: true,
