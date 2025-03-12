@@ -3,10 +3,16 @@ import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { ClientsModule, Transport } from '@nestjs/microservices';
+import { PassportModule } from '@nestjs/passport';
 import { MulterModule } from '@nestjs/platform-express';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { CustomValidationPipe } from 'libs/common/pipes/validation.pipe';
-import { JwtProvider } from 'libs/common/providers/jwt.provider';
+import { CustomValidationPipe } from 'libs/common/pipes';
+import {
+  FacebookProvider,
+  GoogleProvider,
+  JwtProvider,
+  LinkedInProvider,
+} from 'libs/common/providers';
 import * as multer from 'multer';
 import { CommonService } from './common.service';
 
@@ -69,8 +75,24 @@ import { CommonService } from './common.service';
         },
       }),
     }),
+    PassportModule.register({ defaultStrategy: 'jwt' }),
   ],
-  providers: [CommonService, CustomValidationPipe, JwtProvider],
-  exports: [JwtModule, ConfigModule, TypeOrmModule, MulterModule],
+  providers: [
+    CommonService,
+    CustomValidationPipe,
+    JwtProvider,
+    GoogleProvider,
+    LinkedInProvider,
+    FacebookProvider,
+  ],
+  exports: [
+    JwtModule,
+    ConfigModule,
+    TypeOrmModule,
+    MulterModule,
+    GoogleProvider,
+    LinkedInProvider,
+    FacebookProvider,
+  ],
 })
 export class CommonModule {}

@@ -37,6 +37,12 @@ export class ApiResponseInterceptor<T> implements NestInterceptor<T> {
       .switchToHttp()
       .getResponse<Response>().statusCode;
 
+    const response = context.switchToHttp().getResponse<Response>();
+
+    if (response.locals) {
+      return next.handle();
+    }
+
     return next.handle().pipe(
       map((data: unknown) => ({
         statusCode,

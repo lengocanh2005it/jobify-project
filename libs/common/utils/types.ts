@@ -1,5 +1,5 @@
 import { User } from 'apps/users/src/entities';
-import { Role } from 'libs/common/constants';
+import { Provider, Role } from 'libs/common/constants';
 
 export type CreateNotificationDto = {
   title: string;
@@ -38,8 +38,21 @@ export type RpcExceptionType = {
   message: string;
 };
 
+export type SocialLogin = {
+  provider: Provider;
+  provider_id: string;
+  full_name: string;
+  email: string;
+  avatar_url: string;
+};
+
+export type CreateSocialAccount = {
+  socialLogin: SocialLogin;
+  role: Role.CANDIDATE | Role.RECRUITER;
+};
+
 declare module 'express' {
   interface Request {
-    user?: User;
+    user?: any;
   }
 }

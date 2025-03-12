@@ -1,0 +1,201 @@
+doctype html
+html
+  head
+    title Socials Authentication
+    style.
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f0f2f5;
+        color: #222;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        margin: 0;
+        padding: 20px;
+      }
+      .container {
+        background-color: white;
+        border-radius: 10px;
+        padding: 30px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+        width: 100%;
+        max-width: 400px;
+        text-align: center;
+        margin: 20px;
+      }
+      .email-input {
+        display: flex,
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+      }
+      .email-input input {
+        width: 90%;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        font-size: 16px;
+      }
+      h1 {
+        color: #0073e6;
+        font-size: 26px;
+        margin-bottom: 10px;
+      }
+      h1 span {
+        color: #222;
+      }
+      p {
+        font-size: 16px;
+        color: #444;
+      }
+      strong {
+        color: #0073e6;
+      }
+      .button-container {
+        margin-top: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px; 
+      }
+      .role-selection {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 20px;
+      }
+      .checkbox-container {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+      }
+      label {
+        font-size: 16px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      input[type="checkbox"] {
+        accent-color: #0073e6;
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+      }
+      button {
+        padding: 12px 18px;
+        font-size: 16px;
+        color: white;
+        background-color: #0073e6;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        margin-top: 20px;
+        width: 100%;
+      }
+      button:hover {
+        background-color: #005bb5;
+      }
+      button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+      }
+    script.
+      function isValidEmail(email) {
+        const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        return regex.test(email);
+      }
+      function sendRole() {
+        var user = !{JSON.stringify(user)};
+        const recruiter = document.getElementById('recruiter').checked;
+        const candidate = document.getElementById('candidate').checked;
+        const email = document.getElementById("email")?.value;
+
+        if (!recruiter && !candidate) {
+          alert("Please select a role before submitting.");
+          return;
+        }
+
+        if (!email && !user.email) {
+          alert("Please enter the email.");
+          return;
+        }
+
+        if (email && !isValidEmail(email)) {
+          alert("Please enter the valid email.");
+          return;
+        }
+
+          let selectedRole = recruiter ? 'recruiter' : 'candidate';
+
+        fetch('/auth/create-social-account', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            role: selectedRole,
+            socialLogin: {
+              ...user,
+              email: user?.email ?? email
+            }
+          })
+        })
+        .then(response => {
+          if (!response.ok) {
+            return response.json().then(err => {
+              throw new Error(err.message || 'An error occurred.')
+            })
+          }
+          return response.json()
+        })
+        .then(data => {
+          if (data.accessToken && data.refreshToken) {
+            alert(`Account created successfully. You can close this tab.`);
+            return;
+          }
+        })
+        .catch(error => alert(error.message));
+      }
+  body
+    .container
+      h1 
+        span Welcome, 
+        | #{user.full_name}!
+      p You logged in via: 
+        strong 
+          case user.provider 
+            when 'google'
+              | Google 
+            when 'facebook'
+              | Facebook
+            when 'linkedin'
+              | LinkedIn
+            default 
+              | Other
+
+      if !user.email
+        .email-input 
+          p Your email is missing. Please enter your email:
+          input#email(type="email" placeholder="Enter your email")
+
+      .role-selection
+        p Please select your role:
+        .checkbox-container
+          label
+            input#recruiter(type="checkbox" onclick="uncheckOther('recruiter')")
+            | Recruiter
+          label
+            input#candidate(type="checkbox" onclick="uncheckOther('candidate')")
+            | Candidate
+
+      button(type="button" onclick="sendRole()") Submit
+
+    script.
+      function uncheckOther(selectedId) {
+        if (selectedId === 'recruiter') {
+          document.getElementById('candidate').checked = false;
+        } else {
+          document.getElementById('recruiter').checked = false;
+        }
+      }

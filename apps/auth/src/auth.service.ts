@@ -3,16 +3,15 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities';
-import { UsersService } from 'apps/users/src/users.service';
 import * as bcrypt from 'bcrypt';
+import { Provider } from 'libs/common/constants';
 import { LoginDto, UpdatePasswordDto } from 'libs/common/dtos';
-import { JwtPayload } from 'libs/common/utils';
+import { CreateSocialAccount, JwtPayload } from 'libs/common/utils';
 import { lastValueFrom } from 'rxjs';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     @Inject('USERS_SERVICE') private readonly rabbitMqUserClient: ClientProxy,
     @Inject('REDIS_SERVICE') private readonly rabbitMqRedisClient: ClientProxy,
@@ -21,21 +20,13 @@ export class AuthService {
   ) {}
 
   public handleLogin = async (loginDto: LoginDto) => {
-    const user = await this.usersService.handleVerifyUser(loginDto);
+    const user = await lastValueFrom<User>(
+      this.rabbitMqUserClient.send({ cmd: 'verify-user' }, loginDto),
+    );
 
-    const accessToken = this.jwtService.sign({
-      userId: user.id,
-      role: user.role?.name,
-    });
-
-    const refreshToken = this.jwtService.sign(
-      {
-        userId: user.id,
-        role: user.role?.name,
-      },
-      {
-        expiresIn: this.configService.get<string>('refresh_token_life'),
-      },
+    const { accessToken, refreshToken } = this.signTokens(
+      user.id,
+      user.role.name,
     );
 
     const { email } = loginDto;
@@ -61,7 +52,10 @@ export class AuthService {
 
     if (!user) throw new RpcException(`User With ID: '${userId}' Not Found.`);
 
-    const isMatchPassword = await bcrypt.compare(user.password, password);
+    const isMatchPassword = await bcrypt.compare(
+      user.password ? user.password : '',
+      password,
+    );
 
     if (!isMatchPassword)
       throw new RpcException(`Current password isn't correct.`);
@@ -170,5 +164,77 @@ export class AuthService {
     return {
       success: 'Signed out successfully.',
     };
+  };
+
+  public handleCreateSocialAccount = async (
+    createSocialAccount: CreateSocialAccount,
+  ) => {
+    const user = await lastValueFrom<User>(
+      this.rabbitMqUserClient.send(
+        { cmd: 'verify-social-account' },
+        createSocialAccount,
+      ),
+    );
+
+    const { accessToken, refreshToken } = this.signTokens(
+      user.id,
+      user.role.name,
+    );
+
+    if (user.email) {
+      this.rabbitMqRedisClient.emit('set-key', {
+        key: `${user.email}:refresh-token`,
+        data: refreshToken,
+        ttl: 30 * 60,
+      });
+    }
+
+    return { accessToken, refreshToken };
+  };
+
+  private signTokens = (
+    userId: string,
+    roleName: string,
+  ): { accessToken: string; refreshToken: string } => {
+    const accessToken = this.jwtService.sign({
+      userId,
+      role: roleName,
+    });
+
+    const refreshToken = this.jwtService.sign(
+      {
+        userId,
+        role: roleName,
+      },
+      {
+        expiresIn: this.configService.get<string>('refresh_token_life'),
+      },
+    );
+
+    return { accessToken, refreshToken };
+  };
+
+  public handleCheckExistedSocialAccount = async (
+    provider: Provider,
+    provider_id: string,
+    email?: string,
+  ) => {
+    const user = await lastValueFrom<User | null>(
+      this.rabbitMqUserClient.send(
+        { cmd: 'is-existed-social-account' },
+        { provider, provider_id, email },
+      ),
+    );
+
+    if (user) {
+      const { accessToken, refreshToken } = this.signTokens(
+        user.id,
+        user.role.name,
+      );
+
+      return { accessToken, refreshToken };
+    }
+
+    return null;
   };
 }

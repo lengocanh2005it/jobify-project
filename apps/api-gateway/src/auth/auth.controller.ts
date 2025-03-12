@@ -4,14 +4,16 @@ import {
   Get,
   Post,
   Req,
+  Res,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { AuthService } from 'apps/api-gateway/src/auth/auth.service';
 import { User } from 'apps/users/src/entities';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
 import {
@@ -25,6 +27,7 @@ import {
 } from 'libs/common/dtos';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 import { FileValidationPipe } from 'libs/common/pipes';
+import { CreateSocialAccount, SocialLogin } from 'libs/common/utils';
 
 @Controller('auth')
 export class AuthController {
@@ -109,5 +112,91 @@ export class AuthController {
   @ResponseMessage('OTP has been sent to email.')
   async verifyEmail(@Body() { email }: VerifyEmailDto) {
     return this.authService.handleVerifyEmail(email);
+  }
+
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  async googleAuth() {}
+
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  async googleAuthRedirect(@Req() request: Request, @Res() res: Response) {
+    const user = request.user as SocialLogin;
+
+    if (user?.provider && user?.provider_id) {
+      const findUser = await this.authService.handleCheckExistedSocialAccount(
+        user.provider,
+        user.provider_id,
+        user?.email ? user.email : undefined,
+      );
+
+      if (findUser)
+        return res.status(200).json({
+          statusCode: 200,
+          message: 'Logged in successfully!',
+          data: findUser,
+        });
+    }
+
+    return res.render('socials', { user });
+  }
+
+  @Get('facebook')
+  @UseGuards(AuthGuard('facebook'))
+  async facebookAuth() {}
+
+  @Get('facebook/callback')
+  @UseGuards(AuthGuard('facebook'))
+  async facebookAuthRedirect(@Req() request: Request, @Res() res: Response) {
+    const user = request.user as SocialLogin;
+
+    if (user?.provider && user?.provider_id) {
+      const findUser = await this.authService.handleCheckExistedSocialAccount(
+        user.provider,
+        user.provider_id,
+        user?.email ? user.email : undefined,
+      );
+
+      if (findUser)
+        return res.status(200).json({
+          statusCode: 200,
+          message: 'Logged in successfully!',
+          data: findUser,
+        });
+    }
+
+    return res.render('socials', { user });
+  }
+
+  @Get('linkedin')
+  @UseGuards(AuthGuard('linkedin'))
+  async linkedInAuth() {}
+
+  @Get('linkedin/callback')
+  @UseGuards(AuthGuard('linkedin'))
+  async linkedinAuthRedirect(@Req() request: Request, @Res() res: Response) {
+    const user = request.user as SocialLogin;
+
+    if (user?.provider && user?.provider_id) {
+      const findUser = await this.authService.handleCheckExistedSocialAccount(
+        user.provider,
+        user.provider_id,
+        user?.email ? user.email : undefined,
+      );
+
+      if (findUser)
+        return res.status(200).json({
+          statusCode: 200,
+          message: 'Logged in successfully!',
+          data: findUser,
+        });
+    }
+
+    return res.render('socials', { user });
+  }
+
+  @Post('create-social-account')
+  async createSocialAccount(@Body() createSocialAccount: CreateSocialAccount) {
+    return this.authService.handleCreateSocialAccount(createSocialAccount);
   }
 }
