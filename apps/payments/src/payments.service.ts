@@ -1,9 +1,10 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Transaction } from 'apps/payments/src/entities';
 import { User } from 'apps/users/src/entities';
+import { generateRpcExceptionResponse } from 'libs/common/utils';
 import Stripe from 'stripe';
 import { DataSource, Repository } from 'typeorm';
 
@@ -42,8 +43,11 @@ export class PaymentsService {
 
       if (diffInDays > 3)
         throw new RpcException(
-          `You have already subscribed to the premium plan, but it's not yet time for renewal. 
+          generateRpcExceptionResponse(
+            HttpStatus.BAD_REQUEST,
+            `You have already subscribed to the premium plan, but it's not yet time for renewal. 
           Please wait at least 3 days before the expiration date to renew your premium plan.`,
+          ),
         );
     }
 
@@ -128,7 +132,13 @@ export class PaymentsService {
       if (event.type === 'checkout.session.completed') {
         const { payment_status, metadata } = event.data.object;
 
-        if (!metadata) throw new RpcException('Metadata is empty.');
+        if (!metadata)
+          throw new RpcException(
+            generateRpcExceptionResponse(
+              HttpStatus.BAD_REQUEST,
+              'Metadata is empty.',
+            ),
+          );
 
         const { userId, transactionId } = metadata;
 

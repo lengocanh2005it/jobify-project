@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
@@ -23,6 +23,7 @@ import {
 } from 'libs/common/dtos';
 import {
   CreateSocialAccount,
+  generateRpcExceptionResponse,
   handleEncodedPassword,
   UrlResponseType,
 } from 'libs/common/utils';
@@ -122,26 +123,48 @@ export class UsersService {
     const { password, type, email } = createUserDto;
 
     if (type === 'admin')
-      throw new RpcException(`You cannot register an admin account.`);
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `You cannot register an admin account.`,
+        ),
+      );
 
     const { skills, createCompanyDto, certifications, ...createUserData } =
       createUserDto;
 
     if (type === 'candidate' && createCompanyDto)
-      throw new RpcException(`Candidate can't be belongs to specific company.`);
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `Candidate can't be belongs to specific company.`,
+        ),
+      );
 
     const userWithEmail = await this.userRepository.findOneBy({ email });
 
-    if (userWithEmail) throw new RpcException('Email has been existed.');
+    if (userWithEmail)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          'Email has been existed.',
+        ),
+      );
 
     if (createCompanyDto && type !== 'recruiter')
       throw new RpcException(
-        `Only recruiter can have permission to create company.`,
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          `Only recruiter can have permission to create company.`,
+        ),
       );
 
     if (type === 'recruiter' && !createCompanyDto)
       throw new RpcException(
-        `Recruiter must be provide the profile of company.`,
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `Recruiter must be provide the profile of company.`,
+        ),
       );
 
     const role = await this.handleGetRoleByName(type);
@@ -206,7 +229,13 @@ export class UsersService {
         ),
       );
 
-      if (!data) throw new RpcException('Failed when creating new company.');
+      if (!data)
+        throw new RpcException(
+          generateRpcExceptionResponse(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            'Failed when creating new company.',
+          ),
+        );
     }
 
     if (skills && (JSON.parse(skills) as string[]).length) {
@@ -258,10 +287,12 @@ export class UsersService {
     });
 
     if (!findUser)
-      throw new RpcException({
-        statusCode: 400,
-        message: `User with email: '${loginDto.email}' not found in database.`,
-      });
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `User with email: '${loginDto.email}' not found.`,
+        ),
+      );
 
     const isMatchPassword = await bcrypt.compare(
       password,
@@ -269,10 +300,12 @@ export class UsersService {
     );
 
     if (!isMatchPassword)
-      throw new RpcException({
-        statusCode: 400,
-        message: `Password isn't correct.`,
-      });
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `Password is'nt correct.`,
+        ),
+      );
 
     return omit(findUser, ['password']);
   };
@@ -280,7 +313,10 @@ export class UsersService {
   public handleGetRoleByName = async (roleName: string) => {
     const role = await this.roleRepository.findOneBy({ name: roleName });
 
-    if (!role) throw new RpcException('Role Not Found.');
+    if (!role)
+      throw new RpcException(
+        generateRpcExceptionResponse(HttpStatus.NOT_FOUND, 'Role not found.'),
+      );
 
     return role;
   };
@@ -296,7 +332,13 @@ export class UsersService {
       ],
     });
 
-    if (!user) throw new RpcException('User Not Found.');
+    if (!user)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `User with id: '${userId}' not found.`,
+        ),
+      );
 
     const { password, userNotifications, ...res } = user;
 
@@ -323,17 +365,31 @@ export class UsersService {
       relations: ['role'],
     });
 
-    if (!findUser) throw new RpcException('User Not Found.');
+    if (!findUser)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `User with id: '${userId}' not found.`,
+        ),
+      );
 
     if (findUser.id !== id && role.name === 'user')
-      throw new RpcException(`You can have only get profile yourself.`);
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          `You can have only get profile yourself.`,
+        ),
+      );
 
     if (
       !findUser.applications.some((app) => app.job.recruiter.id === id) &&
       role.name === 'recruiter'
     )
       throw new RpcException(
-        'You can have only get profile of candidates that they applied for job you posted.',
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          'You can have only get profile of candidates that they applied for job you posted.',
+        ),
       );
 
     return omit(findUser, ['password']);
@@ -350,21 +406,34 @@ export class UsersService {
       relations: ['skills'],
     });
 
-    if (!findUser) throw new RpcException('User Not Found.');
+    if (!findUser)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `User with id: '${userId}' not found.`,
+        ),
+      );
 
     const { id, role } = user;
 
     if (findUser.id !== id && role.name !== 'admin')
-      throw new RpcException('You can only update profile yourself.');
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          'You can only update profile yourself.',
+        ),
+      );
 
     if (
       (!updateUserDto || !Object.keys(updateUserDto).length) &&
       !files?.length
     )
-      throw new RpcException({
-        statusCode: 400,
-        message: 'You must be provide some information to update your profile.',
-      });
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          'You must be provide some information to update your profile.',
+        ),
+      );
 
     const {
       skills,
@@ -377,7 +446,10 @@ export class UsersService {
 
     if (role.name === 'admin' && !user_id)
       throw new RpcException(
-        `Please provide the user_id you want to update their profile.`,
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `Please provide the user_id you want to update their profile.`,
+        ),
       );
 
     let cvFileUrl = '';
@@ -395,7 +467,10 @@ export class UsersService {
 
     if (updateCompanyDto && role.name === 'candidate')
       throw new RpcException(
-        `Only the recruiter can have permission to update company.`,
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          `Only the recruiter can have permission to update company.`,
+        ),
       );
 
     if (updateCompanyDto && role.name === 'recruiter') {
@@ -455,7 +530,10 @@ export class UsersService {
 
           if (!findSkill)
             throw new RpcException(
-              `Skill with name: '${skill}' not found in Skill Table.`,
+              generateRpcExceptionResponse(
+                HttpStatus.NOT_FOUND,
+                `Skill with name: '${skill}' not found.`,
+              ),
             );
 
           await this.dataSource
@@ -513,7 +591,13 @@ export class UsersService {
   public handleDeleteUser = async (userId: string, user: User) => {
     const findUser = await this.userRepository.findOneBy({ id: userId });
 
-    if (!findUser) throw new RpcException('User Not Found.');
+    if (!findUser)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `User with id: '${userId}' not found.`,
+        ),
+      );
 
     const { role } = user;
 
@@ -543,7 +627,13 @@ export class UsersService {
       },
     });
 
-    if (!user) throw new RpcException(`User With ID: '${userId}' Not Found.`);
+    if (!user)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `User with id: '${userId}' not found.`,
+        ),
+      );
 
     return user;
   };
@@ -551,7 +641,13 @@ export class UsersService {
   public handleUpdatePassword = async (newPassword: string, userId: string) => {
     const user = await this.userRepository.findOneBy({ id: userId });
 
-    if (!user) throw new RpcException(`User with id: '${userId}' not found.`);
+    if (!user)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `User with id: '${userId}' not found.`,
+        ),
+      );
 
     await this.userRepository.update(
       { id: userId },
@@ -599,7 +695,13 @@ export class UsersService {
       relations: ['role'],
     });
 
-    if (!user) throw new RpcException(`User With ID: '${userId}' Not Found.`);
+    if (!user)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `User with id: '${userId}' not found.`,
+        ),
+      );
 
     const now = new Date();
 
@@ -659,7 +761,12 @@ export class UsersService {
     );
 
     if (!company)
-      throw new RpcException(`Company With ID: '${companyId}' Not Found.`);
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Company with id: '${companyId}' not found.`,
+        ),
+      );
 
     const { id, role } = user;
 
@@ -668,7 +775,10 @@ export class UsersService {
       role.name === 'recruiter'
     )
       throw new RpcException(
-        'You can only assign other recruiters to the company that you belongs to.',
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          'You can only assign other recruiters to the company that you belongs to.',
+        ),
       );
 
     for (const recruiterId of recruiterIds) {
@@ -680,11 +790,19 @@ export class UsersService {
       });
 
       if (!recruiter)
-        throw new RpcException(`User With ID: '${recruiterId}' Not Found.`);
+        throw new RpcException(
+          generateRpcExceptionResponse(
+            HttpStatus.NOT_FOUND,
+            `User with id: '${recruiterId}' not found.`,
+          ),
+        );
 
       if (recruiter.role.name !== 'recruiter')
         throw new RpcException(
-          `Only recruiter can be assigned to the company.`,
+          generateRpcExceptionResponse(
+            HttpStatus.FORBIDDEN,
+            `Only recruiter can be assigned to the company.`,
+          ),
         );
 
       if (!recruiter.company) {
@@ -695,7 +813,10 @@ export class UsersService {
           .set(company.id);
       } else {
         throw new RpcException(
-          `Recruiter with id: '${recruiterId}' has already assign to another company.`,
+          generateRpcExceptionResponse(
+            HttpStatus.BAD_REQUEST,
+            `Recruiter with id: '${recruiterId}' has already been assigned to another company.`,
+          ),
         );
       }
     }
@@ -730,7 +851,13 @@ export class UsersService {
       relations: ['role', 'company'],
     });
 
-    if (!user) throw new RpcException(`User with id: '${userId}' not found.`);
+    if (!user)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `User with id: '${userId}' not found.`,
+        ),
+      );
 
     return omit(user, ['password']);
   };
@@ -746,7 +873,13 @@ export class UsersService {
       relations: ['role'],
     });
 
-    if (!user) throw new RpcException(`User with id: '${userId}' not found.`);
+    if (!user)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `User with id: '${userId}' not found.`,
+        ),
+      );
 
     const isRecruiter = user.role?.name === 'recruiter';
 
@@ -790,10 +923,12 @@ export class UsersService {
     });
 
     if (existingUser)
-      throw new RpcException({
-        statusCode: 400,
-        message: `Email: '${email}' has already been used by another account.`,
-      });
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `Email: '${email}' has already been used by another account.`,
+        ),
+      );
 
     existingUser = this.userRepository.create({
       provider,
@@ -844,7 +979,10 @@ export class UsersService {
         (user && user.provider === provider && user.provider_id !== provider_id)
       )
         throw new RpcException(
-          `Email '${email}' has already used by another account.`,
+          generateRpcExceptionResponse(
+            HttpStatus.BAD_REQUEST,
+            `Email '${email}' has already used by another account.`,
+          ),
         );
 
       if (!user) return null;

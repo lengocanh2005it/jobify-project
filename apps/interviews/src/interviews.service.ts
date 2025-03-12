@@ -1,4 +1,9 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  HttpStatus,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Interview } from 'apps/interviews/src/entities';
@@ -18,6 +23,7 @@ import {
   SearchInterviewsDto,
   UpdateInterviewDto,
 } from 'libs/common/dtos';
+import { generateRpcExceptionResponse } from 'libs/common/utils';
 import { omit } from 'lodash';
 import { lastValueFrom } from 'rxjs';
 import { DataSource, Repository } from 'typeorm';
@@ -42,11 +48,17 @@ export class InterviewsService {
 
     if (role.name === 'admin' && !createInterviewDto?.recruiter_id) {
       throw new RpcException(
-        `You must be provide recruiter id for creating an interview.`,
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `You must be provide recruiter id for creating an interview.`,
+        ),
       );
     } else if (role.name === 'recruiter' && createInterviewDto?.recruiter_id)
       throw new RpcException(
-        `You don't have to provide recruiter id for creating an interview.`,
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `You don't have to provide recruiter id for creating an interview.`,
+        ),
       );
 
     const company = await lastValueFrom<Company | null>(
@@ -58,8 +70,11 @@ export class InterviewsService {
 
     if (!company)
       throw new RpcException(
-        `Recruiter with id: '${role.name === 'admin' ? createInterviewDto.recruiter_id : user.id}' 
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Recruiter with id: '${role.name === 'admin' ? createInterviewDto.recruiter_id : user.id}' 
         doesn't have belong to any companies.`,
+        ),
       );
 
     const { interview_date, candidate_id, job_id, interview_address, ...res } =
@@ -70,19 +85,33 @@ export class InterviewsService {
     );
 
     if (!candidate)
-      throw new RpcException(`Candidate with id: '${candidate_id}' not found.`);
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Candidate with id: '${candidate_id}' not found.`,
+        ),
+      );
 
     const job = await lastValueFrom<Job | null>(
       this.rabbitMqJobClient.send({ cmd: 'verify-job' }, job_id),
     );
 
-    if (!job) throw new RpcException(`Job with id: '${job_id}' not found.`);
+    if (!job)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Job with id: '${job_id}' not found.`,
+        ),
+      );
 
     const now = new Date();
 
     if (new Date(interview_date).getTime() < now.getTime())
       throw new RpcException(
-        'Interview date must be greater than current date.',
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          'Interview date must be greater than current date.',
+        ),
       );
 
     let existingInterview = await this.interviewRepository.findOne({
@@ -97,12 +126,18 @@ export class InterviewsService {
 
     if (existingInterview)
       throw new RpcException(
-        `You have already created an interview for id of candidate: '${candidate_id}'.`,
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `You have already created an interview for id of candidate: '${candidate_id}'.`,
+        ),
       );
 
     if (res.interview_type === InterviewType.ONLINE && !res.interview_link)
       throw new RpcException(
-        'Online interview must be has an interview link such as Google Meet link, Zoom Link, etc.',
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          'Online interview must be has an interview link such as Google Meet link, Zoom Link, etc.',
+        ),
       );
 
     existingInterview = this.interviewRepository.create({
@@ -186,7 +221,12 @@ export class InterviewsService {
       });
 
       if (!interview)
-        throw new RpcException(`Interview with id '${interviewId}' not found.`);
+        throw new RpcException(
+          generateRpcExceptionResponse(
+            HttpStatus.NOT_FOUND,
+            `Interview with id '${interviewId}' not found.`,
+          ),
+        );
 
       await this.interviewRepository.update(
         { id: interviewId },
@@ -241,11 +281,19 @@ export class InterviewsService {
     });
 
     if (!interview)
-      throw new RpcException(`Interview with id '${interviewId}' not found.`);
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Interview with id '${interviewId}' not found.`,
+        ),
+      );
 
     if (role.name === 'admin' && interview.recruiter.id !== id)
       throw new RpcException(
-        `You can only update the review that belongs to you.`,
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `You can only update the review that belongs to you.`,
+        ),
       );
 
     const {
@@ -260,23 +308,35 @@ export class InterviewsService {
 
     if (interview_type === InterviewType.ONLINE && !interview_link)
       throw new RpcException(
-        'Online interview must be has interview link such a Google link, Zoom link, etc.',
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          'Online interview must be has interview link such a Google link, Zoom link, etc.',
+        ),
       );
 
     if (status === InterviewStatus.CANCEL && !cancel_reason)
       throw new RpcException(
-        `Please provide the reason of interview cancellation.`,
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `Please provide the reason of interview cancellation.`,
+        ),
       );
 
     if (interview_address && interview_type === InterviewType.ONLINE)
       throw new RpcException(
-        `Online interview can't be has an address interview. The address 
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `Online interview can't be has an address interview. The address 
           interview only have in offline interview.`,
+        ),
       );
 
     if ((result && !score) || (score && !result))
       throw new RpcException(
-        'You must be provide the result and score concurrently.',
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          'You must be provide the result and score concurrently.',
+        ),
       );
 
     await this.interviewRepository.update(
@@ -328,7 +388,12 @@ export class InterviewsService {
       );
 
     if (role.name === 'recruiter' && interview.recruiter.id !== id)
-      throw new RpcException(`You can only the interview that belongs to you.`);
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          `You can only delete the interview that belongs to you.`,
+        ),
+      );
 
     const { title, description, key } =
       NotificationTypes.INTERVIEW_DELETED_BY_ADMIN;
@@ -445,16 +510,27 @@ export class InterviewsService {
     });
 
     if (!interview)
-      throw new RpcException(`Interview with id: '${interviewId}' not found.`);
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Interview with id: '${interviewId} not found.'`,
+        ),
+      );
 
     if (role.name === 'recruiter' && interview.recruiter.id !== id)
       throw new RpcException(
-        `You can only get the interview that you created.`,
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          `You can only get the interview that you created.`,
+        ),
       );
 
     if (role.name === 'candidate' && interview.candidate.id !== id)
       throw new RpcException(
-        `You can only get the interview that recruiter invited you.`,
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          `You can only get the interview that recruiter invited you.`,
+        ),
       );
 
     return role.name === 'admin' || role.name === 'candidate'
@@ -475,7 +551,12 @@ export class InterviewsService {
       processInterviewsOfCandidate.rejectedInterviews ?? [];
 
     if (!approvedInterviewIds.length && !rejectedInterviews.length)
-      throw new RpcException('You must be approve or reject the interviews.');
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          'You must be approve or reject the interviews.',
+        ),
+      );
 
     if (approvedInterviewIds && approvedInterviewIds.length) {
       for (const approvedInterviewId of approvedInterviewIds) {

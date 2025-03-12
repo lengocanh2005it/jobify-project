@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Application } from 'apps/applications/src/entities';
@@ -9,7 +9,10 @@ import {
 import { User } from 'apps/users/src/entities';
 import { NotificationTypes } from 'libs/common/constants';
 import { SearchNotificationsDto } from 'libs/common/dtos';
-import { CreateNotificationDto } from 'libs/common/utils';
+import {
+  CreateNotificationDto,
+  generateRpcExceptionResponse,
+} from 'libs/common/utils';
 import { omit } from 'lodash';
 import { lastValueFrom } from 'rxjs';
 import { DataSource, Repository } from 'typeorm';
@@ -78,7 +81,10 @@ export class NotificationsService {
 
         if (!application) {
           throw new RpcException(
-            `No application matched for user id: '${user.id}'`,
+            generateRpcExceptionResponse(
+              HttpStatus.NOT_FOUND,
+              `No application matched for user id: '${user.id}'`,
+            ),
           );
         }
 
@@ -189,12 +195,18 @@ export class NotificationsService {
 
     if (!userNotification)
       throw new RpcException(
-        `Notification with id: '${userNotificationId}' not found.`,
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Notification with id: '${userNotificationId}' not found.`,
+        ),
       );
 
     if (userNotification.user.id !== user.id)
       throw new RpcException(
-        `You can only get the notification that belongs to you.`,
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          `You can only get the notification that belongs to you.`,
+        ),
       );
 
     return userNotification.notification.title !==
@@ -214,12 +226,18 @@ export class NotificationsService {
 
     if (!notification)
       throw new RpcException(
-        `Notification with id: '${userNotificationId}' not found.`,
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Notification with id: '${userNotificationId}' not found.`,
+        ),
       );
 
     if (notification.user.id !== user.id)
       throw new RpcException(
-        'You can only delete the notification that belongs to you.',
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          'You can only delete the notification that belongs to you.',
+        ),
       );
 
     await this.userNotificationRepository.delete({

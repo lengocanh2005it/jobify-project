@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Response } from 'express';
-import { RESPONSE_MESSAGE } from 'libs/common/decorators/response-message.decorator';
+import { RESPONSE_MESSAGE } from 'libs/common/decorators';
 import { map, Observable } from 'rxjs';
 
 export type ApiResponseType<T = any> = {
@@ -36,12 +36,6 @@ export class ApiResponseInterceptor<T> implements NestInterceptor<T> {
     const statusCode: number = context
       .switchToHttp()
       .getResponse<Response>().statusCode;
-
-    const response = context.switchToHttp().getResponse<Response>();
-
-    if (response.locals) {
-      return next.handle();
-    }
 
     return next.handle().pipe(
       map((data: unknown) => ({

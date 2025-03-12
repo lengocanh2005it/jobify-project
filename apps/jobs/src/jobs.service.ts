@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Company, Job, Requirement, SavedJob } from 'apps/jobs/src/entities';
@@ -12,6 +12,7 @@ import {
   UpdateCompanyDto,
   UpdateJobDto,
 } from 'libs/common/dtos';
+import { generateRpcExceptionResponse } from 'libs/common/utils';
 import { lastValueFrom } from 'rxjs';
 import { DataSource, Repository } from 'typeorm';
 
@@ -77,7 +78,10 @@ export class JobsService {
 
       if (!recruiter_id)
         throw new RpcException(
-          'Admin must specify a recruiter_id in CreateJobDto.',
+          generateRpcExceptionResponse(
+            HttpStatus.BAD_REQUEST,
+            'Admin must specify a recruiter_id in CreateJobDto.',
+          ),
         );
 
       recruiterId = recruiter_id;
@@ -85,7 +89,10 @@ export class JobsService {
 
     if (role.name === 'recruiter' && !job_posted_count)
       throw new RpcException(
-        `You have exhausted your job posting limit. Please wait until it resets or contact support.`,
+        generateRpcExceptionResponse(
+          HttpStatus.TOO_MANY_REQUESTS,
+          `You have exhausted your job posting limit. Please wait until it resets or contact support.`,
+        ),
       );
 
     const { posted_at, expired_at, title, description } = createJobDto;
@@ -100,11 +107,19 @@ export class JobsService {
 
     if (now.getTime() > postedDate.getTime())
       throw new RpcException(
-        'Posted date must be greater than or equal to current date.',
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          'Posted date must be greater than or equal to current date.',
+        ),
       );
 
     if (postedDate.getTime() > expiredDate.getTime())
-      throw new RpcException('Expired date must be greater than posted date.');
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          'Expired date must be greater than posted date.',
+        ),
+      );
 
     const existingJob = await this.jobRepository.findOne({
       where: { title, description, recruiter: { id: recruiterId } },
@@ -113,7 +128,10 @@ export class JobsService {
 
     if (existingJob)
       throw new RpcException(
-        `This job has been posted by ${role.name === 'admin' ? `recruiter with id '${recruiterId}'` : 'you'}`,
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `This job has been posted by ${role.name === 'admin' ? `recruiter with id '${recruiterId}'` : 'you'}`,
+        ),
       );
 
     const newJob = this.jobRepository.create(resCreateJobDto);
@@ -164,7 +182,10 @@ export class JobsService {
 
     if (!approvedJobIds && !rejectedJobs)
       throw new RpcException(
-        'You must be provide the information of processing the jobs.',
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          'You must be provide the information of processing the jobs.',
+        ),
       );
 
     const jobs: Record<string, Job[]> = {};
@@ -175,14 +196,23 @@ export class JobsService {
       for (const jobId of approvedJobIds) {
         const job = await this.jobRepository.findOneBy({ id: jobId });
 
-        if (!job) throw new RpcException(`Job with id: '${jobId}' not found.`);
+        if (!job)
+          throw new RpcException(
+            generateRpcExceptionResponse(
+              HttpStatus.NOT_FOUND,
+              `Job with id: '${jobId}' not found.`,
+            ),
+          );
 
         if (
           job.is_approved === true ||
           (job.is_approved === false && job.cancel_reason && job.cancelled_by)
         )
           throw new RpcException(
-            `Job with id: '${jobId}' has already been processed and cannot be processed again.`,
+            generateRpcExceptionResponse(
+              HttpStatus.BAD_REQUEST,
+              `Job with id: '${jobId}' has already been processed and cannot be processed again.`,
+            ),
           );
 
         await this.jobRepository.update(
@@ -276,7 +306,10 @@ export class JobsService {
 
         if (!job)
           throw new RpcException(
-            `Job with id: '${rejectedJob.job_id}' not found.`,
+            generateRpcExceptionResponse(
+              HttpStatus.NOT_FOUND,
+              `Job with id: '${rejectedJob.job_id}' not found.`,
+            ),
           );
 
         if (
@@ -284,7 +317,10 @@ export class JobsService {
           (job.is_approved === false && job.cancel_reason && job.cancelled_by)
         )
           throw new RpcException(
-            `Job with id: '${rejectedJob.job_id}' has already been processed and cannot be processed again.`,
+            generateRpcExceptionResponse(
+              HttpStatus.BAD_REQUEST,
+              `Job with id: '${rejectedJob.job_id}' has already been processed and cannot be processed again.`,
+            ),
           );
 
         await this.jobRepository.update(
@@ -428,12 +464,23 @@ export class JobsService {
       relations: ['recruiter'],
     });
 
-    if (!job) throw new RpcException(`Job with iD: '${jobId}' not found.`);
+    if (!job)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Job with id: '${jobId}' not found.`,
+        ),
+      );
 
     const { id, role } = user;
 
     if (job.recruiter.id !== id && role.name === 'recruiter')
-      throw new RpcException(`You can only delete job that you posted.`);
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          `You can only delete job that you posted.`,
+        ),
+      );
 
     const jobWithRequirements = await this.jobRepository.findOne({
       where: {
@@ -459,13 +506,22 @@ export class JobsService {
       relations: ['recruiter'],
     });
 
-    if (!job) throw new RpcException(`Job With ID: '${jobId}' Not Found.`);
+    if (!job)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Job with id: '${jobId}' not found.`,
+        ),
+      );
 
     const { role, id } = user;
 
     if (job.recruiter.id !== id && role.name === 'recruiter')
       throw new RpcException(
-        'You can only update the job that you have posted.',
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          'You can only update the job that you have posted.',
+        ),
       );
 
     const { requirements, ...res } = updateJobDto;
@@ -499,19 +555,33 @@ export class JobsService {
       relations: ['requirements', 'recruiter', 'applications'],
     });
 
-    if (!job) throw new RpcException(`Job With ID: '${jobId}' Not Found.`);
+    if (!job)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Job with id: '${jobId}' not found.`,
+        ),
+      );
 
     const { id, role } = user;
 
     if (job.recruiter.id !== id && role.name === 'recruiter')
-      throw new RpcException(`You can only get a job that you have posted.`);
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          `You can only get a job that you have posted.`,
+        ),
+      );
 
     if (
       !job.applications.some((app) => app.candidate.id === id) &&
       role.name === 'candidate'
     )
       throw new RpcException(
-        'You can only get a job that you have applied for.',
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          'You can only get a job that you have applied for.',
+        ),
       );
 
     return job;
@@ -524,7 +594,12 @@ export class JobsService {
     });
 
     if (!company)
-      throw new RpcException(`Company With ID: '${companyId}' Not Found.`);
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Company with id: '${companyId}' not found.`,
+        ),
+      );
 
     return {
       ...company,
@@ -544,7 +619,13 @@ export class JobsService {
     for (const jobId of jobIds) {
       const job = await this.jobRepository.findOneBy({ id: jobId });
 
-      if (!job) throw new RpcException(`Job With ID: '${jobId}' Not Found.`);
+      if (!job)
+        throw new RpcException(
+          generateRpcExceptionResponse(
+            HttpStatus.NOT_FOUND,
+            `Job with id: '${jobId}' not found.`,
+          ),
+        );
 
       if (
         await this.savedJobRepository.findOne({
@@ -559,7 +640,10 @@ export class JobsService {
         })
       )
         throw new RpcException(
-          `You have already saved the job with id: '${jobId}'`,
+          generateRpcExceptionResponse(
+            HttpStatus.BAD_REQUEST,
+            `You have already saved the job with id: '${jobId}'`,
+          ),
         );
 
       const newSavedJob = this.savedJobRepository.create({
@@ -587,7 +671,13 @@ export class JobsService {
         relations: ['user', 'job'],
       });
 
-      if (!job) throw new RpcException(`Job With ID: '${jobId}' Not Found.`);
+      if (!job)
+        throw new RpcException(
+          generateRpcExceptionResponse(
+            HttpStatus.NOT_FOUND,
+            `Job with id: '${jobId}' not found.`,
+          ),
+        );
 
       if (
         !(
@@ -597,7 +687,10 @@ export class JobsService {
         ).some((job) => job.user.id === id)
       )
         throw new RpcException(
-          `You can only remove the saved job that you saved before.`,
+          generateRpcExceptionResponse(
+            HttpStatus.BAD_REQUEST,
+            `You can only remove the saved job that you saved before.`,
+          ),
         );
 
       await this.savedJobRepository.delete({
@@ -617,7 +710,12 @@ export class JobsService {
     );
 
     if (!recruiter)
-      throw new RpcException(`Recruiter with ID: '${recruiterId}' Not Found.`);
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Recruiter with id: '${recruiterId}' not found.`,
+        ),
+      );
 
     const jobs = await this.jobRepository.find({
       where: { recruiter: { id: recruiterId } },
@@ -657,7 +755,10 @@ export class JobsService {
 
     if (!findFirstCompany)
       throw new RpcException(
-        `Recruiter with id '${recruiterId}' hasn't been assigned with any companies.`,
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Recruiter with id '${recruiterId}' hasn't been assigned with any companies.`,
+        ),
       );
 
     return findFirstCompany;
@@ -699,7 +800,13 @@ export class JobsService {
       relations: ['recruiter'],
     });
 
-    if (!job) throw new RpcException(`Job with id: '${jobId}' not found.`);
+    if (!job)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Job with id: '${jobId}' not found.`,
+        ),
+      );
 
     return job;
   };
