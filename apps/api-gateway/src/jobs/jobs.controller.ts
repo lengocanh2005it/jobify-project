@@ -22,6 +22,7 @@ import {
   SearchJobsDto,
   UpdateJobDto,
 } from 'libs/common/dtos';
+import { RemoveSavedJobsDto } from 'libs/common/dtos';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 
 @Controller('jobs')
@@ -94,19 +95,21 @@ export class JobsController {
     return this.jobsService.handleSavedJobs(savedJobDtos, user);
   }
 
-  @Patch('saved/remove')
-  @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  @Delete('candidates/saved')
+  @ResponseMessage('Saved jobs removed successfully.')
+  @Roles(Role.ADMIN, Role.CANDIDATE)
   async removeSavedJobs(
-    @Body() removeSavedJobsDto: SavedJobsDto,
+    @Query() removeSavedJobs: RemoveSavedJobsDto,
     @Req() request: Request,
   ) {
     const user = request.user as User;
 
-    return this.jobsService.handleRemoveSavedJobs(removeSavedJobsDto, user);
+    return this.jobsService.handleRemoveSavedJobs(removeSavedJobs, user);
   }
 
   @Get('/recruiters/me')
   @Roles(Role.ADMIN, Role.RECRUITER)
+  @ResponseMessage('All application of jobs fetched successfully.')
   async getAllApplicationsOfJobs(@Req() request: Request) {
     const userId = request.user?.id as string;
 

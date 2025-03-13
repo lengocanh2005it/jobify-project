@@ -1,4 +1,5 @@
 import {
+  ArrayMinSize,
   ArrayNotEmpty,
   IsArray,
   IsNotEmpty,
@@ -10,6 +11,8 @@ export class AssignCompanyToRecruitersDto {
   @IsArray()
   @ArrayNotEmpty()
   @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  @ArrayMinSize(1)
   readonly recruiterIds!: string[];
 
   @IsString()

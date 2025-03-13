@@ -5,5 +5,6 @@ export class SavedJobsDto {
   @ArrayNotEmpty()
   @IsNotEmpty()
   @IsString({ each: true })
+  @IsNotEmpty({ each: true })
   readonly jobIds!: string[];
 }

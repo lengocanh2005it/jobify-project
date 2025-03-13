@@ -1,4 +1,10 @@
-import { IsNumber, IsOptional, IsPositive } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsPositive,
+  IsString,
+} from 'class-validator';
 
 export class UpdateReviewDto {
   @IsOptional()
@@ -7,5 +13,7 @@ export class UpdateReviewDto {
   readonly ratings_number?: number;
 
   @IsOptional()
+  @IsString()
+  @IsNotEmpty()
   readonly comment?: string;
 }

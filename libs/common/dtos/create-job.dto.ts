@@ -54,6 +54,7 @@ export class CreateJobDto {
   @IsArray()
   @ArrayNotEmpty()
   @IsString({ each: true })
+  @IsNotEmpty({ each: true })
   readonly requirements!: string[];
 
   @IsOptional()

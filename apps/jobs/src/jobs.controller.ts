@@ -5,6 +5,7 @@ import {
   CreateCompanyDto,
   CreateJobDto,
   ProcessJobsDto,
+  RemoveSavedJobsDto,
   SearchJobsDto,
   UpdateCompanyDto,
   UpdateJobDto,
@@ -86,10 +87,13 @@ export class JobsController {
 
   @MessagePattern({ cmd: 'remove-saved-jobs' })
   async handleRemoveSavedJobs(
-    @Payload('jobIds') jobIds: string[],
+    @Payload('removeSavedJobsDto') removeSavedJobsDto: RemoveSavedJobsDto,
     @Payload('user') user: User,
   ) {
-    return await this.jobsService.handleRemoveSavedJobs(jobIds, user);
+    return await this.jobsService.handleRemoveSavedJobs(
+      removeSavedJobsDto,
+      user,
+    );
   }
 
   @MessagePattern({ cmd: 'get-jobs-recruiter' })

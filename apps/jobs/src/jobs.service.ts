@@ -8,11 +8,13 @@ import {
   CreateCompanyDto,
   CreateJobDto,
   ProcessJobsDto,
+  RemoveSavedJobsDto,
   SearchJobsDto,
   UpdateCompanyDto,
   UpdateJobDto,
 } from 'libs/common/dtos';
 import { generateRpcExceptionResponse } from 'libs/common/utils';
+import { omit } from 'lodash';
 import { lastValueFrom } from 'rxjs';
 import { DataSource, Repository } from 'typeorm';
 
@@ -499,11 +501,19 @@ export class JobsService {
     jobId: string,
     user: User,
   ) => {
+    if (!updateJobDto || !Object.keys(updateJobDto).length)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          'You must be provide some information to update the job.',
+        ),
+      );
+
     let job = await this.jobRepository.findOne({
       where: {
         id: jobId,
       },
-      relations: ['recruiter'],
+      relations: ['recruiter', 'requirements'],
     });
 
     if (!job)
@@ -534,18 +544,74 @@ export class JobsService {
       },
     );
 
+    if (requirements && requirements.length) {
+      const jobRequirements = new Set<{ requirement: string; id: string }>(
+        (
+          await this.jobRepository
+            .createQueryBuilder('job')
+            .relation(Job, 'requirements')
+            .of(job.id)
+            .loadMany<Requirement>()
+        ).map((re) => ({ requirement: re.requirement, id: re.id })),
+      );
+
+      const excludeRequirements = Array.from(jobRequirements).filter(
+        (re) => !new Set<string>(requirements).has(re.requirement),
+      );
+
+      const newRequirements = requirements.filter(
+        (re) =>
+          !Array.from(jobRequirements)
+            .map((el) => el.requirement)
+            .includes(re),
+      );
+
+      if (excludeRequirements && excludeRequirements.length) {
+        await this.dataSource
+          .createQueryBuilder()
+          .relation(Job, 'requirements')
+          .of(job.id)
+          .remove(excludeRequirements.map((re) => re.id));
+      }
+
+      if (newRequirements && newRequirements.length) {
+        for (const requirement of newRequirements) {
+          let newRequirement = await this.requirementRepository.findOne({
+            where: {
+              requirement,
+            },
+          });
+
+          if (!newRequirement) {
+            newRequirement = this.requirementRepository.create({ requirement });
+
+            await this.requirementRepository.save(newRequirement);
+          }
+
+          job.requirements.push(newRequirement);
+
+          await this.jobRepository.save(job);
+        }
+      }
+    }
+
+    const relations = ['requirements'];
+
+    if (user.role.name === 'admin') {
+      relations.push('recruiter');
+    }
+
     job = (await this.jobRepository.findOne({
       where: { id: jobId },
-      relations: ['requirements', 'recruiter'],
+      relations,
     })) as Job;
 
-    const { recruiter, ...data } = job;
-
-    const { password, ...resData } = recruiter;
-
     return {
-      ...data,
-      recruiter: resData,
+      ...job,
+      ...(user.role.name === 'admin' && {
+        recruiter: omit(job.recruiter, ['password']),
+      }),
+      requirements: job.requirements.map((re) => re.requirement),
     };
   };
 
@@ -642,7 +708,7 @@ export class JobsService {
         throw new RpcException(
           generateRpcExceptionResponse(
             HttpStatus.BAD_REQUEST,
-            `You have already saved the job with id: '${jobId}'`,
+            `You have already saved the job with id: '${jobId}'.`,
           ),
         );
 
@@ -657,50 +723,86 @@ export class JobsService {
     }
 
     return {
-      success: 'Saved these jobs successfully!',
       savedJobs,
     };
   };
 
-  public handleRemoveSavedJobs = async (jobIds: string[], user: User) => {
-    const { id } = user;
+  public handleRemoveSavedJobs = async (
+    removeSavedJobsDto: RemoveSavedJobsDto,
+    user: User,
+  ) => {
+    const { id, role } = user;
 
-    for (const jobId of jobIds) {
-      const job = await this.jobRepository.findOne({
-        where: { id: jobId },
-        relations: ['user', 'job'],
-      });
+    const { jobIds, candidate_id } = removeSavedJobsDto;
 
-      if (!job)
-        throw new RpcException(
-          generateRpcExceptionResponse(
-            HttpStatus.NOT_FOUND,
-            `Job with id: '${jobId}' not found.`,
-          ),
-        );
+    if (role.name === 'admin' && !candidate_id)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `You must provide the candidate's ID whose saved job list you want to remove.`,
+        ),
+      );
 
-      if (
-        !(
-          await this.savedJobRepository.find({
-            relations: ['user'],
-          })
-        ).some((job) => job.user.id === id)
-      )
-        throw new RpcException(
-          generateRpcExceptionResponse(
-            HttpStatus.BAD_REQUEST,
-            `You can only remove the saved job that you saved before.`,
-          ),
-        );
+    if (role.name === 'candidate' && candidate_id)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `You cannot retrieve the candidate's ID to remove their saved jobs list.`,
+        ),
+      );
 
-      await this.savedJobRepository.delete({
-        user: { id },
-        job: { id: jobId },
-      });
+    if (jobIds && jobIds.length) {
+      for (const jobId of jobIds.split(',')) {
+        const job = await this.jobRepository.findOne({
+          where: { id: jobId },
+        });
+
+        if (!job)
+          throw new RpcException(
+            generateRpcExceptionResponse(
+              HttpStatus.NOT_FOUND,
+              `Job with id: '${jobId}' not found.`,
+            ),
+          );
+
+        const findSavedJob = await this.savedJobRepository.findOne({
+          where: {
+            user: { id: role.name === 'admin' ? candidate_id : id },
+            job: { id: jobId },
+          },
+        });
+
+        if (!findSavedJob) {
+          if (role.name === 'admin')
+            throw new RpcException(
+              generateRpcExceptionResponse(
+                HttpStatus.BAD_REQUEST,
+                `The user with id '${candidate_id}' has not saved the job with id '${jobId}'.`,
+              ),
+            );
+
+          throw new RpcException(
+            generateRpcExceptionResponse(
+              HttpStatus.BAD_REQUEST,
+              `The job with id '${jobId}' is not in your saved job list.`,
+            ),
+          );
+        }
+
+        await this.savedJobRepository.delete(findSavedJob.id);
+      }
     }
 
     return {
-      message: 'Remove these jobs successfully!',
+      savedJobs: (
+        await this.savedJobRepository.find({
+          where: { user: { id: role.name === 'admin' ? candidate_id : id } },
+          relations: ['user', 'job'],
+        })
+      ).map((savedJob) => ({
+        ...savedJob,
+        user: omit(savedJob.user, ['password']),
+      })),
     };
   };
 

@@ -4,6 +4,7 @@ import { User } from 'apps/users/src/entities';
 import {
   CreateJobDto,
   ProcessJobsDto,
+  RemoveSavedJobsDto,
   SavedJobsDto,
   SearchJobsDto,
   UpdateJobDto,
@@ -81,14 +82,14 @@ export class JobsService {
   };
 
   public handleRemoveSavedJobs = async (
-    removeSavedJobsDto: SavedJobsDto,
+    removeSavedJobsDto: RemoveSavedJobsDto,
     user: User,
   ) => {
     return await lastValueFrom(
       this.rabbitMqJobsClient.send(
         { cmd: 'remove-saved-jobs' },
         {
-          jobIds: removeSavedJobsDto.jobIds,
+          removeSavedJobsDto,
           user,
         },
       ),
