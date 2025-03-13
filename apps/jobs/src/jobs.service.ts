@@ -1,5 +1,6 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Company, Job, Requirement, SavedJob } from 'apps/jobs/src/entities';
 import { User } from 'apps/users/src/entities';
@@ -16,10 +17,12 @@ import {
 import { generateRpcExceptionResponse } from 'libs/common/utils';
 import { omit } from 'lodash';
 import { lastValueFrom } from 'rxjs';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, LessThan, Repository } from 'typeorm';
 
 @Injectable()
 export class JobsService {
+  private readonly logger = new Logger(JobsService.name);
+
   constructor(
     @InjectRepository(Job) private readonly jobRepository: Repository<Job>,
     @InjectRepository(Company)
@@ -33,6 +36,51 @@ export class JobsService {
     @InjectRepository(SavedJob)
     private readonly savedJobRepository: Repository<SavedJob>,
   ) {}
+
+  @Cron('0 0 * * *')
+  async handleUpdateExpiredJobs() {
+    const now = new Date();
+
+    const expiredJobs = await this.jobRepository.find({
+      where: {
+        status: 'open',
+        expired_at: LessThan(now),
+      },
+      relations: ['recruiter'],
+    });
+
+    if (!expiredJobs.length) {
+      this.logger.log('No expired jobs to update.');
+      return;
+    }
+
+    const recruiterIds: string[] = [];
+
+    for (const job of expiredJobs) {
+      job.status = 'closed';
+
+      await this.jobRepository.save(job);
+
+      recruiterIds.push(job.recruiter.id);
+
+      this.logger.log(
+        `Job with id '${job.id}' has been closed due to expiration.`,
+      );
+    }
+
+    const { title, description, key } = NotificationTypes.JOB_EXPIRED;
+
+    this.rabbitMqNotificationClient.emit('create-notification', {
+      data: {
+        title,
+        message: description,
+        type: key,
+      },
+      userIds: recruiterIds,
+    });
+
+    this.logger.log('Expired jobs update process completed.');
+  }
 
   public handleCreateCompany = async (
     userId: string,
@@ -501,7 +549,7 @@ export class JobsService {
     jobId: string,
     user: User,
   ) => {
-    if (!updateJobDto || !Object.keys(updateJobDto).length)
+    if (!Object.keys(updateJobDto).length)
       throw new RpcException(
         generateRpcExceptionResponse(
           HttpStatus.BAD_REQUEST,
@@ -536,6 +584,25 @@ export class JobsService {
 
     const { requirements, ...res } = updateJobDto;
 
+    if (
+      res.expired_at &&
+      new Date(res.expired_at).getTime() < new Date().getTime()
+    )
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          'The expiration time of the job must be greater than the current date.',
+        ),
+      );
+
+    if (res.status === job.status)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `You cannot update the job's status to the same status it initially had.`,
+        ),
+      );
+
     await this.jobRepository.update(
       { id: jobId },
       {
@@ -543,7 +610,6 @@ export class JobsService {
         is_approved: false,
       },
     );
-
     if (requirements && requirements.length) {
       const jobRequirements = new Set<{ requirement: string; id: string }>(
         (
