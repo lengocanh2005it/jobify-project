@@ -111,6 +111,12 @@ export const NotificationTypes = {
     description:
       'Your job posting has been rejected by an admin. Please review and update your job details.',
   },
+  JOB_EXPIRED: {
+    key: 'job_expired',
+    title: 'Job Expired',
+    description:
+      'The job posting you created has expired and is no longer active. Please review and update the job details if needed.',
+  },
 
   // Systems Notifications
   ACCOUNT_REGISTRATION: {

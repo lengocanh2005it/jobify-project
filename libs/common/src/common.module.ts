@@ -20,6 +20,7 @@ import {
 } from 'libs/common/providers';
 import * as multer from 'multer';
 import { CommonService } from './common.service';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Global()
 @Module({
@@ -86,6 +87,7 @@ import { CommonService } from './common.service';
         { ttl: DEFAULT_THROTTLER_TTL, limit: DEFAULT_THROTTLER_LIMIT },
       ],
     }),
+    ScheduleModule.forRoot(),
   ],
   providers: [
     CommonService,
@@ -104,6 +106,7 @@ import { CommonService } from './common.service';
     LinkedInProvider,
     FacebookProvider,
     ThrottlerModule,
+    ScheduleModule,
   ],
 })
 export class CommonModule {}
