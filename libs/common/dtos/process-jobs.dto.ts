@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayMinSize,
   ArrayNotEmpty,
   IsArray,
   IsNotEmpty,
@@ -25,6 +26,8 @@ export class ProcessJobsDto {
   @IsArray()
   @ArrayNotEmpty()
   @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  @ArrayMinSize(1)
   readonly approvedJobIds?: string[];
 
   @IsOptional()
@@ -32,5 +35,6 @@ export class ProcessJobsDto {
   @ArrayNotEmpty()
   @ValidateNested({ each: true })
   @Type(() => RejectedJobs)
+  @ArrayMinSize(1)
   readonly rejectedJobs?: RejectedJobs[];
 }
