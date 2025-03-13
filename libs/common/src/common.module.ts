@@ -5,7 +5,12 @@ import { JwtModule } from '@nestjs/jwt';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { PassportModule } from '@nestjs/passport';
 import { MulterModule } from '@nestjs/platform-express';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import {
+  DEFAULT_THROTTLER_LIMIT,
+  DEFAULT_THROTTLER_TTL,
+} from 'libs/common/constants';
 import { CustomValidationPipe } from 'libs/common/pipes';
 import {
   FacebookProvider,
@@ -76,6 +81,11 @@ import { CommonService } from './common.service';
       }),
     }),
     PassportModule.register({ defaultStrategy: 'jwt' }),
+    ThrottlerModule.forRoot({
+      throttlers: [
+        { ttl: DEFAULT_THROTTLER_TTL, limit: DEFAULT_THROTTLER_LIMIT },
+      ],
+    }),
   ],
   providers: [
     CommonService,
@@ -93,6 +103,7 @@ import { CommonService } from './common.service';
     GoogleProvider,
     LinkedInProvider,
     FacebookProvider,
+    ThrottlerModule,
   ],
 })
 export class CommonModule {}

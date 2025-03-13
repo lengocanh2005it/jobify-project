@@ -25,15 +25,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
       const response = exception.getResponse();
       if (
         typeof response === 'object' &&
-        response !== null &&
         'message' in response &&
         'statusCode' in response
       ) {
         message = response.message as string;
         status = response.statusCode as number;
-      } else {
-        message = 'Internal Server Error';
-        status = 500;
       }
     } else if (exception instanceof Error) {
       message = exception.message;
