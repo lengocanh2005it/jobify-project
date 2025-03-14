@@ -27,8 +27,9 @@ export const NotificationTypes = {
   },
   INTERVIEW_REMINDER: {
     key: 'interview_reminder',
-    title: 'Interview Reminder',
-    description: 'Reminder: You have an upcoming interview.',
+    title: 'Upcoming Interview!',
+    description:
+      'Your interview is coming up soon. Make sure to check the details and be prepared!',
   },
   INTERVIEW_RESULT: {
     key: 'interview_result',
@@ -149,6 +150,12 @@ export const NotificationTypes = {
     title: 'Premium Paid Success',
     description:
       'You have successfully purchased the Premium Package, valid for 30 days from today!',
+  },
+  PREMIUM_EXPIRING: {
+    key: 'premium_expiring',
+    title: 'Premium Plan Expiring Soon',
+    description:
+      'Your premium subscription is about to expire. Please renew to continue enjoying exclusive benefits.',
   },
 
   // Job Suggestions

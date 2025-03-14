@@ -1,16 +1,20 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
+import { Cron } from '@nestjs/schedule';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Transaction } from 'apps/payments/src/entities';
 import { User } from 'apps/users/src/entities';
+import { endOfDay, startOfDay, subDays } from 'date-fns';
+import { NotificationTypes } from 'libs/common/constants';
 import { generateRpcExceptionResponse } from 'libs/common/utils';
 import Stripe from 'stripe';
-import { DataSource, Repository } from 'typeorm';
+import { Between, DataSource, Repository } from 'typeorm';
 
 @Injectable()
 export class PaymentsService {
-  private stripe: Stripe;
+  private readonly stripe: Stripe;
+  private readonly logger = new Logger(PaymentsService.name);
 
   constructor(
     private readonly configService: ConfigService,
@@ -18,6 +22,8 @@ export class PaymentsService {
     @InjectRepository(Transaction)
     private readonly transactionRepository: Repository<Transaction>,
     @InjectDataSource() private readonly dataSource: DataSource,
+    @Inject('NOTIFICATIONS_SERVICE')
+    private readonly rabbitMqNotificationClient: ClientProxy,
   ) {
     this.stripe = new Stripe(
       configService.get<string>('stripe.secret_key') ?? '',
@@ -25,6 +31,49 @@ export class PaymentsService {
         apiVersion: '2025-02-24.acacia',
       },
     );
+  }
+
+  @Cron('0 0 * * *')
+  async handleNotifyExpiredPremiumPackage() {
+    this.logger.log(
+      'Starting premium subscription expiration notification job...',
+    );
+
+    const twoDaysBefore = subDays(new Date(), 2);
+
+    const transactions = await this.transactionRepository.find({
+      relations: ['user'],
+      where: {
+        expiry_date: Between(
+          startOfDay(twoDaysBefore),
+          endOfDay(twoDaysBefore),
+        ),
+      },
+    });
+
+    if (!transactions.length) {
+      this.logger.log('No expiration premium package exactly 2 days ago.');
+      return;
+    }
+
+    const userIds = transactions.map((transaction) => transaction.user.id);
+
+    this.logger.log(
+      `Found ${transactions.length} expiring subscriptions. Notifying ${transactions.length} users...`,
+    );
+
+    const { title, description, key } = NotificationTypes.PREMIUM_EXPIRING;
+
+    this.rabbitMqNotificationClient.emit('create-notification', {
+      data: {
+        title,
+        message: description,
+        type: key,
+      },
+      userIds,
+    });
+
+    this.logger.log('Successfully sent premium expiration reminders to users.');
   }
 
   public handleCreateCheckoutSession = async (

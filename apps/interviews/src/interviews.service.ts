@@ -2,13 +2,16 @@ import {
   HttpStatus,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
+import { Cron } from '@nestjs/schedule';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Interview } from 'apps/interviews/src/entities';
 import { Company, Job } from 'apps/jobs/src/entities';
 import { User } from 'apps/users/src/entities';
+import { endOfDay, startOfDay, subDays } from 'date-fns';
 import {
   ApprovalStatus,
   InterviewStatus,
@@ -26,10 +29,12 @@ import {
 import { generateRpcExceptionResponse } from 'libs/common/utils';
 import { omit } from 'lodash';
 import { lastValueFrom } from 'rxjs';
-import { DataSource, Repository } from 'typeorm';
+import { Between, DataSource, Repository } from 'typeorm';
 
 @Injectable()
 export class InterviewsService {
+  private readonly logger = new Logger(InterviewsService.name);
+
   constructor(
     @InjectRepository(Interview)
     private readonly interviewRepository: Repository<Interview>,
@@ -39,6 +44,49 @@ export class InterviewsService {
     @Inject('NOTIFICATIONS_SERVICE')
     private readonly rabbitMqNotificationClient: ClientProxy,
   ) {}
+
+  @Cron('0 0 * * *')
+  async handleNotifyScheduledInterviews() {
+    this.logger.log('Starting scheduled interview notification job...');
+
+    const twoDaysBefore = subDays(new Date(), 2);
+
+    const interviews = await this.interviewRepository.find({
+      relations: ['candidate'],
+      where: {
+        interview_date: Between(
+          startOfDay(twoDaysBefore),
+          endOfDay(twoDaysBefore),
+        ),
+      },
+    });
+
+    if (!interviews.length) {
+      this.logger.log('No interviews scheduled exactly 2 days ago.');
+      return;
+    }
+
+    const candidatesIds = interviews.map((interview) => interview.candidate.id);
+
+    this.logger.log(
+      `Found ${interviews.length} interviews. Notifying ${candidatesIds.length} candidates...`,
+    );
+
+    const { title, description, key } = NotificationTypes.INTERVIEW_REMINDER;
+
+    this.rabbitMqNotificationClient.emit('create-notification', {
+      data: {
+        title,
+        message: description,
+        type: key,
+      },
+      userIds: candidatesIds,
+    });
+
+    this.logger.log(
+      `Sent notifications to candidates: ${candidatesIds.join(', ')}`,
+    );
+  }
 
   public handleCreateInterview = async (
     createInterviewDto: CreateInterviewDto,
