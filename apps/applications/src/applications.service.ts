@@ -49,6 +49,18 @@ export class ApplicationsService {
         ),
       );
 
+    if (
+      job.status === 'closed' ||
+      job.is_approved === false ||
+      job.expired_at.getTime() < new Date().getTime()
+    )
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `The job with id '${jobId}' has been closed or has expired, so you cannot apply for this job.`,
+        ),
+      );
+
     const user = await lastValueFrom<User | null>(
       this.rabbitMqUserClient.send({ cmd: 'get-user-jwt' }, userId),
     );
