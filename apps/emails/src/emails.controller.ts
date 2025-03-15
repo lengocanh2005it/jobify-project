@@ -13,6 +13,6 @@ export class EmailsController {
     @Payload('email') email: string,
     @Payload('type') type: string,
   ) {
-    return await this.emailsService.handleSendEmail(email, type);
+    return this.emailsService.handleSendEmail(email, type);
   }
 }

@@ -17,6 +17,7 @@ import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
 import {
   CreateJobDto,
+  DeleteJobDto,
   ProcessJobsDto,
   SavedJobsDto,
   SearchJobsDto,
@@ -58,10 +59,14 @@ export class JobsController {
   @Delete(':id')
   @ResponseMessage('Job deleted successfully.')
   @Roles(Role.ADMIN, Role.RECRUITER)
-  async deleteJob(@Param('id') id: string, @Req() request: Request) {
+  async deleteJob(
+    @Param('id') id: string,
+    @Req() request: Request,
+    @Query() query?: DeleteJobDto,
+  ) {
     const user = request.user as User;
 
-    return this.jobsService.handleDeleteJob(id, user);
+    return this.jobsService.handleDeleteJob(id, user, query);
   }
 
   @Patch(':id')

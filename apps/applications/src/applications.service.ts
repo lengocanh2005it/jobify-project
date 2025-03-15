@@ -235,7 +235,7 @@ export class ApplicationsService {
         );
       }
 
-      return await query.getMany();
+      return query.getMany();
     });
   };
 
@@ -650,7 +650,7 @@ export class ApplicationsService {
       const applicationRepository =
         queryRunner.manager.getRepository(Application);
 
-      return await applicationRepository.find({
+      return applicationRepository.find({
         where: {
           candidate: { id: candidateId },
         },

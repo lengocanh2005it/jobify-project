@@ -4,6 +4,7 @@ import { User } from 'apps/users/src/entities';
 import {
   CreateCompanyDto,
   CreateJobDto,
+  DeleteJobDto,
   ProcessJobsDto,
   RemoveSavedJobsDto,
   SearchJobsDto,
@@ -23,7 +24,7 @@ export class JobsController {
     @Payload('createCompanyDto') createCompanyDto: CreateCompanyDto,
     @Payload('userId') userId: string,
   ) {
-    return await this.jobsService.handleCreateCompany(userId, createCompanyDto);
+    return this.jobsService.handleCreateCompany(userId, createCompanyDto);
   }
 
   @MessagePattern({ cmd: 'create-job' })
@@ -31,12 +32,12 @@ export class JobsController {
     @Payload('createJobDto') createJobDto: CreateJobDto,
     @Payload('user') user: User,
   ) {
-    return await this.jobsService.handleCreateJob(createJobDto, user);
+    return this.jobsService.handleCreateJob(createJobDto, user);
   }
 
   @MessagePattern({ cmd: 'process-jobs' })
   async handleProcessJobs(@Payload() processJobsDto: ProcessJobsDto) {
-    return await this.jobsService.handleProcessJobs(processJobsDto);
+    return this.jobsService.handleProcessJobs(processJobsDto);
   }
 
   @MessagePattern({ cmd: 'get-jobs' })
@@ -44,15 +45,16 @@ export class JobsController {
     @Payload('user') user: User,
     @Payload('filters') filters?: SearchJobsDto,
   ) {
-    return await this.jobsService.handleGetJobs(user, filters);
+    return this.jobsService.handleGetJobs(user, filters);
   }
 
   @MessagePattern({ cmd: 'delete-job' })
   async handleDeleteJob(
     @Payload('jobId') jobId: string,
     @Payload('user') user: User,
+    @Payload('query') query: DeleteJobDto,
   ) {
-    return await this.jobsService.handleDeleteJob(jobId, user);
+    return this.jobsService.handleDeleteJob(jobId, user, query);
   }
 
   @MessagePattern({ cmd: 'update-job' })
@@ -61,7 +63,7 @@ export class JobsController {
     @Payload('jobId') jobId: string,
     @Payload('user') user: User,
   ) {
-    return await this.jobsService.handleUpdateJob(updateJobDto, jobId, user);
+    return this.jobsService.handleUpdateJob(updateJobDto, jobId, user);
   }
 
   @MessagePattern({ cmd: 'get-job' })
@@ -69,12 +71,12 @@ export class JobsController {
     @Payload('jobId') jobId: string,
     @Payload('user') user: User,
   ) {
-    return await this.jobsService.handleGetJob(jobId, user);
+    return this.jobsService.handleGetJob(jobId, user);
   }
 
   @MessagePattern({ cmd: 'get-company' })
   async handleGetCompany(@Payload() companyId: string) {
-    return await this.jobsService.handleGetCompany(companyId);
+    return this.jobsService.handleGetCompany(companyId);
   }
 
   @MessagePattern({ cmd: 'saved-jobs' })
@@ -82,7 +84,7 @@ export class JobsController {
     @Payload('jobIds') jobIds: string[],
     @Payload('user') user: User,
   ) {
-    return await this.jobsService.handleSavedJobs(jobIds, user);
+    return this.jobsService.handleSavedJobs(jobIds, user);
   }
 
   @MessagePattern({ cmd: 'remove-saved-jobs' })
@@ -90,20 +92,17 @@ export class JobsController {
     @Payload('removeSavedJobsDto') removeSavedJobsDto: RemoveSavedJobsDto,
     @Payload('user') user: User,
   ) {
-    return await this.jobsService.handleRemoveSavedJobs(
-      removeSavedJobsDto,
-      user,
-    );
+    return this.jobsService.handleRemoveSavedJobs(removeSavedJobsDto, user);
   }
 
   @MessagePattern({ cmd: 'get-jobs-recruiter' })
   async handleGetAllApplicationsOfJobs(@Payload() recruiterId: string) {
-    return await this.jobsService.handleGetAllApplicationsOfJobs(recruiterId);
+    return this.jobsService.handleGetAllApplicationsOfJobs(recruiterId);
   }
 
   @MessagePattern({ cmd: 'get-company-by-recruiter-id' })
   async handleGetCompanyByRecruiterId(@Payload() recruiterId: string) {
-    return await this.jobsService.handleGetCompanyByRecruiterId(recruiterId);
+    return this.jobsService.handleGetCompanyByRecruiterId(recruiterId);
   }
 
   @EventPattern('update-company')
@@ -111,7 +110,7 @@ export class JobsController {
     @Payload('updateCompanyDto') updateCompanyDto: UpdateCompanyDto,
     @Payload('recruiterId') recruiterId: string,
   ) {
-    return await this.jobsService.handleUpdateCompanyOfRecruiter(
+    return this.jobsService.handleUpdateCompanyOfRecruiter(
       updateCompanyDto,
       recruiterId,
     );
@@ -119,6 +118,6 @@ export class JobsController {
 
   @MessagePattern({ cmd: 'verify-job' })
   async handleVerifyJob(@Payload() jobId: string) {
-    return await this.jobsService.handleVerifyJob(jobId);
+    return this.jobsService.handleVerifyJob(jobId);
   }
 }

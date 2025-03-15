@@ -87,7 +87,7 @@ export class ReviewsService {
         userIds: company.recruiters.map((re) => re.id),
       });
 
-      return await reviewRepository.findOne({
+      return reviewRepository.findOne({
         where: { id: newReview.id },
         relations: ['candidate', 'company'],
         select: {
@@ -119,7 +119,7 @@ export class ReviewsService {
 
       const { role, company } = user;
 
-      return await reviewRepository.find({
+      return reviewRepository.find({
         relations: ['candidate', 'company'],
         where:
           role.name === 'recruiter'
@@ -185,7 +185,7 @@ export class ReviewsService {
 
       await reviewRepository.update({ id: reviewId }, updateReviewDto);
 
-      return await reviewRepository.findOne({
+      return reviewRepository.findOne({
         where: { id: reviewId },
         relations: ['candidate', 'company'],
         select: {
