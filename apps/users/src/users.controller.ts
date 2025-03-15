@@ -63,8 +63,9 @@ export class UsersController {
   async deleteUser(
     @Payload('userId') userId: string,
     @Payload('user') user: User,
+    @Payload('applicationId') applicationId?: string,
   ) {
-    return this.usersService.handleDeleteUser(userId, user);
+    return this.usersService.handleDeleteUser(userId, user, applicationId);
   }
 
   @MessagePattern({ cmd: 'get-password' })

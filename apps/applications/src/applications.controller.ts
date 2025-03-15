@@ -70,7 +70,13 @@ export class ApplicationsController {
   }
 
   @MessagePattern({ cmd: 'delete-user-from-application' })
-  async handleDeleteUserFromApplication(@Payload() userId: string) {
-    return this.applicationsService.handleDeleteUserFromApplication(userId);
+  async handleDeleteUserFromApplication(
+    @Payload('userId') userId: string,
+    @Payload('applicationId') applicationId: string,
+  ) {
+    return this.applicationsService.handleDeleteUserFromApplication(
+      userId,
+      applicationId,
+    );
   }
 }

@@ -34,6 +34,18 @@ export enum Provider {
   LOCAL = 'local',
 }
 
+export enum EmailType {
+  VERIFY_EMAIL = 'verify_email',
+  ACCOUNT_DELETE = 'account_delete',
+  VERIFY_OTP = 'verify_otp',
+  PAYMENT_SUCCESSFULLY = 'payment_successfully',
+}
+
+export enum ElasticIndexes {
+  USERS = 'users',
+  JOBS = 'jobs',
+}
+
 export const PREMIUM_PRICE = 1200;
 export const RECRUITER_JOB_LIMIT = 10;
 export const CANDIDATE_APPLICATION_LIMIT = 5;

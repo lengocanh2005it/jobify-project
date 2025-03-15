@@ -1,5 +1,6 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { Company } from 'apps/jobs/src/entities';
 import { Role, Skill, User } from 'apps/users/src/entities';
@@ -7,6 +8,8 @@ import * as bcrypt from 'bcrypt';
 import {
   CANDIDATE_APPLICATION_LIMIT,
   CANDIDATE_PREMIUM_LIMIT,
+  ElasticIndexes,
+  EmailType,
   NotificationTypes,
   Provider,
   RECRUITER_JOB_LIMIT,
@@ -30,9 +33,10 @@ import {
 import { omit } from 'lodash';
 import { paginate, PaginateQuery } from 'nestjs-paginate';
 import { lastValueFrom } from 'rxjs';
+import { Repository } from 'typeorm';
 
 @Injectable()
-export class UsersService {
+export class UsersService implements OnModuleInit {
   constructor(
     @Inject('NOTIFICATIONS_SERVICE')
     private readonly rabbitMqNotificationClient: ClientProxy,
@@ -44,11 +48,62 @@ export class UsersService {
     private readonly rabbitMqApplicationClient: ClientProxy,
     private readonly configService: ConfigService,
     private readonly transactionsProvider: TransactionsProvider,
+    private readonly elasticsearchService: ElasticsearchService,
   ) {}
+
+  async onModuleInit() {
+    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
+      const userRepository = queryRunner.manager.getRepository(User);
+      return this.handleSyncUsersToElasticSearch(userRepository);
+    });
+  }
 
   public getUsers = async (query: PaginateQuery) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
       const userRepository = queryRunner.manager.getRepository(User);
+
+      let userIds: string[] | null = null;
+
+      const search = query.search;
+
+      if (search) {
+        let field = 'email';
+
+        let value = search;
+
+        if (search.includes(':')) {
+          const [searchField, searchValue] = search.split(':');
+
+          field = searchField.trim();
+
+          value = searchValue.trim();
+        }
+
+        const { hits } = await this.elasticsearchService.search({
+          index: ElasticIndexes.USERS,
+          body: {
+            query: {
+              bool: {
+                should:
+                  field === 'email'
+                    ? value.includes('@')
+                      ? [{ term: { 'email.keyword': value } }]
+                      : [{ wildcard: { email: `*${value}*` } }]
+                    : [
+                        { match_phrase: { [field]: value } },
+                        { wildcard: { [field]: `*${value}*` } },
+                      ],
+              },
+            },
+          },
+        });
+
+        console.log('Hits: ', hits);
+
+        userIds = hits.hits.map(
+          (hit) => (hit._source as Partial<User>).id as string,
+        );
+      }
 
       const qb = userRepository
         .createQueryBuilder('user')
@@ -66,47 +121,12 @@ export class UsersService {
           'user.premium_expiry',
           'user.createdAt',
           'role.name',
-        ]);
+        ])
+        .andWhere('role.name != :roleName', { roleName: 'admin' });
 
-      const search = query.search;
-
-      if (search) {
-        if (search.includes(':')) {
-          const [column, value] = search.split(':').map((s) => s.trim());
-
-          const allowedColumns = [
-            'email',
-            'full_name',
-            'address',
-            'phone_number',
-            'role.name',
-          ];
-
-          if (allowedColumns.includes(column)) {
-            if (column === 'role.name') {
-              qb.andWhere(`role.name LIKE :value`, { value: `%${value}%` });
-            } else {
-              qb.andWhere(`user.${column} LIKE :value`, {
-                value: `%${value}%`,
-              });
-            }
-          }
-        } else {
-          qb.andWhere(
-            `(
-            user.email LIKE :search OR 
-            user.full_name LIKE :search OR 
-            user.address LIKE :search OR 
-            user.phone_number LIKE :search OR 
-            user.bio LIKE :search OR
-            role.name LIKE :search
-          )`,
-            { search: `%${search}%` },
-          );
-        }
+      if (userIds && userIds.length > 0) {
+        qb.andWhere('user.id IN (:...userIds)', { userIds });
       }
-
-      qb.andWhere('role.name != :roleName', { roleName: 'admin' });
 
       return paginate(query, qb, {
         sortableColumns: ['id', 'email'],
@@ -206,7 +226,7 @@ export class UsersService {
         }
       }
 
-      const newUser = userRepository.create({
+      let newUser = userRepository.create({
         ...createUserData,
         ...(certifications && {
           certifications: JSON.parse(certifications) as string[],
@@ -277,6 +297,22 @@ export class UsersService {
           type: key,
         },
         userIds: [newUser.id],
+      });
+
+      newUser = (await userRepository.findOne({
+        where: {
+          id: newUser.id,
+        },
+        relations: ['role'],
+      })) as User;
+
+      await this.elasticsearchService.index({
+        index: ElasticIndexes.USERS,
+        id: newUser.id,
+        body: {
+          ...omit(newUser, ['password']),
+          role: newUser.role.name,
+        },
       });
 
       return omit(newUser, ['password']);
@@ -614,7 +650,11 @@ export class UsersService {
     });
   };
 
-  public handleDeleteUser = async (userId: string, user: User) => {
+  public handleDeleteUser = async (
+    userId: string,
+    user: User,
+    applicationId?: string,
+  ) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
       const userRepository = queryRunner.manager.getRepository(User);
 
@@ -630,18 +670,41 @@ export class UsersService {
 
       const { role } = user;
 
+      if (role.name === 'recruiter' && !applicationId)
+        throw new RpcException(
+          generateRpcExceptionResponse(
+            HttpStatus.BAD_REQUEST,
+            `Please provide the applicationId of the candidate you want to remove from the list of applicants for the job you posted.`,
+          ),
+        );
+
       if (role.name === 'recruiter') {
-        const result = this.rabbitMqApplicationClient.send(
-          { cmd: 'delete-user-from-application' },
-          userId,
+        const result = await lastValueFrom(
+          this.rabbitMqApplicationClient.send(
+            { cmd: 'delete-user-from-application' },
+            {
+              userId,
+              applicationId,
+            },
+          ),
         );
 
         return result;
       } else {
+        this.rabbitMqEmailClient.emit('send-email', {
+          email: findUser.email,
+          type: EmailType.ACCOUNT_DELETE,
+        });
+
+        await this.elasticsearchService.delete({
+          index: ElasticIndexes.USERS,
+          id: userId,
+        });
+
         await userRepository.delete({ id: userId });
 
         return {
-          success: 'User deleted successfully!',
+          success: `User with id: '${userId} deleted successfully.'`,
         };
       }
     });
@@ -793,7 +856,7 @@ export class UsersService {
 
       this.rabbitMqEmailClient.emit('send-email', {
         email: user.email,
-        type: 'payment_successfully',
+        type: EmailType.PAYMENT_SUCCESSFULLY,
       });
     });
   };
@@ -1078,5 +1141,41 @@ export class UsersService {
 
       return null;
     });
+  };
+
+  private handleSyncUsersToElasticSearch = async (
+    userRepository: Repository<User>,
+  ) => {
+    const users = await userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .getMany();
+
+    const bulkBody = users.flatMap((user) => [
+      { index: { _index: ElasticIndexes.USERS, _id: user.id } },
+      {
+        id: user.id,
+        email: user.email,
+        phone_number: user.phone_number,
+        full_name: user.full_name,
+        bio: user.bio,
+        avatar_url: user.avatar_url,
+        is_premium: user.is_premium,
+        expected_salary: user.expected_salary,
+        premium_expiry: user.premium_expiry,
+        createdAt: user.createdAt,
+        role: user.role.name,
+      },
+    ]);
+
+    const chunkSize = 1000;
+
+    for (let i = 0; i < bulkBody.length; i += chunkSize) {
+      await this.elasticsearchService.bulk({
+        index: ElasticIndexes.USERS,
+        body: bulkBody.slice(i, i + chunkSize),
+        refresh: 'wait_for',
+      });
+    }
   };
 }

@@ -63,6 +63,12 @@ export const NotificationTypes = {
     description:
       'The interview has been permanently deleted by the admin. Please contact support for any concerns.',
   },
+  CANDIDATE_REMOVED: {
+    key: 'candidate_removed',
+    title: 'Application Removed',
+    description:
+      'A recruiter has removed you from the list of applicants for the job you applied for.',
+  },
 
   // Employer Notifications
   NEW_APPLICATION_RECEIVED: {
