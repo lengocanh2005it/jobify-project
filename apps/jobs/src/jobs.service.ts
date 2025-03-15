@@ -7,6 +7,7 @@ import { NotificationTypes, Role } from 'libs/common/constants';
 import {
   CreateCompanyDto,
   CreateJobDto,
+  DeleteJobDto,
   ProcessJobsDto,
   RemoveSavedJobsDto,
   SearchJobsDto,
@@ -518,7 +519,11 @@ export class JobsService {
     });
   };
 
-  public handleDeleteJob = async (jobId: string, user: User) => {
+  public handleDeleteJob = async (
+    jobId: string,
+    user: User,
+    query?: DeleteJobDto,
+  ) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
       const jobRepository = queryRunner.manager.getRepository(Job);
 
@@ -539,6 +544,11 @@ export class JobsService {
 
       const { id, role } = user;
 
+      if (role.name === 'admin' && !query?.recruiter_id)
+        throw new RpcException(
+          `You must be provide the recruiter_id to delete their jobs.`,
+        );
+
       if (job.recruiter.id !== id && role.name === 'recruiter')
         throw new RpcException(
           generateRpcExceptionResponse(
@@ -554,9 +564,51 @@ export class JobsService {
         relations: ['requirements'],
       });
 
+      if (
+        jobWithRequirements?.requirements &&
+        jobWithRequirements.requirements.length
+      ) {
+        await jobRepository
+          .createQueryBuilder()
+          .relation(Job, 'requirements')
+          .of(job.id)
+          .remove(jobWithRequirements.requirements.map((re) => re.id));
+      }
+
       await jobRepository.delete({ id: jobId });
 
-      return { success: 'Job deleted successfully.' };
+      return (
+        await jobRepository.find({
+          relations: ['requirements'],
+          where: {
+            recruiter: {
+              id: role.name === 'admin' ? query?.recruiter_id : id,
+            },
+          },
+          select: {
+            id: true,
+            title: true,
+            address: true,
+            job_type: true,
+            salary_min: true,
+            salary_max: true,
+            description: true,
+            status: true,
+            posted_at: true,
+            expired_at: true,
+            is_approved: true,
+            cancel_reason: true,
+            cancelled_by: true,
+            createdAt: true,
+            requirements: {
+              requirement: true,
+            },
+          },
+        })
+      ).map((job) => ({
+        ...job,
+        requirements: job.requirements.map((re) => re.requirement),
+      }));
     });
   };
 

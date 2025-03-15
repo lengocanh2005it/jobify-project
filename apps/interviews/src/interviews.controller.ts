@@ -21,7 +21,7 @@ export class InterviewsController {
     @Payload('createInterviewDto') createInterviewDto: CreateInterviewDto,
     @Payload('user') user: User,
   ) {
-    return await this.interviewsService.handleCreateInterview(
+    return this.interviewsService.handleCreateInterview(
       createInterviewDto,
       user,
     );
@@ -31,9 +31,7 @@ export class InterviewsController {
   async handleProcessInterviews(
     @Payload() processInterviewsDto: ProcessInterviewsDto,
   ) {
-    return await this.interviewsService.handleProcessInterviews(
-      processInterviewsDto,
-    );
+    return this.interviewsService.handleProcessInterviews(processInterviewsDto);
   }
 
   @MessagePattern({ cmd: 'update-interview' })
@@ -42,7 +40,7 @@ export class InterviewsController {
     @Payload('interviewId') interviewId: string,
     @Payload('user') user: User,
   ) {
-    return await this.interviewsService.handleUpdateInterview(
+    return this.interviewsService.handleUpdateInterview(
       updateInterviewDto,
       interviewId,
       user,
@@ -54,10 +52,7 @@ export class InterviewsController {
     @Payload('interviewId') interviewId: string,
     @Payload('user') user: User,
   ) {
-    return await this.interviewsService.handleDeleteInterview(
-      interviewId,
-      user,
-    );
+    return this.interviewsService.handleDeleteInterview(interviewId, user);
   }
 
   @MessagePattern({ cmd: 'get-interviews' })
@@ -65,10 +60,7 @@ export class InterviewsController {
     @Payload('user') user: User,
     @Payload('searchInterviewsDto') searchInterviewsDto?: SearchInterviewsDto,
   ) {
-    return await this.interviewsService.handleGetReviews(
-      user,
-      searchInterviewsDto,
-    );
+    return this.interviewsService.handleGetReviews(user, searchInterviewsDto);
   }
 
   @MessagePattern({ cmd: 'get-interview' })

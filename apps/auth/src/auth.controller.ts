@@ -14,7 +14,7 @@ export class AuthController {
 
   @MessagePattern({ cmd: 'login' })
   async handleLogin(@Payload() loginDto: LoginDto) {
-    return await this.authService.handleLogin(loginDto);
+    return this.authService.handleLogin(loginDto);
   }
 
   @MessagePattern({ cmd: 'update-password' })

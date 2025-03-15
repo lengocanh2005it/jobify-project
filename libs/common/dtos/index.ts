@@ -30,3 +30,4 @@ export * from './update-review.dto';
 export * from './verify-email.dto';
 export * from './update-user.dto';
 export * from './remove-saved-jobs.dto';
+export * from './delete-job.dto';

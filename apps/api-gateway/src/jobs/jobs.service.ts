@@ -3,6 +3,7 @@ import { ClientProxy } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities';
 import {
   CreateJobDto,
+  DeleteJobDto,
   ProcessJobsDto,
   RemoveSavedJobsDto,
   SavedJobsDto,
@@ -38,13 +39,18 @@ export class JobsService {
     );
   };
 
-  public handleDeleteJob = async (jobId: string, user: User) => {
+  public handleDeleteJob = async (
+    jobId: string,
+    user: User,
+    query?: DeleteJobDto,
+  ) => {
     return await lastValueFrom(
       this.rabbitMqJobsClient.send(
         { cmd: 'delete-job' },
         {
           jobId,
           user,
+          query,
         },
       ),
     );

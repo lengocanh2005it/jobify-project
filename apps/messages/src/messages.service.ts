@@ -548,7 +548,7 @@ export class MessagesService {
         },
       );
 
-      return await messageRepository.findOne({
+      return messageRepository.findOne({
         where: {
           id: messageId,
         },
