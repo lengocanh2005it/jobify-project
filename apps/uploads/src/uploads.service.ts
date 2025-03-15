@@ -2,12 +2,10 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RpcException } from '@nestjs/microservices';
 import * as cloudinary from 'cloudinary';
-import * as fs from 'fs';
 import {
   generateRpcExceptionResponse,
   UrlResponseType,
 } from 'libs/common/utils';
-import * as path from 'path';
 
 @Injectable()
 export class UploadsService {

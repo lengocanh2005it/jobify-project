@@ -5,6 +5,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { PassportModule } from '@nestjs/passport';
 import { MulterModule } from '@nestjs/platform-express';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
@@ -17,10 +18,10 @@ import {
   GoogleProvider,
   JwtProvider,
   LinkedInProvider,
+  TransactionsProvider,
 } from 'libs/common/providers';
 import * as multer from 'multer';
 import { CommonService } from './common.service';
-import { ScheduleModule } from '@nestjs/schedule';
 
 @Global()
 @Module({
@@ -96,6 +97,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     GoogleProvider,
     LinkedInProvider,
     FacebookProvider,
+    TransactionsProvider,
   ],
   exports: [
     JwtModule,
@@ -107,6 +109,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     FacebookProvider,
     ThrottlerModule,
     ScheduleModule,
+    TransactionsProvider,
   ],
 })
 export class CommonModule {}
