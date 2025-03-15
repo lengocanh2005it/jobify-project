@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   Req,
   UploadedFiles,
   UseGuards,
@@ -86,10 +87,11 @@ export class UsersController {
   async deleteUser(
     @Param('id', ParseUUIDPipe) userId: string,
     @Req() request: Request,
+    @Query('applicationId') applicationId?: string,
   ) {
     const user = request.user as User;
 
-    return this.usersService.handleDeleteUser(userId, user);
+    return this.usersService.handleDeleteUser(userId, user, applicationId);
   }
 
   @Patch('company/assign')

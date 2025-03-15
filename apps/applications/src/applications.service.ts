@@ -685,7 +685,10 @@ export class ApplicationsService {
     }
   }
 
-  public handleDeleteUserFromApplication = async (userId: string) => {
+  public handleDeleteUserFromApplication = async (
+    userId: string,
+    applicationId: string,
+  ) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
       const applicationRepository =
         queryRunner.manager.getRepository(Application);
@@ -710,6 +713,27 @@ export class ApplicationsService {
       await applicationRepository.delete({
         candidate: {
           id: userId,
+        },
+      });
+
+      const { title, description, key } = NotificationTypes.CANDIDATE_REMOVED;
+
+      this.rabbitMqNotificationClient.emit('create-notification', {
+        data: {
+          title,
+          message: description,
+          type: key,
+        },
+        userIds: [userId],
+        metadata: {
+          applications: [
+            (await applicationRepository.findOne({
+              where: {
+                id: applicationId,
+              },
+              relations: ['job'],
+            })) as Application,
+          ],
         },
       });
 

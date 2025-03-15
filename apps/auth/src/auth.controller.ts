@@ -1,7 +1,7 @@
 import { Controller, UseInterceptors } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities';
-import { Provider } from 'libs/common/constants';
+import { EmailType, Provider } from 'libs/common/constants';
 import { LoginDto, UpdatePasswordDto } from 'libs/common/dtos';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 import { CreateSocialAccount } from 'libs/common/utils';
@@ -28,7 +28,7 @@ export class AuthController {
   @MessagePattern({ cmd: 'forget-password' })
   handleForgetPassword(
     @Payload('email') email: string,
-    @Payload('type') type: string,
+    @Payload('type') type: EmailType,
   ) {
     return this.authService.handleForgetPassword(email, type);
   }

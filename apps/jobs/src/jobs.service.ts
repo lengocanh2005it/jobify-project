@@ -10,7 +10,7 @@ import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { Cron } from '@nestjs/schedule';
 import { Company, Job, Requirement, SavedJob } from 'apps/jobs/src/entities';
 import { User } from 'apps/users/src/entities';
-import { NotificationTypes, Role } from 'libs/common/constants';
+import { ElasticIndexes, NotificationTypes, Role } from 'libs/common/constants';
 import {
   CreateCompanyDto,
   CreateJobDto,
@@ -40,12 +40,10 @@ export class JobsService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    return await this.transactionsProvider.executeTransaction(
-      async (queryRunner) => {
-        const jobRepository = queryRunner.manager.getRepository(Job);
-        return await this.handleSyncJobsToElasticSearch(jobRepository);
-      },
-    );
+    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
+      const jobRepository = queryRunner.manager.getRepository(Job);
+      return this.handleSyncJobsToElasticSearch(jobRepository);
+    });
   }
 
   @Cron('0 0 * * *')
@@ -251,7 +249,7 @@ export class JobsService implements OnModuleInit {
       const { full_name, email, phone_number, company } = savedJob.recruiter;
 
       await this.elasticsearchService.index({
-        index: 'jobs',
+        index: ElasticIndexes.JOBS,
         id: savedJob.id,
         body: {
           ...savedJob,
@@ -542,7 +540,7 @@ export class JobsService implements OnModuleInit {
       };
 
       const { hits } = await this.elasticsearchService.search({
-        index: 'jobs',
+        index: ElasticIndexes.JOBS,
         body: queryBody,
       });
 
@@ -607,7 +605,7 @@ export class JobsService implements OnModuleInit {
       }
 
       await this.elasticsearchService.delete({
-        index: 'jobs',
+        index: ElasticIndexes.JOBS,
         id: jobId,
       });
 
@@ -1128,7 +1126,7 @@ export class JobsService implements OnModuleInit {
     });
 
     const bulkBody = jobs.flatMap((job) => [
-      { index: { _index: 'jobs', _id: job.id } },
+      { index: { _index: ElasticIndexes.JOBS, _id: job.id } },
       {
         id: job.id,
         title: job.title,
@@ -1149,6 +1147,9 @@ export class JobsService implements OnModuleInit {
       },
     ]);
 
-    await this.elasticsearchService.bulk({ index: 'jobs', body: bulkBody });
+    await this.elasticsearchService.bulk({
+      index: ElasticIndexes.JOBS,
+      body: bulkBody,
+    });
   };
 }

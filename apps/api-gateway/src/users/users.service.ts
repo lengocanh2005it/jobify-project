@@ -67,13 +67,18 @@ export class UsersService {
     );
   };
 
-  public handleDeleteUser = async (userId: string, user: User) => {
+  public handleDeleteUser = async (
+    userId: string,
+    user: User,
+    applicationId?: string,
+  ) => {
     return await lastValueFrom(
       this.rabbitMqUsersClient.send(
         { cmd: 'delete-user' },
         {
           userId,
           user,
+          applicationId,
         },
       ),
     );

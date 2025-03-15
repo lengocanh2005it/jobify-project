@@ -4,7 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities';
 import * as bcrypt from 'bcrypt';
-import { Provider } from 'libs/common/constants';
+import { EmailType, Provider } from 'libs/common/constants';
 import { LoginDto, UpdatePasswordDto } from 'libs/common/dtos';
 import {
   CreateSocialAccount,
@@ -93,7 +93,7 @@ export class AuthService {
     );
   };
 
-  public handleForgetPassword = (email: string, type: string) => {
+  public handleForgetPassword = (email: string, type: EmailType) => {
     this.rabbitMqEmailClient.emit('send-email', { email, type });
 
     return {
@@ -167,7 +167,7 @@ export class AuthService {
 
     this.rabbitMqEmailClient.emit('send-email', {
       email,
-      type: 'verify-email',
+      type: EmailType.VERIFY_EMAIL,
     });
 
     return {

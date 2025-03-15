@@ -1,18 +1,44 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ClientProxy } from '@nestjs/microservices';
+import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { render } from '@react-email/render';
+import { EmailType } from 'libs/common/constants';
 import {
+  AccountDeleteEmail,
   OtpEmail,
   PremiumSubscriptionSuccessEmail,
 } from 'libs/common/emails/templates';
-import { generateOTP } from 'libs/common/utils';
+import { generateOTP, generateRpcExceptionResponse } from 'libs/common/utils';
 import * as nodemailer from 'nodemailer';
 import { Transporter } from 'nodemailer';
+import { JSX } from 'react';
 
 @Injectable()
 export class EmailsService {
-  private transporter: Transporter;
+  private readonly transporter: Transporter;
+  private readonly emailTemplates: Record<
+    EmailType,
+    { component: JSX.Element; subject: string; generateData?: () => any }
+  > = {
+    [EmailType.PAYMENT_SUCCESSFULLY]: {
+      component: <PremiumSubscriptionSuccessEmail />,
+      subject: 'PAYMENT FOR SUBSCRIPTION SUCCESSFULLY!',
+    },
+    [EmailType.VERIFY_EMAIL]: {
+      component: <OtpEmail otp="{otp}" />,
+      subject: 'OTP VERIFICATION CODE',
+      generateData: () => ({ otp: generateOTP() }),
+    },
+    [EmailType.VERIFY_OTP]: {
+      component: <OtpEmail otp="{otp}" />,
+      subject: 'OTP VERIFICATION CODE',
+      generateData: () => ({ otp: generateOTP() }),
+    },
+    [EmailType.ACCOUNT_DELETE]: {
+      component: <AccountDeleteEmail />,
+      subject: 'ACCOUNT DELETION NOTICE',
+    },
+  };
 
   constructor(
     @Inject('REDIS_SERVICE') private readonly rabbitMqRedisClient: ClientProxy,
@@ -27,33 +53,39 @@ export class EmailsService {
     });
   }
 
-  public handleSendEmail = async (email: string, type: string) => {
-    if (type === 'payment_successfully') {
-      const content = await render(<PremiumSubscriptionSuccessEmail />);
+  public handleSendEmail = async (email: string, type: EmailType) => {
+    const template = this.emailTemplates[type];
 
-      await this.transporter.sendMail({
-        from: 'Jobify Support Team <jobify@supportteams.org>',
-        to: email,
-        subject: 'PAYMENT FOR SUBSCRIPTION SUCCESSFULLY!',
-        html: content,
-      });
-    } else if (type === 'verify-otp' || type === 'verify-email') {
-      const otp = generateOTP();
+    if (!template)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `Unsupported email type: ${type}`,
+        ),
+      );
 
-      this.rabbitMqRedisClient.emit('set-key', {
-        key: `${email}:otp`,
-        data: otp,
-        ttl: 120,
-      });
+    let content = template.component;
 
-      const content = await render(<OtpEmail otp={otp} />);
+    if (template.generateData) {
+      const data = template.generateData();
 
-      await this.transporter.sendMail({
-        from: 'Jobify Support Team <jobify@supportteams.org>',
-        to: email,
-        subject: 'OTP VERIFICATION CODE',
-        html: content,
-      });
+      if (type === EmailType.VERIFY_EMAIL || type === EmailType.VERIFY_OTP) {
+        this.rabbitMqRedisClient.emit('set-key', {
+          key: `${email}:otp`,
+          data: data.otp,
+          ttl: 120,
+        });
+        content = <OtpEmail otp={data.otp} />;
+      }
     }
+
+    const htmlContent = await render(content);
+
+    await this.transporter.sendMail({
+      from: 'Jobify Support Team <jobify@supportteams.org>',
+      to: email,
+      subject: template.subject,
+      html: htmlContent,
+    });
   };
 }
