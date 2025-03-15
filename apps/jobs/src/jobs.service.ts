@@ -23,7 +23,7 @@ import {
 } from 'libs/common/dtos';
 import { TransactionsProvider } from 'libs/common/providers';
 import { generateRpcExceptionResponse } from 'libs/common/utils';
-import { omit } from 'lodash';
+import { omit, pick } from 'lodash';
 import { lastValueFrom } from 'rxjs';
 import { LessThan, Repository } from 'typeorm';
 
@@ -252,7 +252,16 @@ export class JobsService implements OnModuleInit {
         index: ElasticIndexes.JOBS,
         id: savedJob.id,
         body: {
-          ...savedJob,
+          ...pick(savedJob, [
+            'id',
+            'title',
+            'address',
+            'job_type',
+            'salary_min',
+            'salary_max',
+            'posted_at',
+            'expired_at',
+          ]),
           recruiter: savedJob.recruiter
             ? {
                 id: savedJob.recruiter.id,
@@ -494,6 +503,32 @@ export class JobsService implements OnModuleInit {
           must.push({
             match: { title: filters.title },
           });
+        }
+
+        if (filters.postedAfter || filters.postedBefore) {
+          const rangeFilter: any = { posted_at: {} };
+
+          if (filters.postedAfter) {
+            rangeFilter.posted_at.gte = filters.postedAfter;
+          }
+          if (filters.postedBefore) {
+            rangeFilter.posted_at.lte = filters.postedBefore;
+          }
+
+          must.push({ range: rangeFilter });
+        }
+
+        if (filters.expiredAfter || filters.expiredBefore) {
+          const rangeFilter: any = { expired_at: {} };
+
+          if (filters.expiredAfter) {
+            rangeFilter.expired_at.gte = filters.expiredAfter;
+          }
+          if (filters.expiredBefore) {
+            rangeFilter.expired_at.lte = filters.expiredBefore;
+          }
+
+          must.push({ range: rangeFilter });
         }
 
         if (filters.address) {
@@ -1134,6 +1169,8 @@ export class JobsService implements OnModuleInit {
         job_type: job.job_type,
         salary_min: job.salary_min,
         salary_max: job.salary_max,
+        posted_at: job.posted_at,
+        expired_at: job.expired_at,
         recruiter: job.recruiter
           ? {
               id: job.recruiter.id,

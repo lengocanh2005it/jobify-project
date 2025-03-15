@@ -1,9 +1,10 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { Application } from 'apps/applications/src/entities';
 import { Job } from 'apps/jobs/src/entities';
 import { User } from 'apps/users/src/entities';
-import { NotificationTypes } from 'libs/common/constants';
+import { ElasticIndexes, NotificationTypes } from 'libs/common/constants';
 import {
   ProcessApplicationsDto,
   SearchApplicationsDto,
@@ -15,10 +16,12 @@ import {
   UpdateApplication,
   UrlResponseType,
 } from 'libs/common/utils';
+import { omit, pick } from 'lodash';
 import { lastValueFrom } from 'rxjs';
+import { Repository } from 'typeorm';
 
 @Injectable()
-export class ApplicationsService {
+export class ApplicationsService implements OnModuleInit {
   constructor(
     @Inject('JOBS_SERVICE') private readonly rabbitMqJobClient: ClientProxy,
     @Inject('NOTIFICATIONS_SERVICE')
@@ -27,7 +30,17 @@ export class ApplicationsService {
     private readonly rabbitMqUploadClient: ClientProxy,
     @Inject('USERS_SERVICE') private readonly rabbitMqUserClient: ClientProxy,
     private readonly transactionsProvider: TransactionsProvider,
+    private readonly elasticsearchService: ElasticsearchService,
   ) {}
+
+  async onModuleInit() {
+    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
+      const applicationRepository =
+        queryRunner.manager.getRepository(Application);
+
+      return this.handleSyncApplicationsToElasticSearch(applicationRepository);
+    });
+  }
 
   public handleCreateApplication = async (
     createApplication: CreateApplication,
@@ -53,7 +66,7 @@ export class ApplicationsService {
       if (
         job.status === 'closed' ||
         job.is_approved === false ||
-        job.expired_at.getTime() < new Date().getTime()
+        new Date(job.expired_at).getTime() < new Date().getTime()
       )
         throw new RpcException(
           generateRpcExceptionResponse(
@@ -134,6 +147,43 @@ export class ApplicationsService {
         userIds: [application.job.recruiter.id],
       });
 
+      await this.elasticsearchService.index({
+        index: ElasticIndexes.APPLICATIONS,
+        id: application.id,
+        body: {
+          ...omit(application, ['createdAt', 'updatedAt']),
+          candidate: pick(application.candidate, [
+            'id',
+            'full_name',
+            'email',
+            'bio',
+            'phone_number',
+            'address',
+            'certifications',
+          ]),
+          job: {
+            ...pick(application.job, [
+              'id',
+              'title',
+              'description',
+              'salary_min',
+              'salary_max',
+              'job_type',
+              'status',
+              'address',
+            ]),
+            recruiter: pick(application.job.recruiter, [
+              'id',
+              'email',
+              'full_name',
+              'bio',
+              'phone_number',
+              'address',
+            ]),
+          },
+        },
+      });
+
       return this.formatApplicationResponse(application);
     });
   };
@@ -143,99 +193,74 @@ export class ApplicationsService {
     filters?: SearchApplicationsDto,
   ) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
-      const applicationRepository =
-        queryRunner.manager.getRepository(Application);
-
       const { id, role } = user;
 
-      const query = applicationRepository
-        .createQueryBuilder('application')
-        .leftJoinAndSelect('application.candidate', 'candidate')
-        .leftJoinAndSelect('application.job', 'job')
-        .leftJoinAndSelect('job.recruiter', 'recruiter')
-        .select([
-          'application.id',
-          'application.resume_link',
-          'application.cover_letter_link',
-          'application.status',
-          'application.applied_at',
-          'candidate.id',
-          'candidate.email',
-          'candidate.full_name',
-          'candidate.bio',
-          'candidate.phone_number',
-          'candidate.address',
-          'candidate.certifications',
-          'job.id',
-          'job.title',
-          'job.description',
-          'job.salary_min',
-          'job.salary_max',
-          'job.job_type',
-          'job.status',
-          'job.address',
-          'recruiter.id',
-          'recruiter.email',
-          'recruiter.full_name',
-          'recruiter.bio',
-          'recruiter.phone_number',
-          'recruiter.address',
-        ]);
+      const must: any[] = [];
 
-      if (role.name === 'recruiter') {
-        query.andWhere('job.recruiter.id = :id', { id });
-      } else if (role.name !== 'admin') {
-        query.andWhere('candidate.id = :id', { id });
+      if (filters) {
+        if (filters.status) {
+          must.push({
+            match: { status: filters.status },
+          });
+        }
+
+        if (filters.jobTitle) {
+          must.push({
+            match: { 'job.title': filters.jobTitle },
+          });
+        }
+
+        if (filters.appliedAfter || filters.appliedBefore) {
+          const rangeFilter: any = { applied_at: {} };
+
+          if (filters.appliedAfter) {
+            rangeFilter.applied_at.gte = filters.appliedAfter;
+          }
+          if (filters.appliedBefore) {
+            rangeFilter.applied_at.lte = filters.appliedBefore;
+          }
+
+          must.push({ range: rangeFilter });
+        }
+
+        if (filters.candidate_email) {
+          must.push({
+            term: { 'candidate.email.keyword': filters.candidate_email },
+          });
+        }
+
+        if (filters.candidate_name) {
+          must.push({
+            wildcard: { 'candidate.full_name': `*${filters.candidate_name}*` },
+          });
+        }
       }
 
-      if (filters?.status) {
-        query.andWhere('application.status = :status', {
-          status: filters.status,
-        });
+      switch (role.name) {
+        case 'recruiter':
+          must.push({ match: { 'job.recruiter.id': id } });
+          break;
+        case 'admin':
+          break;
+        default:
+          must.push({ match: { 'candidate.id': id } });
+          break;
       }
 
-      if (filters?.jobTitle) {
-        query.andWhere('LOWER(job.title) LIKE LOWER(:jobTitle)', {
-          jobTitle: `%${filters.jobTitle}%`,
-        });
-      }
-
-      if (filters?.appliedAfter) {
-        const appliedAfterDate = new Date(
-          `${filters.appliedAfter}T00:00:00.000Z`,
-        );
-
-        query.andWhere('application.applied_at >= :appliedAfter', {
-          appliedAfter: appliedAfterDate,
-        });
-      }
-
-      if (filters?.appliedBefore) {
-        const appliedBeforeDate = new Date(
-          `${filters.appliedBefore}T00:00:00.000Z`,
-        );
-
-        query.andWhere('application.applied_at <= :appliedBefore', {
-          appliedBefore: appliedBeforeDate,
-        });
-      }
-
-      if (filters?.candidate_email) {
-        query.andWhere('candidate.email = :candidate_email', {
-          candidate_email: filters.candidate_email,
-        });
-      }
-
-      if (filters?.candidate_name) {
-        query.andWhere(
-          'LOWER(candidate.full_name) LIKE LOWER(:candidate_name)',
-          {
-            candidate_name: `%${filters.candidate_name}%`,
+      const queryBody = {
+        query: {
+          bool: {
+            must,
           },
-        );
-      }
+        },
+      };
 
-      return query.getMany();
+      const { hits } = await this.elasticsearchService.search({
+        index: ElasticIndexes.APPLICATIONS,
+        body: queryBody,
+      });
+
+      return hits.hits.map((hit) => hit._source);
     });
   };
 
@@ -358,6 +383,11 @@ export class ApplicationsService {
           type: key,
         },
         userIds: [application.job.recruiter.id],
+      });
+
+      await this.elasticsearchService.delete({
+        index: ElasticIndexes.APPLICATIONS,
+        id: applicationId,
       });
 
       return { success: 'Application deleted successfully!' };
@@ -809,12 +839,14 @@ export class ApplicationsService {
           .set(jobId),
       ]);
 
-      return applicationRepository.findOne({
+      const newApplication = (await applicationRepository.findOne({
         where: {
           id: application.id,
         },
         relations: ['job', 'job.recruiter'],
-      }) as Promise<Application>;
+      })) as Application;
+
+      return newApplication;
     });
   };
 
@@ -831,5 +863,77 @@ export class ApplicationsService {
         recruiter: { id, email, phone_number, address, full_name },
       },
     };
+  };
+
+  private handleSyncApplicationsToElasticSearch = async (
+    applicationRepository: Repository<Application>,
+  ) => {
+    const applications = await applicationRepository
+      .createQueryBuilder('application')
+      .leftJoinAndSelect('application.candidate', 'candidate')
+      .leftJoinAndSelect('application.job', 'job')
+      .leftJoinAndSelect('job.recruiter', 'recruiter')
+      .getMany();
+
+    const bulkBody = applications.flatMap(
+      ({
+        id,
+        resume_link,
+        cover_letter_link,
+        status,
+        applied_at,
+        candidate,
+        job,
+      }) => [
+        { index: { _index: ElasticIndexes.APPLICATIONS, _id: id } },
+        {
+          id,
+          resume_link,
+          cover_letter_link,
+          status,
+          applied_at,
+          candidate: candidate
+            ? pick(candidate, [
+                'id',
+                'email',
+                'full_name',
+                'bio',
+                'phone_number',
+                'address',
+                'certifications',
+              ])
+            : null,
+          job: job
+            ? {
+                ...pick(job, [
+                  'id',
+                  'title',
+                  'description',
+                  'salary_min',
+                  'salary_max',
+                  'job_type',
+                  'status',
+                  'address',
+                ]),
+                recruiter: job.recruiter
+                  ? pick(job.recruiter, [
+                      'id',
+                      'email',
+                      'full_name',
+                      'bio',
+                      'phone_number',
+                      'address',
+                    ])
+                  : null,
+              }
+            : null,
+        },
+      ],
+    );
+
+    await this.elasticsearchService.bulk({
+      index: ElasticIndexes.APPLICATIONS,
+      body: bulkBody,
+    });
   };
 }

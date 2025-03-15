@@ -17,6 +17,7 @@ import {
 export class SearchInterviewsDto {
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
   readonly title?: string;
 
   @IsOptional()

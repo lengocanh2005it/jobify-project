@@ -44,6 +44,7 @@ export enum EmailType {
 export enum ElasticIndexes {
   USERS = 'users',
   JOBS = 'jobs',
+  APPLICATIONS = 'applications',
 }
 
 export const PREMIUM_PRICE = 1200;
