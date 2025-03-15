@@ -1,4 +1,11 @@
-import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
+import {
+  HttpStatus,
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
+import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { Cron } from '@nestjs/schedule';
 import { Company, Job, Requirement, SavedJob } from 'apps/jobs/src/entities';
@@ -18,10 +25,10 @@ import { TransactionsProvider } from 'libs/common/providers';
 import { generateRpcExceptionResponse } from 'libs/common/utils';
 import { omit } from 'lodash';
 import { lastValueFrom } from 'rxjs';
-import { LessThan } from 'typeorm';
+import { LessThan, Repository } from 'typeorm';
 
 @Injectable()
-export class JobsService {
+export class JobsService implements OnModuleInit {
   private readonly logger = new Logger(JobsService.name);
 
   constructor(
@@ -29,7 +36,17 @@ export class JobsService {
     private readonly rabbitMqNotificationClient: ClientProxy,
     @Inject('USERS_SERVICE') private readonly rabbitMqUserClient: ClientProxy,
     private readonly transactionsProvider: TransactionsProvider,
+    private readonly elasticsearchService: ElasticsearchService,
   ) {}
+
+  async onModuleInit() {
+    return await this.transactionsProvider.executeTransaction(
+      async (queryRunner) => {
+        const jobRepository = queryRunner.manager.getRepository(Job);
+        return await this.handleSyncJobsToElasticSearch(jobRepository);
+      },
+    );
+  }
 
   @Cron('0 0 * * *')
   async handleUpdateExpiredJobs() {
@@ -220,14 +237,42 @@ export class JobsService {
         .of(newJob.id)
         .set(recruiterId);
 
+      const relations = ['requirements'];
+
+      if (user.role.name === 'admin') {
+        relations.push('recruiter', 'recruiter.company');
+      }
+
       const savedJob = (await jobRepository.findOne({
         where: { id: newJob.id },
-        relations: ['recruiter', 'requirements'],
+        relations,
       })) as Job;
+
+      const { full_name, email, phone_number, company } = savedJob.recruiter;
+
+      await this.elasticsearchService.index({
+        index: 'jobs',
+        id: savedJob.id,
+        body: {
+          ...savedJob,
+          recruiter: savedJob.recruiter
+            ? {
+                id: savedJob.recruiter.id,
+                full_name,
+                email,
+                phone_number,
+                company: company?.name || null,
+              }
+            : null,
+          requirements: savedJob.requirements.map((r) => r.requirement),
+        },
+      });
 
       return {
         ...savedJob,
-        recruiter: omit(savedJob.recruiter, ['password']),
+        ...(user.role.name === 'admin' && {
+          recruiter: omit(savedJob.recruiter, ['password']),
+        }),
       };
     });
   };
@@ -444,78 +489,64 @@ export class JobsService {
 
   public handleGetJobs = async (user: User, filters?: SearchJobsDto) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
-      const jobRepository = queryRunner.manager.getRepository(Job);
-
-      const { role, company } = user;
-
-      const query = jobRepository
-        .createQueryBuilder('job')
-        .leftJoinAndSelect('job.recruiter', 'recruiter')
-        .leftJoinAndSelect('job.requirements', 'requirements')
-        .leftJoinAndSelect('recruiter.company', 'company')
-        .select([
-          'job',
-          'recruiter.id',
-          'recruiter.full_name',
-          'recruiter.email',
-          'recruiter.phone_number',
-          'company.name',
-          'requirements',
-        ]);
-
-      if (role.name === 'recruiter') {
-        query.andWhere('recruiter.company.id = :id', {
-          id: company.id,
-        });
-      }
+      const must: any[] = [];
 
       if (filters) {
         if (filters.title) {
-          query.andWhere('LOWER(job.title) LIKE LOWER(:title)', {
-            title: `%${filters.title}%`,
+          must.push({
+            match: { title: filters.title },
           });
         }
 
         if (filters.address) {
-          query.andWhere('LOWER(job.address) LIKE LOWER(:address)', {
-            address: `%${filters.address}%`,
+          must.push({
+            match: {
+              address: {
+                query: filters.address,
+                fuzziness: 'AUTO',
+              },
+            },
           });
         }
 
         if (filters.job_type) {
-          query.andWhere('LOWER(job.job_type) = LOWER(:job_type)', {
-            job_type: filters.job_type,
+          must.push({
+            match: { job_type: filters.job_type },
           });
         }
 
         if (filters.salary_min) {
-          query.andWhere('job.salary_min >= :salary_min', {
-            salary_min: filters.salary_min,
+          must.push({
+            range: { salary_min: { gte: filters.salary_min } },
           });
         }
 
         if (filters.salary_max) {
-          query.andWhere('job.salary_max <= :salary_max', {
-            salary_max: filters.salary_max,
+          must.push({
+            range: { salary_max: { lte: filters.salary_max } },
           });
         }
       }
 
-      const jobs = await query.getMany();
+      const queryBody = {
+        query: {
+          bool: {
+            must: [
+              ...(user.role.name === 'recruiter'
+                ? [{ match: { 'recruiter.company': user.company.name } }]
+                : []),
+              ...must,
+            ],
+          },
+        },
+      };
 
-      return jobs.map(({ recruiter, ...job }) => ({
-        ...job,
-        recruiter: recruiter
-          ? {
-              id: recruiter.id,
-              full_name: recruiter.full_name,
-              email: recruiter.email,
-              phone_number: recruiter.phone_number,
-              company: recruiter?.company?.name ? recruiter.company.name : null,
-            }
-          : null,
-        requirements: job.requirements.map((re) => re.requirement),
-      }));
+      const { hits } = await this.elasticsearchService.search({
+        index: 'jobs',
+        body: queryBody,
+      });
+
+      return hits.hits.map((hit) => hit._source);
     });
   };
 
@@ -574,6 +605,11 @@ export class JobsService {
           .of(job.id)
           .remove(jobWithRequirements.requirements.map((re) => re.id));
       }
+
+      await this.elasticsearchService.delete({
+        index: 'jobs',
+        id: jobId,
+      });
 
       await jobRepository.delete({ id: jobId });
 
@@ -1082,5 +1118,37 @@ export class JobsService {
 
       return job;
     });
+  };
+
+  private handleSyncJobsToElasticSearch = async (
+    jobRepository: Repository<Job>,
+  ) => {
+    const jobs = await jobRepository.find({
+      relations: ['recruiter', 'recruiter.company', 'requirements'],
+    });
+
+    const bulkBody = jobs.flatMap((job) => [
+      { index: { _index: 'jobs', _id: job.id } },
+      {
+        id: job.id,
+        title: job.title,
+        address: job.address,
+        job_type: job.job_type,
+        salary_min: job.salary_min,
+        salary_max: job.salary_max,
+        recruiter: job.recruiter
+          ? {
+              id: job.recruiter.id,
+              full_name: job.recruiter.full_name,
+              email: job.recruiter.email,
+              phone_number: job.recruiter.phone_number,
+              company: job.recruiter.company?.name || null,
+            }
+          : null,
+        requirements: job.requirements.map((r) => r.requirement),
+      },
+    ]);
+
+    await this.elasticsearchService.bulk({ index: 'jobs', body: bulkBody });
   };
 }
