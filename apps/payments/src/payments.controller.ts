@@ -33,4 +33,12 @@ export class PaymentsController {
   async handleGetPayments() {
     return this.paymentsService.handleGetPayments();
   }
+
+  @MessagePattern({ cmd: 'create-vnpay-payment' })
+  handleCreateVnPayPayment(
+    @Payload('amount') amount: number,
+    @Payload('ip') ip: string,
+  ) {
+    return this.paymentsService.handleCreatePaymentUrl(amount, ip);
+  }
 }

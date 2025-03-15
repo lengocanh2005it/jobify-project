@@ -34,4 +34,16 @@ export class PaymentsService {
       this.rabbitMqPaymentClient.send({ cmd: 'get-payments' }, {}),
     );
   };
+
+  public handleCreateVnPayPayment = async (amount: number, ip: string) => {
+    return await lastValueFrom(
+      this.rabbitMqPaymentClient.send(
+        { cmd: 'create-vnpay-payment' },
+        {
+          amount,
+          ip,
+        },
+      ),
+    );
+  };
 }
