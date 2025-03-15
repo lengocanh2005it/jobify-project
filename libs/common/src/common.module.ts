@@ -22,6 +22,7 @@ import {
 } from 'libs/common/providers';
 import * as multer from 'multer';
 import { CommonService } from './common.service';
+import { ElasticsearchModule } from '@nestjs/elasticsearch';
 
 @Global()
 @Module({
@@ -89,6 +90,9 @@ import { CommonService } from './common.service';
       ],
     }),
     ScheduleModule.forRoot(),
+    ElasticsearchModule.register({
+      node: 'http://localhost:9200',
+    }),
   ],
   providers: [
     CommonService,
@@ -110,6 +114,7 @@ import { CommonService } from './common.service';
     ThrottlerModule,
     ScheduleModule,
     TransactionsProvider,
+    ElasticsearchModule,
   ],
 })
 export class CommonModule {}

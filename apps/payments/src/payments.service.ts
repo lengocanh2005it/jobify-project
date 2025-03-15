@@ -4,13 +4,10 @@ import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { Cron } from '@nestjs/schedule';
 import { Transaction } from 'apps/payments/src/entities';
 import { User } from 'apps/users/src/entities';
-import * as crypto from 'crypto';
-import { randomUUID } from 'crypto';
 import { endOfDay, startOfDay, subDays } from 'date-fns';
 import { NotificationTypes } from 'libs/common/constants';
 import { TransactionsProvider } from 'libs/common/providers';
 import { generateRpcExceptionResponse } from 'libs/common/utils';
-import qs from 'qs';
 import Stripe from 'stripe';
 import { Between } from 'typeorm';
 
@@ -255,66 +252,4 @@ export class PaymentsService {
       });
     });
   };
-
-  public handleCreatePaymentUrl(amount: number, ipAddr: string) {
-    const now = new Date();
-    const transactionId = String(now.getTime()); // Dùng timestamp để tránh trùng
-
-    const config = {
-      tmnCode: this.configService.get<string>('vnpay.tmn_code', ''),
-      returnUrl: this.configService.get<string>('vnpay.return_url', ''),
-      hashSecret: this.configService.get<string>('vnpay.hash_secret', ''),
-      vnpUrl: this.configService.get<string>('vnpay.url', ''),
-    };
-
-    const vnp_Params: Record<string, string> = {
-      vnp_Version: '2.1.0',
-      vnp_Command: 'pay',
-      vnp_TmnCode: config.tmnCode,
-      vnp_Amount: String(amount * 100), // Không cần padStart
-      vnp_CurrCode: 'VND',
-      vnp_TxnRef: transactionId,
-      vnp_OrderInfo: 'Thanh toán gói Premium.',
-      vnp_OrderType: 'billpayment',
-      vnp_Locale: 'vn',
-      vnp_ReturnUrl: config.returnUrl,
-      vnp_IpAddr: ipAddr,
-      vnp_CreateDate: now
-        .toISOString()
-        .replace(/[-:T.Z]/g, '')
-        .slice(0, 14),
-    };
-
-    // Hàm sắp xếp object theo thứ tự alphabet
-    const sortObject = (
-      obj: Record<string, string>,
-    ): Record<string, string> => {
-      return Object.keys(obj)
-        .sort()
-        .reduce(
-          (acc, key) => {
-            acc[key] = obj[key];
-            return acc;
-          },
-          {} as Record<string, string>,
-        );
-    };
-
-    const sortedParams = sortObject(vnp_Params);
-    const queryString = qs.stringify(sortedParams, { encode: false });
-
-    // Tạo chữ ký HMAC-SHA512
-    const hmac = crypto.createHmac('sha512', config.hashSecret);
-    const secureHash = hmac
-      .update(Buffer.from(queryString, 'utf-8'))
-      .digest('hex');
-
-    console.log('Hash Secret:', config.hashSecret);
-    console.log('Query String:', queryString);
-    console.log('Secure Hash:', secureHash);
-
-    return {
-      payment_url: `${config.vnpUrl}?${queryString}&vnp_SecureHash=${secureHash}`,
-    };
-  }
 }
