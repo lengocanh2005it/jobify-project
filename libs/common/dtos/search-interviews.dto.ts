@@ -45,4 +45,14 @@ export class SearchInterviewsDto {
   @IsNumber()
   @IsPositive()
   readonly score?: number;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  readonly interviewDateBefore?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  readonly interviewDateAfter?: string;
 }

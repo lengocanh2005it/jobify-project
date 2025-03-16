@@ -98,8 +98,6 @@ export class UsersService implements OnModuleInit {
           },
         });
 
-        console.log('Hits: ', hits);
-
         userIds = hits.hits.map(
           (hit) => (hit._source as Partial<User>).id as string,
         );
@@ -416,9 +414,9 @@ export class UsersService implements OnModuleInit {
 
       const { id, role } = user;
 
-      const findUser = await userRepository.findOne({
-        where: { id: userId },
-        relations: ['role'],
+      const { _source: findUser } = await this.elasticsearchService.get<User>({
+        index: ElasticIndexes.USERS,
+        id: userId,
       });
 
       if (!findUser)
@@ -629,7 +627,7 @@ export class UsersService implements OnModuleInit {
         where: {
           id: userId,
         },
-        relations: ['skills'],
+        relations: ['skills', 'role'],
       })) as User;
 
       const { title, description, key } = NotificationTypes.PROFILE_UPDATE;
@@ -643,9 +641,28 @@ export class UsersService implements OnModuleInit {
         userIds: [savedUser.id],
       });
 
+      await this.elasticsearchService.index({
+        index: ElasticIndexes.USERS,
+        id: savedUser.id,
+        body: {
+          id: savedUser.id,
+          email: savedUser.email,
+          phone_number: savedUser.phone_number,
+          full_name: savedUser.full_name,
+          bio: savedUser.bio,
+          avatar_url: savedUser.avatar_url,
+          is_premium: savedUser.is_premium,
+          expected_salary: savedUser.expected_salary,
+          premium_expiry: savedUser.premium_expiry,
+          createdAt: savedUser.createdAt,
+          role: savedUser.role.name,
+        },
+      });
+
       return {
         ...omit(savedUser, ['password']),
         skills: savedUser.skills.map((skill) => skill.name),
+        role: savedUser.role.name,
       };
     });
   };

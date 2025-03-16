@@ -4,7 +4,9 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
+import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { Cron } from '@nestjs/schedule';
 import { InjectDataSource } from '@nestjs/typeorm';
@@ -14,6 +16,7 @@ import { User } from 'apps/users/src/entities';
 import { endOfDay, startOfDay, subDays } from 'date-fns';
 import {
   ApprovalStatus,
+  ElasticIndexes,
   InterviewStatus,
   InterviewType,
   NotificationTypes,
@@ -28,12 +31,12 @@ import {
 } from 'libs/common/dtos';
 import { TransactionsProvider } from 'libs/common/providers';
 import { generateRpcExceptionResponse } from 'libs/common/utils';
-import { omit } from 'lodash';
+import { omit, pick } from 'lodash';
 import { lastValueFrom } from 'rxjs';
-import { Between, DataSource } from 'typeorm';
+import { Between, DataSource, Repository } from 'typeorm';
 
 @Injectable()
-export class InterviewsService {
+export class InterviewsService implements OnModuleInit {
   private readonly logger = new Logger(InterviewsService.name);
 
   constructor(
@@ -43,7 +46,16 @@ export class InterviewsService {
     @Inject('NOTIFICATIONS_SERVICE')
     private readonly rabbitMqNotificationClient: ClientProxy,
     private readonly transactionsProvider: TransactionsProvider,
+    private readonly elasticsearchService: ElasticsearchService,
   ) {}
+
+  async onModuleInit() {
+    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
+      const interviewRepository = queryRunner.manager.getRepository(Interview);
+
+      return this.handleSyncInterviewsToElasticSearch(interviewRepository);
+    });
+  }
 
   @Cron('0 0 * * *')
   async handleNotifyScheduledInterviews() {
@@ -222,9 +234,30 @@ export class InterviewsService {
         .of(existingInterview.id)
         .set(role.name === 'admin' ? createInterviewDto.recruiter_id : id);
 
-      const interview = await interviewRepository.findOne({
+      const interview = (await interviewRepository.findOne({
         where: { id: existingInterview.id },
         relations: ['candidate', 'job', 'recruiter'],
+      })) as Interview;
+
+      await this.elasticsearchService.index({
+        index: ElasticIndexes.INTERVIEWS,
+        id: interview.id,
+        body: {
+          ...interview,
+          recruiter: pick(interview.recruiter, [
+            'id',
+            'full_name',
+            'email',
+            'phone_number',
+          ]),
+          candidate: pick(interview.candidate, [
+            'id',
+            'full_name',
+            'email',
+            'phone_number',
+          ]),
+          job: pick(interview.job, ['id', 'title', 'description']),
+        },
       });
 
       return role.name === 'admin'
@@ -424,11 +457,37 @@ export class InterviewsService {
         });
       }
 
-      const newInterview = await interviewRepository.findOne({
+      const newInterview = (await interviewRepository.findOne({
         where: {
           id: interviewId,
         },
-        relations: ['recruiter', 'candidate', 'job'],
+        relations: ['recruiter', 'candidate', 'job', 'recruiter.company'],
+      })) as Interview;
+
+      await this.elasticsearchService.index({
+        index: ElasticIndexes.INTERVIEWS,
+        id: newInterview.id,
+        body: {
+          ...newInterview,
+          recruiter: {
+            ...pick(newInterview.recruiter, [
+              'id',
+              'full_name',
+              'email',
+              'phone_number',
+            ]),
+            company: {
+              name: newInterview.recruiter.company.name,
+            },
+          },
+          candidate: pick(newInterview.candidate, [
+            'id',
+            'full_name',
+            'email',
+            'phone_number',
+          ]),
+          job: pick(newInterview.job, ['id', 'title', 'description']),
+        },
       });
 
       return role.name === 'admin'
@@ -447,7 +506,7 @@ export class InterviewsService {
         where: {
           id: interviewId,
         },
-        relations: ['recruiter'],
+        relations: ['recruiter', 'candidate'],
       });
 
       if (!interview)
@@ -463,137 +522,155 @@ export class InterviewsService {
           ),
         );
 
-      const { title, description, key } =
-        NotificationTypes.INTERVIEW_DELETED_BY_ADMIN;
+      if (role.name === 'admin') {
+        const { title, description, key } =
+          NotificationTypes.INTERVIEW_DELETED_BY_ADMIN;
+
+        this.rabbitMqNotificationClient.emit('create-notification', {
+          data: {
+            title,
+            message: description,
+            type: key,
+          },
+          userIds: [interview.recruiter.id],
+        });
+      }
+
+      const { title, description, key } = NotificationTypes.INTERVIEW_CANCELLED;
+
+      await this.elasticsearchService.delete({
+        index: ElasticIndexes.INTERVIEWS,
+        id: interviewId,
+      });
 
       this.rabbitMqNotificationClient.emit('create-notification', {
         data: {
           title,
-          message: description,
+          description,
           type: key,
         },
-        userIds: [interview.recruiter.id],
+        userIds: [interview.candidate.id],
       });
 
       await interviewRepository.delete({ id: interviewId });
 
-      return {
-        success: 'Interview deleted successfully!',
-      };
+      return this.handleGetInterviews(user);
     });
   };
 
-  public handleGetReviews = async (
+  public handleGetInterviews = async (
     user: User,
     filters?: SearchInterviewsDto,
   ) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
-      const interviewRepository = queryRunner.manager.getRepository(Interview);
-
       const { role, id } = user;
 
-      const query = interviewRepository
-        .createQueryBuilder('interview')
-        .leftJoinAndSelect('interview.recruiter', 'recruiter')
-        .leftJoinAndSelect('interview.candidate', 'candidate')
-        .leftJoinAndSelect('recruiter.company', 'company')
-        .leftJoinAndSelect('interview.job', 'job')
-        .select([
-          'interview',
-          'recruiter.id',
-          'recruiter.full_name',
-          'recruiter.email',
-          'recruiter.phone_number',
-          'company.name',
-          'candidate.id',
-          'candidate.full_name',
-          'candidate.email',
-          'candidate.phone_number',
-          'job.id',
-          'job.title',
-          'job.description',
-        ]);
-
-      if (role.name === 'recruiter') {
-        query.andWhere('recruiter.id = :id', { id });
-      } else if (role.name === 'candidate') {
-        query.andWhere('candidate.id = :id', { id });
-      }
+      const must: any[] = [];
 
       if (filters) {
-        if (filters.title) {
-          query.andWhere('LOWER(interview.title) LIKE LOWER(:title)', {
-            title: `%${filters.title}%`,
+        if (filters?.title) {
+          must.push({
+            match: { title: filters.title },
+          });
+        }
+
+        if (filters.interviewDateAfter || filters.interviewDateBefore) {
+          const rangeFilter: any = { interview_date: {} };
+
+          if (filters.interviewDateAfter) {
+            rangeFilter.interview_date.gte = filters.interviewDateAfter;
+          }
+
+          if (filters.interviewDateBefore) {
+            rangeFilter.interview_date.lte = filters.interviewDateBefore;
+          }
+
+          must.push({ range: rangeFilter });
+        }
+
+        if (filters.status) {
+          must.push({
+            match: {
+              status: filters.status,
+            },
           });
         }
 
         if (filters.approval_status) {
-          query.andWhere(
-            'LOWER(interview.approval_status) = LOWER(:approval_status)',
-            {
+          must.push({
+            match: {
               approval_status: filters.approval_status,
             },
-          );
+          });
         }
 
         if (filters.interview_type) {
-          query.andWhere(
-            'LOWER(interview.interview_type) = LOWER(:interview_type)',
-            {
+          must.push({
+            match: {
               interview_type: filters.interview_type,
             },
-          );
+          });
         }
 
         if (filters.result) {
-          query.andWhere('LOWER(interview.result) = LOWER(:result)', {
+          must.push({
             result: filters.result,
           });
         }
 
         if (filters.score) {
-          const scoreValue = Number(filters.score);
-
-          if (!isNaN(scoreValue)) {
-            query.andWhere('interview.score = :score', { score: scoreValue });
-          }
-        }
-
-        if (filters.status) {
-          query.andWhere('LOWER(interview.status) = LOWER(:status)', {
-            status: filters.status,
+          must.push({
+            score: filters.score,
           });
         }
       }
 
-      return (await query.getMany()).map((interview) => {
-        return user.role.name === 'recruiter'
-          ? omit(interview, ['recruiter'])
-          : interview;
+      switch (role.name) {
+        case 'recruiter':
+          must.push({ match: { 'recruiter.id': id } });
+          break;
+        case 'admin':
+          break;
+        default:
+          must.push({ match: { 'candidate.id': id } });
+          break;
+      }
+
+      const queryBody = {
+        query: {
+          bool: {
+            must,
+          },
+        },
+      };
+
+      const { hits } = await this.elasticsearchService.search({
+        index: ElasticIndexes.INTERVIEWS,
+        body: queryBody,
       });
+
+      return hits.hits.map((hit) => hit._source);
     });
   };
 
   public handleGetInterview = async (interviewId: string, user: User) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
-      const interviewRepository = queryRunner.manager.getRepository(Interview);
-
       const { id, role } = user;
 
-      const interview = await interviewRepository.findOne({
-        where: { id: interviewId },
-        relations: ['recruiter', 'job', 'candidate'],
+      const { _source } = await this.elasticsearchService.get<Interview>({
+        index: ElasticIndexes.INTERVIEWS,
+        id: interviewId,
       });
 
-      if (!interview)
+      if (!_source)
         throw new RpcException(
           generateRpcExceptionResponse(
             HttpStatus.NOT_FOUND,
-            `Interview with id: '${interviewId} not found.'`,
+            `Interview with id: '${interviewId}' not found.`,
           ),
         );
 
-      if (role.name === 'recruiter' && interview.recruiter.id !== id)
+      if (role.name === 'recruiter' && _source.recruiter.id !== id)
         throw new RpcException(
           generateRpcExceptionResponse(
             HttpStatus.FORBIDDEN,
@@ -601,7 +678,7 @@ export class InterviewsService {
           ),
         );
 
-      if (role.name === 'candidate' && interview.candidate.id !== id)
+      if (role.name === 'candidate' && _source.candidate.id !== id)
         throw new RpcException(
           generateRpcExceptionResponse(
             HttpStatus.FORBIDDEN,
@@ -610,8 +687,8 @@ export class InterviewsService {
         );
 
       return role.name === 'admin' || role.name === 'candidate'
-        ? omit(interview, ['recruiter.password', 'candidate.password'])
-        : omit(interview, ['recruiter', 'candidate.password']);
+        ? omit(_source, ['recruiter.password', 'candidate.password'])
+        : omit(_source, ['recruiter', 'candidate.password']);
     });
   };
 
@@ -793,6 +870,44 @@ export class InterviewsService {
       return {
         success: 'Processed the interviews successfully!',
       };
+    });
+  };
+
+  private handleSyncInterviewsToElasticSearch = async (
+    interviewRepository: Repository<Interview>,
+  ) => {
+    const interviews = await interviewRepository.find({
+      relations: ['recruiter', 'candidate', 'job', 'recruiter.company'],
+    });
+
+    const bulkBody = interviews.flatMap((interview) => [
+      { index: { _index: ElasticIndexes.INTERVIEWS, _id: interview.id } },
+      {
+        ...interview,
+        recruiter: {
+          ...pick(interview.recruiter, [
+            'id',
+            'full_name',
+            'email',
+            'phone_number',
+          ]),
+          company: {
+            name: interview.recruiter.company.name,
+          },
+        },
+        candidate: pick(interview.candidate, [
+          'id',
+          'full_name',
+          'email',
+          'phone_number',
+        ]),
+        job: pick(interview.job, ['id', 'title', 'description']),
+      },
+    ]);
+
+    await this.elasticsearchService.bulk({
+      index: ElasticIndexes.INTERVIEWS,
+      body: bulkBody,
     });
   };
 }
