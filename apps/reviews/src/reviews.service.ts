@@ -1,22 +1,36 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { Company } from 'apps/jobs/src/entities';
 import { Review } from 'apps/reviews/src/entities';
 import { User } from 'apps/users/src/entities';
-import { NotificationTypes } from 'libs/common/constants';
-import { CreateReviewDto, UpdateReviewDto } from 'libs/common/dtos';
+import { ElasticIndexes, NotificationTypes } from 'libs/common/constants';
+import {
+  CreateReviewDto,
+  SearchReviewsDto,
+  UpdateReviewDto,
+} from 'libs/common/dtos';
 import { TransactionsProvider } from 'libs/common/providers';
 import { generateRpcExceptionResponse } from 'libs/common/utils';
 import { lastValueFrom } from 'rxjs';
+import { Repository } from 'typeorm';
 
 @Injectable()
-export class ReviewsService {
+export class ReviewsService implements OnModuleInit {
   constructor(
     @Inject('JOBS_SERVICE') private readonly rabbitMqJobClient: ClientProxy,
     @Inject('NOTIFICATIONS_SERVICE')
     private readonly rabbitMQNotificationClient: ClientProxy,
     private readonly transactionsProvider: TransactionsProvider,
+    private readonly elasticsearchService: ElasticsearchService,
   ) {}
+
+  async onModuleInit() {
+    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
+      const reviewRepository = queryRunner.manager.getRepository(Review);
+      return this.handleSyncReviewsToElasticSearch(reviewRepository);
+    });
+  }
 
   public handleCreateReview = async (
     createReviewDto: CreateReviewDto,
@@ -113,42 +127,83 @@ export class ReviewsService {
     });
   };
 
-  public handleGetReviews = async (user: User) => {
+  public handleGetReviews = async (
+    user: User,
+    searchReviewsDto?: SearchReviewsDto,
+  ) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
-      const reviewRepository = queryRunner.manager.getRepository(Review);
+      const { role, company, id } = user;
 
-      const { role, company } = user;
+      const must: any[] = [];
 
-      return reviewRepository.find({
-        relations: ['candidate', 'company'],
-        where:
-          role.name === 'recruiter'
-            ? {
-                company: {
-                  id: company.id,
-                },
-              }
-            : {},
-        select: {
-          id: true,
-          ratings_number: true,
-          comment: true,
-          company: {
-            name: true,
-            bio: true,
-            id: true,
-            address: true,
-            website: true,
-          },
-          candidate: {
-            id: true,
-            email: true,
-            phone_number: true,
-            full_name: true,
-            bio: true,
+      if (searchReviewsDto) {
+        if (searchReviewsDto.ratings_number) {
+          must.push({
+            match: {
+              ratings_number: searchReviewsDto.ratings_number,
+            },
+          });
+        }
+
+        if (searchReviewsDto.candidate_name) {
+          if (role.name === 'candidate')
+            throw new RpcException(
+              generateRpcExceptionResponse(
+                HttpStatus.BAD_REQUEST,
+                `You can only get all reviews that belongs to you.`,
+              ),
+            );
+
+          must.push({
+            match: {
+              'candidate.full_name': searchReviewsDto.candidate_name,
+            },
+          });
+        }
+
+        if (
+          searchReviewsDto.reviewDateAfter ||
+          searchReviewsDto.reviewDateBefore
+        ) {
+          const rangeFilter: any = { createdAt: {} };
+
+          if (searchReviewsDto.reviewDateAfter) {
+            rangeFilter.createdAt.gte = searchReviewsDto.reviewDateAfter;
+          }
+
+          if (searchReviewsDto.reviewDateBefore) {
+            rangeFilter.createdAt.lte = searchReviewsDto.reviewDateBefore;
+          }
+
+          must.push({ range: rangeFilter });
+        }
+      }
+
+      switch (role.name) {
+        case 'recruiter':
+          must.push({ match: { 'company.id': company.id } });
+          break;
+        case 'admin':
+          break;
+        default:
+          must.push({ match: { 'candidate.id': id } });
+          break;
+      }
+
+      const queryBody = {
+        query: {
+          bool: {
+            must,
           },
         },
+      };
+
+      const { hits } = await this.elasticsearchService.search<Review>({
+        index: ElasticIndexes.REVIEWS,
+        body: queryBody,
       });
+
+      return hits.hits.map((hit) => hit._source);
     });
   };
 
@@ -185,7 +240,7 @@ export class ReviewsService {
 
       await reviewRepository.update({ id: reviewId }, updateReviewDto);
 
-      return reviewRepository.findOne({
+      const updatedReview = (await reviewRepository.findOne({
         where: { id: reviewId },
         relations: ['candidate', 'company'],
         select: {
@@ -207,7 +262,34 @@ export class ReviewsService {
             bio: true,
           },
         },
+      })) as Review;
+
+      await this.elasticsearchService.index({
+        index: ElasticIndexes.REVIEWS,
+        id: reviewId,
+        body: {
+          id: updatedReview.id,
+          ratings_number: updatedReview.ratings_number,
+          comment: updatedReview.comment,
+          createdAt: updatedReview.createdAt,
+          company: {
+            id: updatedReview.company.id,
+            name: updatedReview.company.name,
+            bio: updatedReview.company.bio,
+            address: updatedReview.company.address,
+            website: updatedReview.company.website,
+          },
+          candidate: {
+            id: updatedReview.candidate.id,
+            email: updatedReview.candidate.email,
+            phone_number: updatedReview.candidate.phone_number,
+            full_name: updatedReview.candidate.full_name,
+            bio: updatedReview.candidate.bio,
+          },
+        },
       });
+
+      return updatedReview;
     });
   };
 
@@ -247,6 +329,11 @@ export class ReviewsService {
           type: key,
         },
         userIds: review.company.recruiters.map((r) => r.id),
+      });
+
+      await this.elasticsearchService.delete({
+        index: ElasticIndexes.REVIEWS,
+        id: reviewId,
       });
 
       await reviewRepository.delete({ id: reviewId });
@@ -305,6 +392,50 @@ export class ReviewsService {
         );
 
       return review;
+    });
+  };
+
+  private handleSyncReviewsToElasticSearch = async (
+    reviewRepository: Repository<Review>,
+  ) => {
+    const reviews = await reviewRepository.find({
+      relations: ['company', 'candidate'],
+    });
+
+    const bulkBody = reviews.flatMap((review) => [
+      { index: { _index: ElasticIndexes.REVIEWS, _id: review.id } },
+      {
+        id: review.id,
+        ratings_number: review.ratings_number,
+        comment: review.comment,
+        createdAt: review.createdAt,
+        company: {
+          id: review.company.id,
+          name: review.company.name,
+          bio: review.company.bio,
+          address: review.company.address,
+          website: review.company.website,
+        },
+        candidate: {
+          id: review.candidate.id,
+          email: review.candidate.email,
+          phone_number: review.candidate.phone_number,
+          full_name: review.candidate.full_name,
+          bio: review.candidate.bio,
+        },
+      },
+    ]);
+
+    if (!bulkBody.length) {
+      console.warn(
+        '⚠️ Bulk request body is empty, skipping Elasticsearch sync.',
+      );
+      return;
+    }
+
+    await this.elasticsearchService.bulk({
+      index: ElasticIndexes.REVIEWS,
+      body: bulkBody,
     });
   };
 }

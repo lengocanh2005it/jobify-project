@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -15,7 +16,11 @@ import { User } from 'apps/users/src/entities';
 import { Request } from 'express';
 import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
-import { CreateReviewDto, UpdateReviewDto } from 'libs/common/dtos';
+import {
+  CreateReviewDto,
+  SearchReviewsDto,
+  UpdateReviewDto,
+} from 'libs/common/dtos';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 
 @Controller('reviews')
@@ -36,12 +41,15 @@ export class ReviewsController {
   }
 
   @Get()
-  @Roles(Role.ADMIN, Role.RECRUITER)
+  @Roles(Role.ADMIN, Role.RECRUITER, Role.CANDIDATE)
   @ResponseMessage('Reviews fetched successfully!')
-  async getReviews(@Req() request: Request) {
+  async getReviews(
+    @Req() request: Request,
+    @Query() searchReviewsDto?: SearchReviewsDto,
+  ) {
     const user = request.user as User;
 
-    return this.reviewsService.handleGetReviews(user);
+    return this.reviewsService.handleGetReviews(user, searchReviewsDto);
   }
 
   @Patch(':id')

@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { PaymentsService } from 'apps/api-gateway/src/payments/payments.service';
 import { User } from 'apps/users/src/entities';
 import { Request } from 'express';
 import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
+import { SearchTransactionsDto } from 'libs/common/dtos';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 
 @Controller('payments')
@@ -31,7 +32,7 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Get all payments successfully!')
   @Roles(Role.ADMIN)
-  async getPayments() {
-    return this.paymentsService.handleGetPayments();
+  async getPayments(@Query() searchTransactionsDto?: SearchTransactionsDto) {
+    return this.paymentsService.handleGetPayments(searchTransactionsDto);
   }
 }

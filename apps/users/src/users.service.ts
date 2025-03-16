@@ -414,9 +414,11 @@ export class UsersService implements OnModuleInit {
 
       const { id, role } = user;
 
-      const { _source: findUser } = await this.elasticsearchService.get<User>({
-        index: ElasticIndexes.USERS,
-        id: userId,
+      const findUser = await userRepository.findOne({
+        where: {
+          id: userId,
+        },
+        relations: ['applications'],
       });
 
       if (!findUser)
@@ -675,7 +677,10 @@ export class UsersService implements OnModuleInit {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
       const userRepository = queryRunner.manager.getRepository(User);
 
-      const findUser = await userRepository.findOneBy({ id: userId });
+      const { _source: findUser } = await this.elasticsearchService.get<User>({
+        index: ElasticIndexes.USERS,
+        id: userId,
+      });
 
       if (!findUser)
         throw new RpcException(
@@ -1184,6 +1189,13 @@ export class UsersService implements OnModuleInit {
         role: user.role.name,
       },
     ]);
+
+    if (!bulkBody.length) {
+      console.warn(
+        '⚠️ Bulk request body is empty, skipping Elasticsearch sync.',
+      );
+      return;
+    }
 
     const chunkSize = 1000;
 

@@ -1,7 +1,11 @@
 import { Controller, UseInterceptors } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities';
-import { CreateReviewDto, UpdateReviewDto } from 'libs/common/dtos';
+import {
+  CreateReviewDto,
+  SearchReviewsDto,
+  UpdateReviewDto,
+} from 'libs/common/dtos';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 import { ReviewsService } from './reviews.service';
 
@@ -19,8 +23,11 @@ export class ReviewsController {
   }
 
   @MessagePattern({ cmd: 'get-reviews' })
-  async getReviews(@Payload() user: User) {
-    return this.reviewsService.handleGetReviews(user);
+  async getReviews(
+    @Payload('user') user: User,
+    @Payload('searchReviewsDto') searchReviewsDto?: SearchReviewsDto,
+  ) {
+    return this.reviewsService.handleGetReviews(user, searchReviewsDto);
   }
 
   @MessagePattern({ cmd: 'update-review' })

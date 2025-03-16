@@ -937,6 +937,13 @@ export class ApplicationsService implements OnModuleInit {
       ],
     );
 
+    if (!bulkBody.length) {
+      console.warn(
+        '⚠️ Bulk request body is empty, skipping Elasticsearch sync.',
+      );
+      return;
+    }
+
     await this.elasticsearchService.bulk({
       index: ElasticIndexes.APPLICATIONS,
       body: bulkBody,

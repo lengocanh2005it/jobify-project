@@ -1,7 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities';
-import { CreateReviewDto, UpdateReviewDto } from 'libs/common/dtos';
+import {
+  CreateReviewDto,
+  SearchReviewsDto,
+  UpdateReviewDto,
+} from 'libs/common/dtos';
 import { lastValueFrom } from 'rxjs';
 
 @Injectable()
@@ -23,9 +27,18 @@ export class ReviewsService {
     );
   };
 
-  public handleGetReviews = async (user: User) => {
+  public handleGetReviews = async (
+    user: User,
+    searchReviewsDto?: SearchReviewsDto,
+  ) => {
     return await lastValueFrom(
-      this.rabbitMqReviewClient.send({ cmd: 'get-reviews' }, user),
+      this.rabbitMqReviewClient.send(
+        { cmd: 'get-reviews' },
+        {
+          user,
+          searchReviewsDto,
+        },
+      ),
     );
   };
 

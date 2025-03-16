@@ -4,6 +4,7 @@ import { User } from 'apps/users/src/entities';
 import { PREMIUM_PRICE } from 'libs/common/constants';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 import { PaymentsService } from './payments.service';
+import { SearchTransactionsDto } from 'libs/common/dtos';
 
 @Controller()
 @UseInterceptors(ServicesExceptionInterceptor)
@@ -30,7 +31,9 @@ export class PaymentsController {
   }
 
   @MessagePattern({ cmd: 'get-payments' })
-  async handleGetPayments() {
-    return this.paymentsService.handleGetPayments();
+  async handleGetPayments(
+    @Payload() searchTransactionsDto?: SearchTransactionsDto,
+  ) {
+    return this.paymentsService.handleGetPayments(searchTransactionsDto);
   }
 }

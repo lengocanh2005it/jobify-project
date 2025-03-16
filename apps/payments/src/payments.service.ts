@@ -1,18 +1,26 @@
-import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
+import {
+  HttpStatus,
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { Cron } from '@nestjs/schedule';
 import { Transaction } from 'apps/payments/src/entities';
 import { User } from 'apps/users/src/entities';
 import { endOfDay, startOfDay, subDays } from 'date-fns';
-import { NotificationTypes } from 'libs/common/constants';
+import { ElasticIndexes, NotificationTypes } from 'libs/common/constants';
+import { SearchTransactionsDto } from 'libs/common/dtos';
 import { TransactionsProvider } from 'libs/common/providers';
 import { generateRpcExceptionResponse } from 'libs/common/utils';
 import Stripe from 'stripe';
-import { Between } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 
 @Injectable()
-export class PaymentsService {
+export class PaymentsService implements OnModuleInit {
   private readonly stripe: Stripe;
   private readonly logger = new Logger(PaymentsService.name);
 
@@ -22,6 +30,7 @@ export class PaymentsService {
     @Inject('NOTIFICATIONS_SERVICE')
     private readonly rabbitMqNotificationClient: ClientProxy,
     private readonly transactionsProvider: TransactionsProvider,
+    private readonly elasticsearchService: ElasticsearchService,
   ) {
     this.stripe = new Stripe(
       configService.get<string>('stripe.secret_key') ?? '',
@@ -29,6 +38,14 @@ export class PaymentsService {
         apiVersion: '2025-02-24.acacia',
       },
     );
+  }
+
+  async onModuleInit() {
+    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
+      const transactionRepository =
+        queryRunner.manager.getRepository(Transaction);
+      return this.handleSyncTransactionsToElasticSearch(transactionRepository);
+    });
   }
 
   @Cron('0 0 * * *')
@@ -131,6 +148,16 @@ export class PaymentsService {
         newTransaction.user = user;
 
         await transactionRepository.save(newTransaction);
+      } else {
+        const newExpiredDate = new Date(newTransaction.expiry_date);
+
+        newExpiredDate.setDate(newExpiredDate.getDate() + 30);
+
+        newTransaction.payment_date = new Date();
+
+        newTransaction.expiry_date = newExpiredDate;
+
+        await transactionRepository.save(newTransaction);
       }
 
       const session = await this.stripe.checkout.sessions.create({
@@ -205,18 +232,49 @@ export class PaymentsService {
             this.rabbitMqUserClient.emit('update-premium', userId);
           }
 
-          await transactionRepository.update(
-            {
+          const findTransaction = await transactionRepository.findOne({
+            where: {
               id: transactionId,
             },
-            {
-              status:
-                payment_status === 'paid' ||
-                payment_status === 'no_payment_required'
-                  ? 'SUCCESS'
-                  : 'FAILED',
+            relations: ['user'],
+          });
+
+          if (!findTransaction)
+            throw new RpcException(
+              generateRpcExceptionResponse(
+                HttpStatus.NOT_FOUND,
+                `Transaction with id: '${transactionId}' not found.`,
+              ),
+            );
+
+          findTransaction.status =
+            payment_status === 'paid' ||
+            payment_status === 'no_payment_required'
+              ? 'SUCCESS'
+              : 'FAILED';
+
+          await transactionRepository.save(findTransaction);
+
+          await this.elasticsearchService.index({
+            index: ElasticIndexes.TRANSACTIONS,
+            id: transactionId,
+            body: {
+              id: findTransaction.id,
+              amount: findTransaction.amount,
+              status: findTransaction.status,
+              payment_date: findTransaction.payment_date,
+              expiry_date: findTransaction.expiry_date,
+              user: {
+                id: findTransaction.user.id,
+                full_name: findTransaction.user.full_name,
+                email: findTransaction.user.email,
+                phone_number: findTransaction.user.phone_number,
+                is_premium: findTransaction.user.is_premium,
+                premium_expiry: findTransaction.user.premium_expiry,
+                address: findTransaction.user.address,
+              },
             },
-          );
+          });
         }
       } catch (err) {
         console.error(err);
@@ -225,31 +283,135 @@ export class PaymentsService {
     });
   };
 
-  public handleGetPayments = async () => {
+  public handleGetPayments = async (
+    searchTransactionsDto?: SearchTransactionsDto,
+  ) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
-      const transactionRepository =
-        queryRunner.manager.getRepository(Transaction);
+      const must: any[] = [];
 
-      return transactionRepository.find({
-        select: {
-          id: true,
-          amount: true,
-          status: true,
-          payment_date: true,
-          expiry_date: true,
-          user: {
-            id: true,
-            full_name: true,
-            email: true,
-            phone_number: true,
-            is_premium: true,
-            premium_expiry: true,
-            address: true,
+      if (searchTransactionsDto) {
+        if (searchTransactionsDto.status) {
+          must.push({
+            match: { status: searchTransactionsDto.status },
+          });
+        }
+
+        if (
+          searchTransactionsDto.paymentDateAfter ||
+          searchTransactionsDto.paymentDateBefore
+        ) {
+          const rangeFilter: any = { payment_date: {} };
+
+          if (searchTransactionsDto.paymentDateAfter) {
+            rangeFilter.payment_date.gte =
+              searchTransactionsDto.paymentDateAfter;
+          }
+
+          if (searchTransactionsDto.paymentDateBefore) {
+            rangeFilter.payment_date.lte =
+              searchTransactionsDto.paymentDateBefore;
+          }
+
+          must.push({ range: rangeFilter });
+        }
+
+        if (
+          searchTransactionsDto.expiryDateAfter ||
+          searchTransactionsDto.expiryDateBefore
+        ) {
+          const rangeFilter: any = { expiry_date: {} };
+
+          if (searchTransactionsDto.expiryDateAfter) {
+            rangeFilter.expiry_date.gte = searchTransactionsDto.expiryDateAfter;
+          }
+
+          if (searchTransactionsDto.expiryDateBefore) {
+            rangeFilter.expiry_date.lte =
+              searchTransactionsDto.expiryDateBefore;
+          }
+
+          must.push({ range: rangeFilter });
+        }
+
+        if (searchTransactionsDto.user_email) {
+          must.push({
+            match: {
+              'user.email.keyword': searchTransactionsDto.user_email,
+            },
+          });
+        }
+
+        if (searchTransactionsDto.user_fullName) {
+          must.push({
+            match: {
+              'user.full_name': searchTransactionsDto.user_fullName,
+            },
+          });
+        }
+
+        if (searchTransactionsDto.user_phoneNumber) {
+          must.push({
+            wildcard: {
+              'user.phone_number.keyword': `*${searchTransactionsDto.user_phoneNumber}*`,
+            },
+          });
+        }
+      }
+
+      const queryBody = {
+        query: {
+          bool: {
+            must,
           },
-          createdAt: true,
         },
-        relations: ['user'],
+      };
+
+      const { hits } = await this.elasticsearchService.search({
+        index: ElasticIndexes.TRANSACTIONS,
+        body: queryBody,
       });
+
+      return hits.hits.map((hit) => hit._source);
+    });
+  };
+
+  private handleSyncTransactionsToElasticSearch = async (
+    transactionRepository: Repository<Transaction>,
+  ) => {
+    const transactions = await transactionRepository.find({
+      relations: ['user'],
+    });
+
+    const bulkBody = transactions.flatMap((transaction) => [
+      { index: { _index: ElasticIndexes.TRANSACTIONS, _id: transaction.id } },
+      {
+        id: transaction.id,
+        amount: transaction.amount,
+        status: transaction.status,
+        payment_date: transaction.payment_date,
+        expiry_date: transaction.expiry_date,
+        user: {
+          id: transaction.user.id,
+          full_name: transaction.user.full_name,
+          email: transaction.user.email,
+          phone_number: transaction.user.phone_number,
+          is_premium: transaction.user.is_premium,
+          premium_expiry: transaction.user.premium_expiry,
+          address: transaction.user.address,
+        },
+      },
+    ]);
+
+    if (!bulkBody.length) {
+      console.warn(
+        '⚠️ Bulk request body is empty, skipping Elasticsearch sync.',
+      );
+      return;
+    }
+
+    await this.elasticsearchService.bulk({
+      index: ElasticIndexes.TRANSACTIONS,
+      body: bulkBody,
     });
   };
 }
