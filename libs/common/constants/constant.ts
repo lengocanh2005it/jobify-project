@@ -46,6 +46,8 @@ export enum ElasticIndexes {
   JOBS = 'jobs',
   APPLICATIONS = 'applications',
   INTERVIEWS = 'interviews',
+  TRANSACTIONS = 'transactions',
+  REVIEWS = 'reviews',
 }
 
 export const PREMIUM_PRICE = 1200;

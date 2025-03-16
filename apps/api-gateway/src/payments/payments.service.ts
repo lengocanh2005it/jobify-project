@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities';
+import { SearchTransactionsDto } from 'libs/common/dtos';
 import { lastValueFrom } from 'rxjs';
 
 @Injectable()
@@ -29,9 +30,14 @@ export class PaymentsService {
     );
   };
 
-  public handleGetPayments = async () => {
+  public handleGetPayments = async (
+    searchTransactionsDto?: SearchTransactionsDto,
+  ) => {
     return await lastValueFrom(
-      this.rabbitMqPaymentClient.send({ cmd: 'get-payments' }, {}),
+      this.rabbitMqPaymentClient.send(
+        { cmd: 'get-payments' },
+        searchTransactionsDto,
+      ),
     );
   };
 }
