@@ -266,60 +266,13 @@ export class ApplicationsService implements OnModuleInit {
 
   public handleGetApplication = async (applicationId: string, user: User) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
-      const applicationRepository =
-        queryRunner.manager.getRepository(Application);
+      const { _source: application } =
+        await this.elasticsearchService.get<Application>({
+          index: ElasticIndexes.APPLICATIONS,
+          id: applicationId,
+        });
 
       const { role } = user;
-
-      const application = await applicationRepository.findOne({
-        where: {
-          id: applicationId,
-        },
-        relations: [
-          'candidate',
-          'job',
-          'job.recruiter',
-          'job.recruiter.company',
-        ],
-        select: {
-          id: true,
-          resume_link: true,
-          cover_letter_link: true,
-          status: true,
-          applied_at: true,
-          candidate: {
-            id: true,
-            email: true,
-            phone_number: true,
-            address: true,
-            full_name: true,
-            bio: true,
-            certifications: true,
-          },
-          job: {
-            id: true,
-            title: true,
-            description: true,
-            job_type: true,
-            address: true,
-            status: true,
-            posted_at: true,
-            salary_max: true,
-            salary_min: true,
-            recruiter: {
-              id: true,
-              email: true,
-              phone_number: true,
-              address: true,
-              full_name: true,
-              bio: true,
-              company: {
-                name: true,
-              },
-            },
-          },
-        },
-      });
 
       if (!application)
         throw new RpcException(
@@ -496,6 +449,58 @@ export class ApplicationsService implements OnModuleInit {
           type: key,
         },
         userIds: [application.job.recruiter.id],
+      });
+
+      const {
+        id,
+        resume_link,
+        cover_letter_link,
+        status,
+        applied_at,
+        candidate,
+        job,
+      } = application;
+
+      await this.elasticsearchService.index({
+        index: ElasticIndexes.APPLICATIONS,
+        id: application.id,
+        body: {
+          id,
+          resume_link,
+          cover_letter_link,
+          status,
+          applied_at,
+          candidate: pick(candidate, [
+            'id',
+            'email',
+            'full_name',
+            'bio',
+            'phone_number',
+            'address',
+            'certifications',
+          ]),
+          job: {
+            ...pick(job, [
+              'id',
+              'title',
+              'description',
+              'salary_min',
+              'salary_max',
+              'job_type',
+              'status',
+              'address',
+              'posted_at',
+            ]),
+            recruiter: pick(job.recruiter, [
+              'id',
+              'email',
+              'full_name',
+              'bio',
+              'phone_number',
+              'address',
+            ]),
+          },
+        },
       });
 
       return application;
@@ -914,6 +919,7 @@ export class ApplicationsService implements OnModuleInit {
                   'job_type',
                   'status',
                   'address',
+                  'posted_at',
                 ]),
                 recruiter: job.recruiter
                   ? pick(job.recruiter, [

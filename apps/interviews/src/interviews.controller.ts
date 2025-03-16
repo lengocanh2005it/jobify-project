@@ -60,7 +60,10 @@ export class InterviewsController {
     @Payload('user') user: User,
     @Payload('searchInterviewsDto') searchInterviewsDto?: SearchInterviewsDto,
   ) {
-    return this.interviewsService.handleGetReviews(user, searchInterviewsDto);
+    return this.interviewsService.handleGetInterviews(
+      user,
+      searchInterviewsDto,
+    );
   }
 
   @MessagePattern({ cmd: 'get-interview' })

@@ -69,6 +69,12 @@ export const NotificationTypes = {
     description:
       'A recruiter has removed you from the list of applicants for the job you applied for.',
   },
+  INTERVIEW_CANCELLED: {
+    key: 'interview_cancelled',
+    title: 'Interview Cancelled',
+    description:
+      'Your scheduled interview for the job you applied for has been cancelled.',
+  },
 
   // Employer Notifications
   NEW_APPLICATION_RECEIVED: {

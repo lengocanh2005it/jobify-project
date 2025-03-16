@@ -817,6 +817,31 @@ export class JobsService implements OnModuleInit {
         relations,
       })) as Job;
 
+      await this.elasticsearchService.index({
+        index: ElasticIndexes.JOBS,
+        id: job.id,
+        body: {
+          id: job.id,
+          title: job.title,
+          address: job.address,
+          job_type: job.job_type,
+          salary_min: job.salary_min,
+          salary_max: job.salary_max,
+          posted_at: job.posted_at,
+          expired_at: job.expired_at,
+          recruiter: job.recruiter
+            ? {
+                id: job.recruiter.id,
+                full_name: job.recruiter.full_name,
+                email: job.recruiter.email,
+                phone_number: job.recruiter.phone_number,
+                company: job.recruiter.company?.name || null,
+              }
+            : null,
+          requirements: job.requirements.map((r) => r.requirement),
+        },
+      });
+
       return {
         ...job,
         ...(user.role.name === 'admin' && {
@@ -829,11 +854,9 @@ export class JobsService implements OnModuleInit {
 
   public handleGetJob = async (jobId: string, user: User) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
-      const jobRepository = queryRunner.manager.getRepository(Job);
-
-      const job = await jobRepository.findOne({
-        where: { id: jobId },
-        relations: ['requirements', 'recruiter', 'applications'],
+      const { _source: job } = await this.elasticsearchService.get<Job>({
+        index: ElasticIndexes.JOBS,
+        id: jobId,
       });
 
       if (!job)
