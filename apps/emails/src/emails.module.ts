@@ -8,6 +8,8 @@ import { EmailsProducer } from 'apps/emails/src/emails.producer';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 import { EmailsController } from './emails.controller';
 import { EmailsService } from './emails.service';
+import { RedisService } from 'apps/redis/src/redis.service';
+import { RedisModule } from 'apps/redis/src/redis.module';
 
 @Module({
   imports: [
@@ -26,13 +28,9 @@ import { EmailsService } from './emails.service';
       },
     ]),
     BullModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        connection: {
-          host: configService.get<string>('redis.host', 'localhost'),
-          port: configService.get<number>('redis.port', 6379),
-        },
+      inject: [RedisService],
+      useFactory: (redisService: RedisService) => ({
+        connection: redisService.getRedisStore(),
       }),
     }),
     BullModule.registerQueue({

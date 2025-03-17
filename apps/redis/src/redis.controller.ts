@@ -12,7 +12,7 @@ export class RedisController {
   async setKey(
     @Payload('key') key: string,
     @Payload('data') data: string,
-    @Payload('ttl') ttl: number,
+    @Payload('ttl') ttl?: number,
   ) {
     return this.redisService.setKey(key, data, ttl);
   }

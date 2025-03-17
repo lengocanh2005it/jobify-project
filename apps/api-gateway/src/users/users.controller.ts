@@ -1,8 +1,10 @@
+import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   Body,
   Controller,
   Delete,
   Get,
+  Inject,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -31,7 +33,10 @@ import { Paginate, PaginateQuery } from 'nestjs-paginate';
 @Controller('users')
 @UseGuards(JwtAuthGuard, RoleAuthGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+  ) {}
 
   @Get()
   @ResponseMessage('All users fetched successfully.')
@@ -49,7 +54,17 @@ export class UsersController {
   ) {
     const user = request.user as User;
 
-    return this.usersService.handleGetUser(userId, user);
+    const cacheKey = `users:${userId}`;
+
+    const cachedUser = await this.cacheManager.get(cacheKey);
+
+    if (cachedUser) return cachedUser;
+
+    const findUser = await this.usersService.handleGetUser(userId, user);
+
+    await this.cacheManager.set(cacheKey, user);
+
+    return findUser;
   }
 
   @Post()

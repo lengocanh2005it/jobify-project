@@ -1,5 +1,7 @@
 import configuration from '@app/common/config/configuration';
+import { createKeyv } from '@keyv/redis';
 import { HttpModule } from '@nestjs/axios';
+import { CacheModule } from '@nestjs/cache-manager';
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ElasticsearchModule } from '@nestjs/elasticsearch';
@@ -11,6 +13,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
+  DEFAULT_CACHE_TTL,
   DEFAULT_THROTTLER_LIMIT,
   DEFAULT_THROTTLER_TTL,
   HTTP_MODULE_MAX_REDIRECT,
@@ -76,6 +79,19 @@ import { CommonService } from './common.service';
         },
       },
     ]),
+    ClientsModule.register([
+      {
+        name: 'JOBS_SERVICE',
+        transport: Transport.RMQ,
+        options: {
+          urls: ['amqp://localhost:5672'],
+          queue: 'jobs_queue',
+          queueOptions: {
+            durable: false,
+          },
+        },
+      },
+    ]),
     MulterModule.register({
       storage: multer.diskStorage({
         destination: './libs/common/files',
@@ -93,12 +109,29 @@ import { CommonService } from './common.service';
       ],
     }),
     ScheduleModule.forRoot(),
-    ElasticsearchModule.register({
-      node: 'http://localhost:9200',
+    ElasticsearchModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        node: configService.get<string>('elasticsearch.url', ''),
+      }),
     }),
     HttpModule.register({
       timeout: HTTP_MODULE_TIMEOUT,
       maxRedirects: HTTP_MODULE_MAX_REDIRECT,
+    }),
+    CacheModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      isGlobal: true,
+      useFactory: (configService: ConfigService) => ({
+        stores: [
+          createKeyv(
+            configService.get<string>('redis.url', 'redis://localhost:6379'),
+          ),
+        ],
+        ttl: DEFAULT_CACHE_TTL,
+      }),
     }),
   ],
   providers: [
@@ -122,6 +155,8 @@ import { CommonService } from './common.service';
     ScheduleModule,
     TransactionsProvider,
     ElasticsearchModule,
+    CacheModule,
+    HttpModule,
   ],
 })
 export class CommonModule {}

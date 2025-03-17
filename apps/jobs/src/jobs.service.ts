@@ -854,9 +854,13 @@ export class JobsService implements OnModuleInit {
 
   public handleGetJob = async (jobId: string, user: User) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
-      const { _source: job } = await this.elasticsearchService.get<Job>({
-        index: ElasticIndexes.JOBS,
-        id: jobId,
+      const jobRepository = queryRunner.manager.getRepository(Job);
+
+      const job = await jobRepository.findOne({
+        where: {
+          id: jobId,
+        },
+        relations: ['applications', 'recruiter', 'applications.candidate'],
       });
 
       if (!job)

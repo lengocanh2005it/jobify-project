@@ -61,3 +61,4 @@ export const BULLMQ_RETRY_LIMIT = 3;
 export const BULLMQ_RETRY_DELAY = 5000;
 export const HTTP_MODULE_TIMEOUT = 5000;
 export const HTTP_MODULE_MAX_REDIRECT = 5;
+export const DEFAULT_CACHE_TTL = 120000;

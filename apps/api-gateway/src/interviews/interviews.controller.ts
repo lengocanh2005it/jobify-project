@@ -1,8 +1,10 @@
+import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   Body,
   Controller,
   Delete,
   Get,
+  Inject,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -28,7 +30,10 @@ import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 @Controller('interviews')
 @UseGuards(JwtAuthGuard, RoleAuthGuard)
 export class InterviewsController {
-  constructor(private readonly interviewsService: InterviewsService) {}
+  constructor(
+    private readonly interviewsService: InterviewsService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+  ) {}
 
   @Get()
   @ResponseMessage('Interviews fetch successfully!')
@@ -54,7 +59,17 @@ export class InterviewsController {
   ) {
     const user = request.user as User;
 
-    return this.interviewsService.handleGetInterview(id, user);
+    const cacheKey = `interviews:${id}`;
+
+    const cachedInterview = await this.cacheManager.get(cacheKey);
+
+    if (cachedInterview) return cachedInterview;
+
+    const interview = await this.interviewsService.handleGetInterview(id, user);
+
+    await this.cacheManager.set(cacheKey, interview);
+
+    return interview;
   }
 
   @Post()

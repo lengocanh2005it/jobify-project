@@ -1,9 +1,11 @@
+import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   Body,
   Controller,
   Delete,
   Get,
   HttpStatus,
+  Inject,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -36,7 +38,10 @@ import {
 @Controller('applications')
 @UseGuards(JwtAuthGuard, RoleAuthGuard)
 export class ApplicationsController {
-  constructor(private readonly applicationsService: ApplicationsService) {}
+  constructor(
+    private readonly applicationsService: ApplicationsService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+  ) {}
 
   @Post()
   @Roles(Role.CANDIDATE)
@@ -97,7 +102,17 @@ export class ApplicationsController {
   ) {
     const user = request.user as User;
 
-    return this.applicationsService.getApplication(id, user);
+    const cacheKey = `applications:${id}`;
+
+    const cachedApplication = await this.cacheManager.get(cacheKey);
+
+    if (cachedApplication) return cachedApplication;
+
+    const application = await this.applicationsService.getApplication(id, user);
+
+    await this.cacheManager.set(cacheKey, application);
+
+    return application;
   }
 
   @Delete(':id')
