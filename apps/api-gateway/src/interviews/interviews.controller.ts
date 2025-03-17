@@ -98,6 +98,7 @@ export class InterviewsController {
 
   @Delete(':id')
   @Roles(Role.ADMIN, Role.RECRUITER)
+  @ResponseMessage('Interview deleted successfully.')
   async deleteInterview(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: Request,
@@ -109,6 +110,7 @@ export class InterviewsController {
 
   @Patch('candidates/process')
   @Roles(Role.ADMIN, Role.CANDIDATE)
+  @ResponseMessage('Processed interviews successfully.')
   async candidatesProcessInterviews(
     @Req() request: Request,
     @Body() candidatesProcessInterviewsDto: CandidatesProcessInterviewsDto,

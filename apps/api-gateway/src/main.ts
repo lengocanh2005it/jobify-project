@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as express from 'express';
 import * as path from 'path';
 import { AppModule } from './app.module';
+import compression from 'compression';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -25,6 +26,8 @@ async function bootstrap() {
   });
 
   const PORT = configService.get<number>('port');
+
+  app.use(compression());
 
   const config = new DocumentBuilder()
     .setTitle('JOBIFY BACKEND')

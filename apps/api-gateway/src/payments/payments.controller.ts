@@ -22,6 +22,7 @@ export class PaymentsController {
   }
 
   @Post('stripe/webhooks')
+  @ResponseMessage('Updated transaction from Stripe Webhook successfully.')
   async handleStripeWebhook(@Req() req: Request) {
     const sig = req.headers['stripe-signature'] as string;
 

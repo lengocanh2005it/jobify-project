@@ -57,3 +57,7 @@ export const RECRUITER_PREMIUM_LIMIT = 100;
 export const CANDIDATE_PREMIUM_LIMIT = 50;
 export const DEFAULT_THROTTLER_LIMIT = 10;
 export const DEFAULT_THROTTLER_TTL = 60000;
+export const BULLMQ_RETRY_LIMIT = 3;
+export const BULLMQ_RETRY_DELAY = 5000;
+export const HTTP_MODULE_TIMEOUT = 5000;
+export const HTTP_MODULE_MAX_REDIRECT = 5;
