@@ -1,7 +1,9 @@
+import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   Controller,
   Delete,
   Get,
+  Inject,
   Param,
   ParseUUIDPipe,
   Query,
@@ -20,7 +22,10 @@ import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 @UseGuards(JwtAuthGuard, RoleAuthGuard)
 @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
 export class NotificationsController {
-  constructor(private readonly notificationsService: NotificationsService) {}
+  constructor(
+    private readonly notificationsService: NotificationsService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+  ) {}
 
   @Get()
   @ResponseMessage('Notifications fetched successfully!')
@@ -35,18 +40,31 @@ export class NotificationsController {
 
   @Get(':id')
   @ResponseMessage('Notification details fetched successfully!')
-  getNotification(
+  async getNotification(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: Request,
   ) {
     const user = request.user as User;
 
-    return this.notificationsService.getNotification(id, user);
+    const cacheKey = `notifications:${id}`;
+
+    const cachedNotification = await this.cacheManager.get(cacheKey);
+
+    if (cachedNotification) return cachedNotification;
+
+    const notification = await this.notificationsService.getNotification(
+      id,
+      user,
+    );
+
+    await this.cacheManager.set(cacheKey, notification);
+
+    return notification;
   }
 
   @Delete(':id')
   @ResponseMessage('Notification deleted successfully!')
-  deleteNotification(
+  async deleteNotification(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: Request,
   ) {

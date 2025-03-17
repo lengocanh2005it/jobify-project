@@ -1,14 +1,22 @@
 import {
+  Cache,
+  CACHE_MANAGER,
+  CacheInterceptor,
+  CacheKey,
+} from '@nestjs/cache-manager';
+import {
   Body,
   Controller,
   Delete,
   Get,
+  Inject,
   Param,
   Patch,
   Post,
   Query,
   Req,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { JobsService } from 'apps/api-gateway/src/jobs/jobs.service';
 import { User } from 'apps/users/src/entities';
@@ -19,17 +27,20 @@ import {
   CreateJobDto,
   DeleteJobDto,
   ProcessJobsDto,
+  RemoveSavedJobsDto,
   SavedJobsDto,
   SearchJobsDto,
   UpdateJobDto,
 } from 'libs/common/dtos';
-import { RemoveSavedJobsDto } from 'libs/common/dtos';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 
 @Controller('jobs')
 @UseGuards(JwtAuthGuard, RoleAuthGuard)
 export class JobsController {
-  constructor(private readonly jobsService: JobsService) {}
+  constructor(
+    private readonly jobsService: JobsService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+  ) {}
 
   @Post()
   @ResponseMessage('New job created successfully.')
@@ -50,6 +61,8 @@ export class JobsController {
   @Get()
   @Roles(Role.ADMIN, Role.RECRUITER, Role.CANDIDATE)
   @ResponseMessage('Job fetched successfully.')
+  @UseInterceptors(CacheInterceptor)
+  @CacheKey('jobs')
   async getJobs(@Query() filters: SearchJobsDto, @Req() request: Request) {
     const user = request.user as User;
 
@@ -88,7 +101,17 @@ export class JobsController {
   async getJob(@Param('id') jobId: string, @Req() request: Request) {
     const user = request.user as User;
 
-    return this.jobsService.handleGetJob(jobId, user);
+    const cacheKey = `job-details:${jobId}`;
+
+    const cachedJob = await this.cacheManager.get(cacheKey);
+
+    if (cachedJob) return cachedJob;
+
+    const job = await this.jobsService.handleGetJob(jobId, user);
+
+    await this.cacheManager.set(cacheKey, job);
+
+    return job;
   }
 
   @Post('saved')

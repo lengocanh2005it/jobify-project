@@ -13,6 +13,7 @@ export default () => ({
   redis: {
     port: parseInt(process.env.REDIS_PORT as string, 10) || 6379,
     host: process.env.REDIS_HOST || 'localhost',
+    url: process.env.REDIS_URL || 'redis://localhost:6379',
   },
   nodemailer: {
     email_password: process.env.EMAIL_PASSWORD,
@@ -49,11 +50,10 @@ export default () => ({
     client_secret: process.env.LINKEDIN_CLIENT_SECRET,
     callback_url: process.env.LINKEDIN_CALLBACK_URL,
   },
-  vnpay: {
-    tmn_code: process.env.VNP_TMN_CODE,
-    hash_secret: process.env.VNP_HASH_SECRET,
-    url: process.env.VNP_URL,
-    return_url: process.env.VNP_RETURN_URL,
-    ipn_url: process.env.VNP_IPN_URL,
+  elasticsearch: {
+    url: process.env.ELASTICSEARCH_URL,
+  },
+  rabbitmq: {
+    url: process.env.RABBITMQ_URL,
   },
 });

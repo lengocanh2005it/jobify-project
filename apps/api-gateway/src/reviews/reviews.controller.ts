@@ -1,8 +1,10 @@
+import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   Body,
   Controller,
   Delete,
   Get,
+  Inject,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -26,7 +28,10 @@ import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 @Controller('reviews')
 @UseGuards(JwtAuthGuard, RoleAuthGuard)
 export class ReviewsController {
-  constructor(private readonly reviewsService: ReviewsService) {}
+  constructor(
+    private readonly reviewsService: ReviewsService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+  ) {}
 
   @Post()
   @Roles(Role.CANDIDATE)
@@ -90,6 +95,16 @@ export class ReviewsController {
   ) {
     const user = request.user as User;
 
-    return this.reviewsService.handleGetReview(reviewId, user);
+    const cacheKey = `reviews:${reviewId}`;
+
+    const cachedReview = await this.cacheManager.get(cacheKey);
+
+    if (cachedReview) return cachedReview;
+
+    const review = await this.reviewsService.handleGetReview(reviewId, user);
+
+    await this.cacheManager.set(cacheKey, review);
+
+    return review;
   }
 }
