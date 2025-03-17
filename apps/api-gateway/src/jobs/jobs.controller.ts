@@ -101,7 +101,7 @@ export class JobsController {
   async getJob(@Param('id') jobId: string, @Req() request: Request) {
     const user = request.user as User;
 
-    const cacheKey = `job-details:${jobId}`;
+    const cacheKey = `jobs:${jobId}`;
 
     const cachedJob = await this.cacheManager.get(cacheKey);
 

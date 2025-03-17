@@ -1,0 +1,14 @@
+export const SERVICES = [
+  { serviceName: 'USERS_SERVICE', queueName: 'users_queue' },
+  { serviceName: 'JOBS_SERVICE', queueName: 'jobs_queue' },
+  { serviceName: 'APPLICATIONS_SERVICE', queueName: 'applications_queue' },
+  { serviceName: 'UPLOADS_SERVICE', queueName: 'uploads_queue' },
+  { serviceName: 'AUTH_SERVICE', queueName: 'auth_queue' },
+  { serviceName: 'INTERVIEWS_SERVICE', queueName: 'interviews_queue' },
+  { serviceName: 'MESSAGES_SERVICE', queueName: 'messages_queue' },
+  { serviceName: 'NOTIFICATIONS_SERVICE', queueName: 'notifications_queue' },
+  { serviceName: 'PAYMENTS_SERVICE', queueName: 'payments_queue' },
+  { serviceName: 'EMAILS_SERVICE', queueName: 'emails_queue' },
+  { serviceName: 'REVIEWS_SERVICE', queueName: 'reviews_queue' },
+  { serviceName: 'REDIS_SERVICE', queueName: 'redis_queue' },
+];
