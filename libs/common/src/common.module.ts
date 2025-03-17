@@ -1,6 +1,8 @@
 import configuration from '@app/common/config/configuration';
+import { HttpModule } from '@nestjs/axios';
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ElasticsearchModule } from '@nestjs/elasticsearch';
 import { JwtModule } from '@nestjs/jwt';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { PassportModule } from '@nestjs/passport';
@@ -11,6 +13,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   DEFAULT_THROTTLER_LIMIT,
   DEFAULT_THROTTLER_TTL,
+  HTTP_MODULE_MAX_REDIRECT,
+  HTTP_MODULE_TIMEOUT,
 } from 'libs/common/constants';
 import { CustomValidationPipe } from 'libs/common/pipes';
 import {
@@ -22,7 +26,6 @@ import {
 } from 'libs/common/providers';
 import * as multer from 'multer';
 import { CommonService } from './common.service';
-import { ElasticsearchModule } from '@nestjs/elasticsearch';
 
 @Global()
 @Module({
@@ -92,6 +95,10 @@ import { ElasticsearchModule } from '@nestjs/elasticsearch';
     ScheduleModule.forRoot(),
     ElasticsearchModule.register({
       node: 'http://localhost:9200',
+    }),
+    HttpModule.register({
+      timeout: HTTP_MODULE_TIMEOUT,
+      maxRedirects: HTTP_MODULE_MAX_REDIRECT,
     }),
   ],
   providers: [

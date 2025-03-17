@@ -55,6 +55,7 @@ export class UsersController {
   @Post()
   @UseInterceptors(AnyFilesInterceptor())
   @Roles(Role.ADMIN)
+  @ResponseMessage('User created successfully.')
   async createUser(
     @UploadedFiles() files: Array<Express.Multer.File>,
     @Body() createUserDto: CreateUserDto,
@@ -84,6 +85,7 @@ export class UsersController {
 
   @Delete(':id')
   @Roles(Role.ADMIN, Role.RECRUITER)
+  @ResponseMessage('User deleted successfully.')
   async deleteUser(
     @Param('id', ParseUUIDPipe) userId: string,
     @Req() request: Request,
@@ -96,6 +98,7 @@ export class UsersController {
 
   @Patch('company/assign')
   @Roles(Role.ADMIN, Role.RECRUITER)
+  @ResponseMessage('Assigned company to recruiters successfully.')
   async assignCompanyToRecruiters(
     @Body() assignCompanyToRecruitersDto: AssignCompanyToRecruitersDto,
     @Req() request: Request,

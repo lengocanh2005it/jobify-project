@@ -677,40 +677,59 @@ export class UsersService implements OnModuleInit {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
       const userRepository = queryRunner.manager.getRepository(User);
 
-      const { _source: findUser } = await this.elasticsearchService.get<User>({
-        index: ElasticIndexes.USERS,
-        id: userId,
-      });
+      let findUser: User | null = null;
 
-      if (!findUser)
+      try {
+        const response = await this.elasticsearchService.get<User>({
+          index: ElasticIndexes.USERS,
+          id: userId,
+        });
+
+        if (!response.found || !response._source) {
+          throw new RpcException(
+            generateRpcExceptionResponse(
+              HttpStatus.NOT_FOUND,
+              `User with id: '${userId}' not found.`,
+            ),
+          );
+        }
+
+        findUser = response._source;
+      } catch (error) {
+        if (error.name === 'ResponseError' && error.meta?.statusCode === 404) {
+          throw new RpcException(
+            generateRpcExceptionResponse(
+              HttpStatus.NOT_FOUND,
+              `User with id: '${userId}' not found.`,
+            ),
+          );
+        }
         throw new RpcException(
           generateRpcExceptionResponse(
-            HttpStatus.NOT_FOUND,
-            `User with id: '${userId}' not found.`,
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            `Failed to fetch user: ${error.message}`,
           ),
         );
+      }
 
       const { role } = user;
 
-      if (role.name === 'recruiter' && !applicationId)
+      if (role.name === 'recruiter' && !applicationId) {
         throw new RpcException(
           generateRpcExceptionResponse(
             HttpStatus.BAD_REQUEST,
             `Please provide the applicationId of the candidate you want to remove from the list of applicants for the job you posted.`,
           ),
         );
+      }
 
       if (role.name === 'recruiter') {
         const result = await lastValueFrom(
           this.rabbitMqApplicationClient.send(
             { cmd: 'delete-user-from-application' },
-            {
-              userId,
-              applicationId,
-            },
+            { userId, applicationId },
           ),
         );
-
         return result;
       } else {
         this.rabbitMqEmailClient.emit('send-email', {
@@ -718,15 +737,30 @@ export class UsersService implements OnModuleInit {
           type: EmailType.ACCOUNT_DELETE,
         });
 
+        findUser = (await userRepository.findOne({
+          where: {
+            id: findUser.id,
+          },
+          relations: ['skills'],
+        })) as User;
+
+        if (findUser?.skills.length) {
+          await userRepository
+            .createQueryBuilder('user')
+            .relation(User, 'skills')
+            .of(findUser.id)
+            .remove(findUser.skills.map((skill) => skill.id));
+        }
+
+        await userRepository.delete({ id: userId });
+
         await this.elasticsearchService.delete({
           index: ElasticIndexes.USERS,
           id: userId,
         });
 
-        await userRepository.delete({ id: userId });
-
         return {
-          success: `User with id: '${userId} deleted successfully.'`,
+          success: `User with id: '${userId}' deleted successfully.`,
         };
       }
     });

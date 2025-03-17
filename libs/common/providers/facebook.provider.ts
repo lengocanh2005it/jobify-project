@@ -1,13 +1,17 @@
+import { HttpService } from '@nestjs/axios';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
-import axios from 'axios';
 import { Provider } from 'libs/common/constants';
 import { Profile, Strategy } from 'passport-facebook';
+import { lastValueFrom } from 'rxjs';
 
 @Injectable()
 export class FacebookProvider extends PassportStrategy(Strategy, 'facebook') {
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly httpService: HttpService,
+  ) {
     super({
       clientID: configService.get<string>('facebook.client_id') ?? '',
       clientSecret: configService.get<string>('facebook.client_secret') ?? '',
@@ -18,11 +22,15 @@ export class FacebookProvider extends PassportStrategy(Strategy, 'facebook') {
 
   async validate(accessToken: string, refreshToken: string, profile: Profile) {
     try {
-      const { data } = await axios.get(
-        `https://graph.facebook.com/me?fields=id,name,email,picture.width(500)`,
-        {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        },
+      const { data } = await lastValueFrom(
+        this.httpService.get(
+          `https://graph.facebook.com/me?fields=id,name,email,picture.width(500)`,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          },
+        ),
       );
 
       return {
