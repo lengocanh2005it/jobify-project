@@ -1,41 +1,13 @@
 import { CommonModule } from '@app/common';
 import { Module } from '@nestjs/common';
-import { ClientsModule, Transport } from '@nestjs/microservices';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Transaction } from 'apps/payments/src/entities';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
-import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Transaction]),
-    ClientsModule.register([
-      {
-        name: 'USERS_SERVICE',
-        transport: Transport.RMQ,
-        options: {
-          urls: ['amqp://localhost:5672'],
-          queue: 'users_queue',
-          queueOptions: {
-            durable: false,
-          },
-        },
-      },
-      {
-        name: 'NOTIFICATIONS_SERVICE',
-        transport: Transport.RMQ,
-        options: {
-          urls: ['amqp://localhost:5672'],
-          queue: 'notifications_queue',
-          queueOptions: {
-            durable: false,
-          },
-        },
-      },
-    ]),
-    CommonModule,
-  ],
+  imports: [CommonModule, TypeOrmModule.forFeature([Transaction])],
   controllers: [PaymentsController],
   providers: [
     PaymentsService,

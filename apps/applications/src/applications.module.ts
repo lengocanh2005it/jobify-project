@@ -1,63 +1,13 @@
-import { Module } from '@nestjs/common';
-import { ApplicationsController } from './applications.controller';
-import { ApplicationsService } from './applications.service';
 import { CommonModule } from '@app/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Application } from 'apps/applications/src/entities';
-import { ClientsModule, Transport } from '@nestjs/microservices';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
+import { ApplicationsController } from './applications.controller';
+import { ApplicationsService } from './applications.service';
 
 @Module({
-  imports: [
-    CommonModule,
-    TypeOrmModule.forFeature([Application]),
-    ClientsModule.register([
-      {
-        name: 'JOBS_SERVICE',
-        transport: Transport.RMQ,
-        options: {
-          urls: ['amqp://localhost:5672'],
-          queue: 'jobs_queue',
-          queueOptions: {
-            durable: false,
-          },
-        },
-      },
-      {
-        name: 'NOTIFICATIONS_SERVICE',
-        transport: Transport.RMQ,
-        options: {
-          urls: ['amqp://localhost:5672'],
-          queue: 'notifications_queue',
-          queueOptions: {
-            durable: false,
-          },
-        },
-      },
-      {
-        name: 'UPLOADS_SERVICE',
-        transport: Transport.RMQ,
-        options: {
-          urls: ['amqp://localhost:5672'],
-          queue: 'uploads_queue',
-          queueOptions: {
-            durable: false,
-          },
-        },
-      },
-      {
-        name: 'USERS_SERVICE',
-        transport: Transport.RMQ,
-        options: {
-          urls: ['amqp://localhost:5672'],
-          queue: 'users_queue',
-          queueOptions: {
-            durable: false,
-          },
-        },
-      },
-    ]),
-  ],
+  imports: [CommonModule, TypeOrmModule.forFeature([Application])],
   controllers: [ApplicationsController],
   providers: [
     ApplicationsService,

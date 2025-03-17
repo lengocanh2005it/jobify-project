@@ -1,4 +1,5 @@
 import configuration from '@app/common/config/configuration';
+import { RabbitMqModule } from '@app/common/rabbitmq';
 import { createKeyv } from '@keyv/redis';
 import { HttpModule } from '@nestjs/axios';
 import { CacheModule } from '@nestjs/cache-manager';
@@ -6,7 +7,6 @@ import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ElasticsearchModule } from '@nestjs/elasticsearch';
 import { JwtModule } from '@nestjs/jwt';
-import { ClientsModule, Transport } from '@nestjs/microservices';
 import { PassportModule } from '@nestjs/passport';
 import { MulterModule } from '@nestjs/platform-express';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -66,32 +66,6 @@ import { CommonService } from './common.service';
         logging: false,
       }),
     }),
-    ClientsModule.register([
-      {
-        name: 'USERS_SERVICE',
-        transport: Transport.RMQ,
-        options: {
-          urls: ['amqp://localhost:5672'],
-          queue: 'users_queue',
-          queueOptions: {
-            durable: false,
-          },
-        },
-      },
-    ]),
-    ClientsModule.register([
-      {
-        name: 'JOBS_SERVICE',
-        transport: Transport.RMQ,
-        options: {
-          urls: ['amqp://localhost:5672'],
-          queue: 'jobs_queue',
-          queueOptions: {
-            durable: false,
-          },
-        },
-      },
-    ]),
     MulterModule.register({
       storage: multer.diskStorage({
         destination: './libs/common/files',
@@ -133,6 +107,7 @@ import { CommonService } from './common.service';
         ttl: DEFAULT_CACHE_TTL,
       }),
     }),
+    RabbitMqModule,
   ],
   providers: [
     CommonService,
@@ -157,6 +132,7 @@ import { CommonService } from './common.service';
     ElasticsearchModule,
     CacheModule,
     HttpModule,
+    RabbitMqModule,
   ],
 })
 export class CommonModule {}
