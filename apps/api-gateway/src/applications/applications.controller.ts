@@ -1,4 +1,10 @@
-import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
+import {
+  Cache,
+  CACHE_MANAGER,
+  CacheInterceptor,
+  CacheKey,
+  CacheTTL,
+} from '@nestjs/cache-manager';
 import {
   Body,
   Controller,
@@ -81,6 +87,7 @@ export class ApplicationsController {
   @Get()
   @ResponseMessage('Applications fetched successfully!')
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  @UseInterceptors(CacheInterceptor)
   async getApplications(
     @Req() request: Request,
     @Query() searchApplicationsDto: SearchApplicationsDto,

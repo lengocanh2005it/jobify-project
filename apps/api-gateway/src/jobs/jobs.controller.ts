@@ -1,9 +1,4 @@
-import {
-  Cache,
-  CACHE_MANAGER,
-  CacheInterceptor,
-  CacheKey,
-} from '@nestjs/cache-manager';
+import { Cache, CACHE_MANAGER, CacheInterceptor } from '@nestjs/cache-manager';
 import {
   Body,
   Controller,
@@ -62,7 +57,6 @@ export class JobsController {
   @Roles(Role.ADMIN, Role.RECRUITER, Role.CANDIDATE)
   @ResponseMessage('Job fetched successfully.')
   @UseInterceptors(CacheInterceptor)
-  @CacheKey('jobs')
   async getJobs(@Query() filters: SearchJobsDto, @Req() request: Request) {
     const user = request.user as User;
 

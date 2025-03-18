@@ -1,3 +1,4 @@
+import { CacheInterceptor } from '@nestjs/cache-manager';
 import {
   Body,
   Controller,
@@ -51,6 +52,7 @@ export class MessagesController {
 
   @Get()
   @ResponseMessage('Messages fetched successfully!')
+  @UseInterceptors(CacheInterceptor)
   async getMessages(@Req() request: Request) {
     const user = request.user as User;
 

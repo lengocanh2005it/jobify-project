@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { CacheInterceptor } from '@nestjs/cache-manager';
+import {
+  Controller,
+  Get,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { PaymentsService } from 'apps/api-gateway/src/payments/payments.service';
 import { User } from 'apps/users/src/entities';
 import { Request } from 'express';
@@ -33,6 +42,7 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Get all payments successfully!')
   @Roles(Role.ADMIN)
+  @UseInterceptors(CacheInterceptor)
   async getPayments(@Query() searchTransactionsDto?: SearchTransactionsDto) {
     return this.paymentsService.handleGetPayments(searchTransactionsDto);
   }

@@ -1,3 +1,4 @@
+import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { HttpStatus, Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
@@ -31,6 +32,7 @@ export class ApplicationsService implements OnModuleInit {
     @Inject('USERS_SERVICE') private readonly rabbitMqUserClient: ClientProxy,
     private readonly transactionsProvider: TransactionsProvider,
     private readonly elasticsearchService: ElasticsearchService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
   async onModuleInit() {
