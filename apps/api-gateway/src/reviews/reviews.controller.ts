@@ -1,4 +1,4 @@
-import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache, CACHE_MANAGER, CacheInterceptor } from '@nestjs/cache-manager';
 import {
   Body,
   Controller,
@@ -12,6 +12,7 @@ import {
   Query,
   Req,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ReviewsService } from 'apps/api-gateway/src/reviews/reviews.service';
 import { User } from 'apps/users/src/entities';
@@ -48,6 +49,7 @@ export class ReviewsController {
   @Get()
   @Roles(Role.ADMIN, Role.RECRUITER, Role.CANDIDATE)
   @ResponseMessage('Reviews fetched successfully!')
+  @UseInterceptors(CacheInterceptor)
   async getReviews(
     @Req() request: Request,
     @Query() searchReviewsDto?: SearchReviewsDto,

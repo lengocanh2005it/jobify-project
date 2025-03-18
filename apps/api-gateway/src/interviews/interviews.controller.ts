@@ -1,4 +1,4 @@
-import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache, CACHE_MANAGER, CacheInterceptor } from '@nestjs/cache-manager';
 import {
   Body,
   Controller,
@@ -12,6 +12,7 @@ import {
   Query,
   Req,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { InterviewsService } from 'apps/api-gateway/src/interviews/interviews.service';
 import { User } from 'apps/users/src/entities';
@@ -38,6 +39,7 @@ export class InterviewsController {
   @Get()
   @ResponseMessage('Interviews fetch successfully!')
   @Roles(Role.ADMIN, Role.RECRUITER, Role.CANDIDATE)
+  @UseInterceptors(CacheInterceptor)
   async getInterviews(
     @Req() request: Request,
     @Query() searchInterviewsDto?: SearchInterviewsDto,

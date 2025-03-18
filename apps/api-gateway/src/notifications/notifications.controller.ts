@@ -1,4 +1,4 @@
-import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache, CACHE_MANAGER, CacheInterceptor } from '@nestjs/cache-manager';
 import {
   Controller,
   Delete,
@@ -9,6 +9,7 @@ import {
   Query,
   Req,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { NotificationsService } from 'apps/api-gateway/src/notifications/notifications.service';
 import { User } from 'apps/users/src/entities';
@@ -29,6 +30,7 @@ export class NotificationsController {
 
   @Get()
   @ResponseMessage('Notifications fetched successfully!')
+  @UseInterceptors(CacheInterceptor)
   async getNotifications(
     @Req() request: Request,
     @Query() filters?: SearchNotificationsDto,

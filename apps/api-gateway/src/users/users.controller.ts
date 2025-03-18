@@ -1,4 +1,4 @@
-import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache, CACHE_MANAGER, CacheInterceptor } from '@nestjs/cache-manager';
 import {
   Body,
   Controller,
@@ -41,6 +41,7 @@ export class UsersController {
   @Get()
   @ResponseMessage('All users fetched successfully.')
   @Roles(Role.ADMIN)
+  @UseInterceptors(CacheInterceptor)
   async getUsers(@Paginate() query: PaginateQuery) {
     return this.usersService.getUsers(query);
   }
