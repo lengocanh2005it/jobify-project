@@ -19,6 +19,7 @@ import { LoggerMiddleware } from 'libs/common/middlewares';
 import { CustomValidationPipe } from 'libs/common/pipes';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AdminModule } from 'apps/api-gateway/src/admin/admin.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { AppService } from './app.service';
     NotificationsModule,
     MessagesModule,
     ConversationsModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [

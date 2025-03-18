@@ -10,6 +10,7 @@ import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { Cron } from '@nestjs/schedule';
 import { Company, Job, Requirement, SavedJob } from 'apps/jobs/src/entities';
 import { User } from 'apps/users/src/entities';
+import { subDays } from 'date-fns';
 import { ElasticIndexes, NotificationTypes, Role } from 'libs/common/constants';
 import {
   CreateCompanyDto,
@@ -25,7 +26,7 @@ import { TransactionsProvider } from 'libs/common/providers';
 import { generateRpcExceptionResponse } from 'libs/common/utils';
 import { omit, pick } from 'lodash';
 import { lastValueFrom } from 'rxjs';
-import { LessThan, Repository } from 'typeorm';
+import { LessThan, MoreThan, Repository } from 'typeorm';
 
 @Injectable()
 export class JobsService implements OnModuleInit {
@@ -246,7 +247,8 @@ export class JobsService implements OnModuleInit {
         relations,
       })) as Job;
 
-      const { full_name, email, phone_number, company } = savedJob.recruiter;
+      const { full_name, email, phone_number, company } =
+        role.name === 'recruiter' ? user : savedJob.recruiter;
 
       await this.elasticsearchService.index({
         index: ElasticIndexes.JOBS,
@@ -280,6 +282,7 @@ export class JobsService implements OnModuleInit {
         ...(user.role.name === 'admin' && {
           recruiter: omit(savedJob.recruiter, ['password']),
         }),
+        requirements: savedJob.requirements.map((r) => r.requirement),
       };
     });
   };
@@ -1216,4 +1219,170 @@ export class JobsService implements OnModuleInit {
       body: bulkBody,
     });
   };
+
+  public handleCalculateStatisticsOfJobs = async (days?: number) => {
+    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
+      const jobRepository = queryRunner.manager.getRepository(Job);
+
+      const dayFilter = subDays(new Date(), days ?? 7);
+
+      const dynamicKey = `newJobsLast${days ?? 7}Days`;
+
+      const [totalJobs, openedJobs, closedJobs, jobsInDaysAgo] =
+        await Promise.all([
+          jobRepository.count(),
+          jobRepository.count({ where: { status: 'open' } }),
+          jobRepository.count({ where: { status: 'closed' } }),
+          jobRepository.count({ where: { createdAt: MoreThan(dayFilter) } }),
+        ]);
+
+      return { totalJobs, openedJobs, closedJobs, [dynamicKey]: jobsInDaysAgo };
+    });
+  };
+
+  public handleGetStatisticsJobsOfCompanies = async (
+    top?: number,
+    isDetailed?: boolean,
+  ) => {
+    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
+      const jobRepository = queryRunner.manager.getRepository(Job);
+
+      if (isDetailed) {
+        const topCompaniesQuery = jobRepository
+          .createQueryBuilder('job')
+          .innerJoin('job.recruiter', 'recruiter')
+          .innerJoin('recruiter.company', 'company')
+          .select('company.id', 'companyId')
+          .addSelect('company.name', 'companyName')
+          .addSelect('COUNT(job.id)', 'jobCount')
+          .groupBy('company.id')
+          .orderBy('jobCount', 'DESC');
+
+        if (top) {
+          topCompaniesQuery.limit(top);
+        }
+
+        const topCompanies = await topCompaniesQuery.getRawMany();
+
+        if (!topCompanies.length) return [];
+
+        const topCompanyIds = topCompanies.map((c) => c.companyId);
+
+        return jobRepository
+          .createQueryBuilder('job')
+          .innerJoin('job.recruiter', 'recruiter')
+          .innerJoin('recruiter.company', 'company')
+          .leftJoin('job.savedByUsers', 'savedByUsers')
+          .leftJoin('job.applications', 'applications')
+          .select([
+            'company.name AS company',
+            'job.title AS jobTitle',
+            'COALESCE(COUNT(DISTINCT savedByUsers.id), 0) AS savedJobs',
+            'COALESCE(COUNT(DISTINCT applications.id), 0) AS applications',
+          ])
+          .where('company.id IN (:...topCompanyIds)', { topCompanyIds })
+          .groupBy('job.id, company.id')
+          .orderBy('company.name', 'ASC')
+          .addOrderBy('applications', 'DESC')
+          .getRawMany()
+          .then((jobs) => {
+            const result = jobs.reduce((acc, job) => {
+              const company = acc.find((c: any) => c.company === job.company);
+              if (company) {
+                company.jobs.push({
+                  jobTitle: job.jobTitle,
+                  savedJobs: parseInt(job.savedJobs as string),
+                  applications: parseInt(job.applications as string),
+                });
+              } else {
+                acc.push({
+                  company: job.company,
+                  jobs: [
+                    {
+                      jobTitle: job.jobTitle,
+                      savedJobs: parseInt(job.savedJobs as string),
+                      applications: parseInt(job.applications as string),
+                    },
+                  ],
+                });
+              }
+
+              return acc;
+            }, []);
+
+            return result;
+          });
+      }
+
+      const query = jobRepository
+        .createQueryBuilder('job')
+        .innerJoin('job.recruiter', 'recruiter')
+        .innerJoin('recruiter.company', 'company')
+        .select('company.name', 'company')
+        .addSelect('COUNT(job.id)', 'jobCount')
+        .groupBy('company.id')
+        .orderBy('jobCount', 'DESC');
+
+      if (top) {
+        query.limit(top);
+      }
+
+      return query.getRawMany();
+    });
+  };
+
+  public handleGetStatisticsSalariesOfPositions = async () => {
+    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
+      const jobRepository = queryRunner.manager.getRepository(Job);
+
+      const result = await jobRepository
+        .createQueryBuilder('job')
+        .select('job.category', 'position')
+        .addSelect(
+          'ROUND(AVG((job.salary_min + job.salary_max) / 2), 2)',
+          'average_salary',
+        )
+        .groupBy('job.category')
+        .orderBy('average_salary', 'DESC')
+        .getRawMany();
+
+      return result.map((item) => ({
+        position: item.position,
+        average_salary: `${parseFloat(item.average_salary as string).toFixed(2)} ($)`,
+      }));
+    });
+  };
+
+  public handleGetStatisticsOfJobTypes = async () => {
+    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
+      const jobRepository = queryRunner.manager.getRepository(Job);
+
+      const result = await jobRepository
+        .createQueryBuilder('job')
+        .select('job.job_type', 'contract_type')
+        .addSelect(
+          `ROUND((COUNT(*) * 100.0 / (SELECT COUNT(*) FROM job)), 2)`,
+          'percentage',
+        )
+        .groupBy('job.job_type')
+        .orderBy('percentage', 'DESC')
+        .getRawMany();
+
+      return result.map((item) => ({
+        contract_type: this.formatContractType(item.contract_type as string),
+        percentage: `${item.percentage}%`,
+      }));
+    });
+  };
+
+  private formatContractType(jobType: string): string {
+    const contractTypes: Record<string, string> = {
+      full_time: 'Full-time',
+      part_time: 'Part-time',
+      remote: 'Remote',
+      freelance: 'Freelance',
+    };
+
+    return contractTypes[jobType] || 'Other';
+  }
 }

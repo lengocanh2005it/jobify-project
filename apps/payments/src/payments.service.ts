@@ -16,6 +16,7 @@ import { ElasticIndexes, NotificationTypes } from 'libs/common/constants';
 import { SearchTransactionsDto } from 'libs/common/dtos';
 import { TransactionsProvider } from 'libs/common/providers';
 import { generateRpcExceptionResponse } from 'libs/common/utils';
+import { lastValueFrom } from 'rxjs';
 import Stripe from 'stripe';
 import { Between, Repository } from 'typeorm';
 
@@ -412,6 +413,86 @@ export class PaymentsService implements OnModuleInit {
     await this.elasticsearchService.bulk({
       index: ElasticIndexes.TRANSACTIONS,
       body: bulkBody,
+    });
+  };
+
+  public handleCalculateStatisticsRevenue = async () => {
+    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
+      const transactionRepository =
+        queryRunner.manager.getRepository(Transaction);
+
+      const totalUsers = await lastValueFrom<number>(
+        this.rabbitMqUserClient.send({ cmd: 'get-total-users' }, {}),
+      );
+
+      const { totalRevenue } = await transactionRepository
+        .createQueryBuilder('transaction')
+        .where('transaction.status = :status', { status: 'SUCCESS' })
+        .select('SUM(transaction.amount)', 'totalRevenue')
+        .getRawOne();
+
+      const { revenueLast7Days } = await transactionRepository
+        .createQueryBuilder('transaction')
+        .where('transaction.status = :status', { status: 'SUCCESS' })
+        .andWhere('transaction.payment_date >= :date', {
+          date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        })
+        .select('SUM(transaction.amount)', 'revenueLast7Days')
+        .getRawOne();
+
+      const { premiumUserCount } = await transactionRepository
+        .createQueryBuilder('transaction')
+        .where('transaction.status = :status', { status: 'SUCCESS' })
+        .select('COUNT(DISTINCT transaction.user_id)', 'premiumUserCount')
+        .getRawOne();
+
+      const newPremiumUserLast7Days = await transactionRepository
+        .createQueryBuilder('transaction')
+        .where('transaction.status = :status', { status: 'SUCCESS' })
+        .andWhere('transaction.payment_date >= :date', {
+          date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        })
+        .groupBy('transaction.user_id')
+        .having('MIN(transaction.payment_date) >= :date', {
+          date: new Date(Date.now() - 7 * 24 * 24 * 60 * 60 * 1000),
+        })
+        .select(
+          'COUNT(DISTINCT transaction.user_id)',
+          'newPremiumUserLast7Days',
+        )
+        .getRawOne();
+
+      const conversionRate =
+        ((parseInt((premiumUserCount as string) ?? '0') || 0) /
+          (totalUsers || 1)) *
+        100;
+
+      const monthlyRevenue = await transactionRepository
+        .createQueryBuilder('transaction')
+        .where('transaction.status = :status', { status: 'SUCCESS' })
+        .select([
+          "DATE_FORMAT(transaction.payment_date, '%Y-%m') AS month",
+          'SUM(transaction.amount) AS revenue',
+        ])
+        .groupBy("DATE_FORMAT(transaction.payment_date, '%Y-%m')")
+        .orderBy("DATE_FORMAT(transaction.payment_date, '%Y-%m')", 'ASC')
+        .getRawMany();
+
+      const formattedMonthlyRevenue = monthlyRevenue.reduce((acc, row) => {
+        acc[row.month] = parseFloat((row.revenue as string) ?? '0');
+        return acc;
+      }, {});
+
+      return {
+        totalRevenue: parseFloat((totalRevenue as string) ?? '0') || 0,
+        revenueLast7Days: parseFloat((revenueLast7Days as string) ?? '0') || 0,
+        totalUsers,
+        premiumUserCount: parseInt((premiumUserCount as string) ?? 0) || 0,
+        newPremiumUserLast7Days:
+          parseInt((newPremiumUserLast7Days as string) ?? 0) || 0,
+        conversionRate,
+        monthlyRevenue: formattedMonthlyRevenue,
+      };
     });
   };
 }

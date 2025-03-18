@@ -21,5 +21,6 @@ import { UsersService } from './users.service';
     },
     ServicesExceptionInterceptor,
   ],
+  exports: [UsersService],
 })
 export class UsersModule {}

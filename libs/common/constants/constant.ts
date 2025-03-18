@@ -50,6 +50,26 @@ export enum ElasticIndexes {
   REVIEWS = 'reviews',
 }
 
+export enum JobCategory {
+  BACKEND = 'backend',
+  FRONTEND = 'frontend',
+  FULLSTACK = 'fullstack',
+  DEVOPS = 'devops',
+  QA = 'qa',
+  DATA = 'data',
+  MOBILE = 'mobile',
+  OTHER = 'other',
+  SOFTWARE_ENGINEER = 'software_engineer',
+  TESTER = 'tester',
+}
+
+export enum JobType {
+  FULL_TIME = 'full_time',
+  PART_TIME = 'part_time',
+  REMOTE = 'remote',
+  FREELANCE = 'freelance',
+}
+
 export const PREMIUM_PRICE = 1200;
 export const RECRUITER_JOB_LIMIT = 10;
 export const CANDIDATE_APPLICATION_LIMIT = 5;

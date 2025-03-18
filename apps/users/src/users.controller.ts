@@ -148,4 +148,9 @@ export class UsersController {
       email,
     );
   }
+
+  @MessagePattern({ cmd: 'get-total-users' })
+  async handleGetTotalUsers() {
+    return this.usersService.handleGetTotalUsers();
+  }
 }

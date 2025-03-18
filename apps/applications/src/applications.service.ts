@@ -951,4 +951,30 @@ export class ApplicationsService implements OnModuleInit {
       body: bulkBody,
     });
   };
+
+  public handleCalculateStatisticsOfApplications = async () => {
+    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
+      const applicationRepository =
+        queryRunner.manager.getRepository(Application);
+
+      const [
+        totalApplications,
+        approvedApplications,
+        rejectedApplications,
+        pendingApplications,
+      ] = await Promise.all([
+        applicationRepository.count(),
+        applicationRepository.count({ where: { status: 'approved' } }),
+        applicationRepository.count({ where: { status: 'rejected' } }),
+        applicationRepository.count({ where: { status: 'pending' } }),
+      ]);
+
+      return {
+        totalApplications,
+        approvedApplications,
+        rejectedApplications,
+        pendingApplications,
+      };
+    });
+  };
 }

@@ -3,6 +3,7 @@ import { Interview } from 'apps/interviews/src/entities';
 import { Requirement, SavedJob } from 'apps/jobs/src/entities';
 import { UserNotification } from 'apps/notifications/src/entities';
 import { User } from 'apps/users/src/entities';
+import { JobCategory, JobType } from 'libs/common/constants';
 import {
   Column,
   CreateDateColumn,
@@ -26,8 +27,8 @@ export class Job {
   @Column()
   address!: string;
 
-  @Column({ type: 'enum', enum: ['full_time', 'part_time', 'remote'] })
-  job_type!: string;
+  @Column({ type: 'enum', enum: JobType })
+  job_type!: JobType;
 
   @Column({ type: 'decimal', scale: 2, precision: 10 })
   salary_min!: number;
@@ -55,6 +56,9 @@ export class Job {
 
   @Column({ nullable: true })
   cancelled_by?: string;
+
+  @Column({ type: 'enum', enum: JobCategory })
+  category!: JobCategory;
 
   @ManyToOne(() => User, (user) => user.jobs, {
     onDelete: 'CASCADE',

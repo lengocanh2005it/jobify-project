@@ -3,6 +3,7 @@ import {
   ArrayNotEmpty,
   IsArray,
   IsDate,
+  IsEnum,
   IsIn,
   IsNotEmpty,
   IsNumber,
@@ -11,6 +12,7 @@ import {
   IsString,
   IsUUID,
 } from 'class-validator';
+import { JobCategory, JobType } from 'libs/common/constants';
 
 export class CreateJobDto {
   @IsString()
@@ -21,9 +23,9 @@ export class CreateJobDto {
   @IsNotEmpty()
   readonly address!: string;
 
-  @IsString()
-  @IsIn(['full_time', 'part_time', 'remote'])
-  readonly job_type!: string;
+  @IsEnum(JobType)
+  @IsNotEmpty()
+  readonly job_type!: JobType;
 
   @IsNumber()
   @IsPositive()
@@ -62,4 +64,8 @@ export class CreateJobDto {
   @IsUUID()
   @IsNotEmpty()
   readonly recruiter_id?: string;
+
+  @IsEnum(JobCategory)
+  @IsNotEmpty()
+  readonly category!: JobCategory;
 }
