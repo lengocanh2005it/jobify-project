@@ -11,4 +11,5 @@ export const SERVICES = [
   { serviceName: 'EMAILS_SERVICE', queueName: 'emails_queue' },
   { serviceName: 'REVIEWS_SERVICE', queueName: 'reviews_queue' },
   { serviceName: 'REDIS_SERVICE', queueName: 'redis_queue' },
-];
+  { serviceName: 'ADMIN_SERVICE', queueName: 'admin_queue' },
+] as Array<{ serviceName: string; queueName: string }>;

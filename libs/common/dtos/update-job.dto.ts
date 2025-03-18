@@ -4,6 +4,7 @@ import {
   ArrayNotEmpty,
   IsArray,
   IsDate,
+  IsEnum,
   IsIn,
   IsNotEmpty,
   IsNumber,
@@ -11,6 +12,7 @@ import {
   IsPositive,
   IsString,
 } from 'class-validator';
+import { JobCategory, JobType } from 'libs/common/constants';
 
 export class UpdateJobDto {
   @IsOptional()
@@ -24,9 +26,9 @@ export class UpdateJobDto {
   readonly address?: string;
 
   @IsOptional()
-  @IsString()
-  @IsIn(['full_time', 'part_time', 'remote'])
-  readonly job_type?: string;
+  @IsEnum(JobType)
+  @IsNotEmpty()
+  readonly job_type?: JobType;
 
   @IsOptional()
   @IsNumber()
@@ -61,4 +63,9 @@ export class UpdateJobDto {
   @IsNotEmpty({ each: true })
   @ArrayMinSize(1)
   readonly requirements!: string[];
+
+  @IsOptional()
+  @IsEnum(JobCategory)
+  @IsNotEmpty()
+  readonly category?: JobCategory;
 }

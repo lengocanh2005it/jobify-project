@@ -345,7 +345,7 @@ export class UsersService implements OnModuleInit {
         throw new RpcException(
           generateRpcExceptionResponse(
             HttpStatus.BAD_REQUEST,
-            `Password is'nt correct.`,
+            `Password isn't correct.`,
           ),
         );
 
@@ -1240,5 +1240,37 @@ export class UsersService implements OnModuleInit {
         refresh: 'wait_for',
       });
     }
+  };
+
+  public handleCalculateStatisticsOfUsers = async () => {
+    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
+      const userRepository = queryRunner.manager.getRepository(User);
+
+      const [totalUsers, candidates, recruiters, admins] = await Promise.all([
+        userRepository.count(),
+        userRepository.count({
+          where: { role: { name: 'candidate' } },
+          relations: ['role'],
+        }),
+        userRepository.count({
+          where: { role: { name: 'recruiter' } },
+          relations: ['role'],
+        }),
+        userRepository.count({
+          where: { role: { name: 'admin' } },
+          relations: ['role'],
+        }),
+      ]);
+
+      return { totalUsers, candidates, recruiters, admins };
+    });
+  };
+
+  public handleGetTotalUsers = async () => {
+    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
+      const userRepository = queryRunner.manager.getRepository(User);
+
+      return userRepository.count();
+    });
   };
 }

@@ -29,5 +29,6 @@ import { JobsService } from './jobs.service';
     },
     ServicesExceptionInterceptor,
   ],
+  exports: [JobsService],
 })
 export class JobsModule {}
