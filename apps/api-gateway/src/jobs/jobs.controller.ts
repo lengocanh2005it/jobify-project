@@ -132,6 +132,7 @@ export class JobsController {
   @Get('/recruiters/me')
   @Roles(Role.ADMIN, Role.RECRUITER)
   @ResponseMessage('All application of jobs fetched successfully.')
+  @UseInterceptors(CacheInterceptor)
   async getAllApplicationsOfJobs(@Req() request: Request) {
     const userId = request.user?.id as string;
 

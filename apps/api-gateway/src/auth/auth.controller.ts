@@ -1,7 +1,9 @@
+import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   Body,
   Controller,
   Get,
+  Inject,
   Post,
   Req,
   Res,
@@ -31,7 +33,10 @@ import { CreateSocialAccount, SocialLogin } from 'libs/common/utils';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+  ) {}
 
   @Post('sign-in')
   @ResponseMessage('Logged in successfully.')
@@ -78,7 +83,19 @@ export class AuthController {
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
   @ResponseMessage('Get profile successfully.')
   async handleGetProfile(@Req() request: Request) {
-    return this.authService.handleGetProfile(request.user?.id as string);
+    const userId = (request?.user as User).id;
+
+    const cacheKey = `users:${userId}`;
+
+    const cachedProfile = await this.cacheManager.get(cacheKey);
+
+    if (cachedProfile) return cachedProfile;
+
+    const profile = await this.authService.handleGetProfile(userId);
+
+    await this.cacheManager.set(cacheKey, profile);
+
+    return profile;
   }
 
   @Post('update-password')
