@@ -13,29 +13,39 @@ export class EmailProcessor extends WorkerHost {
   }
 
   async process(
-    job: Job<{ email: string; type: EmailType }>,
+    job: Job<{ email: string; type: EmailType; extraData?: any }>,
     token?: string,
   ): Promise<any> {
     console.log(
-      `Processing job '${job.id}': Sending email to '${job.data.email}'`,
+      `Processing job '${job.name}': Sending email to '${job.data.email}'...`,
     );
-    return this.emailsService.handleSendEmail(job.data.email, job.data.type);
+
+    if (!job.data.type) {
+      console.error('There is an error from the system.');
+      return;
+    }
+
+    return this.emailsService.handleSendEmail(
+      job.data.email,
+      job.data.type,
+      job.data?.extraData,
+    );
   }
 
   @OnWorkerEvent('completed')
   onCompleted(job: Job) {
-    console.log(`Job with id: '${job.id}' completed.`);
+    console.log(`Job '${job.name}' completed.`);
   }
 
   @OnWorkerEvent('failed')
   onFailed(job: Job, err: Error) {
-    this.logger.error(`Job with id: '${job.id} failed due to: `, err);
+    this.logger.error(`Job '${job.name} failed due to: `, err);
   }
 
   @OnWorkerEvent('active')
   onActive(job: Job) {
     console.error(
-      `Retrying job with id: '${job.id}', attempt: ${job.attemptsMade + 1}`,
+      `Retrying job '${job.name}', attempt: ${job.attemptsMade + 1}`,
     );
   }
 }

@@ -29,6 +29,7 @@ import {
 } from 'libs/common/providers';
 import * as multer from 'multer';
 import { CommonService } from './common.service';
+import { BullModule } from '@nestjs/bullmq';
 
 @Global()
 @Module({
@@ -108,6 +109,16 @@ import { CommonService } from './common.service';
       }),
     }),
     RabbitMqModule,
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        connection: {
+          host: configService.get<string>('redis.host', 'localhost'),
+          port: configService.get<number>('redis.port', 6379),
+        },
+      }),
+    }),
   ],
   providers: [
     CommonService,
@@ -133,6 +144,7 @@ import { CommonService } from './common.service';
     CacheModule,
     HttpModule,
     RabbitMqModule,
+    BullModule,
   ],
 })
 export class CommonModule {}

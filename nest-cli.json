@@ -118,6 +118,15 @@
         "tsConfigPath": "apps/redis/tsconfig.app.json"
       }
     },
+    "reports": {
+      "type": "application",
+      "root": "apps/reports",
+      "entryFile": "main",
+      "sourceRoot": "apps/reports/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/reports/tsconfig.app.json"
+      }
+    },
     "reviews": {
       "type": "application",
       "root": "apps/reviews",

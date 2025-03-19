@@ -1,6 +1,6 @@
 import { Controller, UseInterceptors } from '@nestjs/common';
 import { EventPattern, Payload } from '@nestjs/microservices';
-import { EmailsProducer } from 'apps/emails/src/emails.producer';
+import { EmailsProducer } from 'apps/emails/src/producers';
 import { EmailType } from 'libs/common/constants';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 
@@ -15,5 +15,13 @@ export class EmailsController {
     @Payload('type') type: EmailType,
   ) {
     return this.emailsProducer.sendEmail(email, type);
+  }
+
+  @EventPattern({ cmd: 'send-report-to-email' })
+  async handleSendReportToEmail(
+    @Payload('email') email: string,
+    @Payload('fileUrl') fileUrl: string,
+  ) {
+    return this.emailsProducer.sendEmail(email, EmailType.REPORT, fileUrl);
   }
 }
