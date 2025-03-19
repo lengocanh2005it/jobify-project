@@ -51,6 +51,15 @@ export type CreateSocialAccount = {
   role: Role.CANDIDATE | Role.RECRUITER;
 };
 
+export type ReportData = {
+  company: string;
+  totalJobs: string;
+  totalApplications: string;
+  totalSavedJobs: string;
+  revenue: string;
+  totalClosedJobs: string;
+};
+
 declare module 'express' {
   interface Request {
     user?: any;

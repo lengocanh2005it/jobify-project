@@ -39,6 +39,7 @@ export enum EmailType {
   ACCOUNT_DELETE = 'account_delete',
   VERIFY_OTP = 'verify_otp',
   PAYMENT_SUCCESSFULLY = 'payment_successfully',
+  REPORT = 'report',
 }
 
 export enum ElasticIndexes {

@@ -120,4 +120,9 @@ export class JobsController {
   async handleVerifyJob(@Payload() jobId: string) {
     return this.jobsService.handleVerifyJob(jobId);
   }
+
+  @MessagePattern({ cmd: 'get-report-data' })
+  async handleGetReportData() {
+    return this.jobsService.handleGenerateJobReportData();
+  }
 }

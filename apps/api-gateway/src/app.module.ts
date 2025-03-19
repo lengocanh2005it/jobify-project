@@ -20,6 +20,7 @@ import { CustomValidationPipe } from 'libs/common/pipes';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AdminModule } from 'apps/api-gateway/src/admin/admin.module';
+import { ReportsModule } from 'apps/api-gateway/src/reports/reports.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { AdminModule } from 'apps/api-gateway/src/admin/admin.module';
     MessagesModule,
     ConversationsModule,
     AdminModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [

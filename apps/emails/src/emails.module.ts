@@ -1,26 +1,15 @@
 import { CommonModule } from '@app/common';
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
-import { EmailProcessor } from 'apps/emails/src/emails.processor';
-import { EmailsProducer } from 'apps/emails/src/emails.producer';
-import { RedisService } from 'apps/redis/src/redis.service';
+import { EmailProcessor } from 'apps/emails/src/processors';
+import { EmailsProducer } from 'apps/emails/src/producers';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 import { EmailsController } from './emails.controller';
 import { EmailsService } from './emails.service';
-import { ConfigService } from '@nestjs/config';
 
 @Module({
   imports: [
     CommonModule,
-    BullModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        connection: {
-          host: configService.get<string>('redis.host', 'localhost'),
-          port: configService.get<number>('redis.port', 6379),
-        },
-      }),
-    }),
     BullModule.registerQueue({
       name: 'emails-queue',
     }),

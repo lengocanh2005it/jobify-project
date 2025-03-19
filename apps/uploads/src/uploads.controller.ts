@@ -12,4 +12,9 @@ export class UploadsController {
   async handleUploadsFile(@Payload() files: Array<Express.Multer.File>) {
     return this.uploadsService.handleUploadFile(files);
   }
+
+  @MessagePattern({ cmd: 'upload-filepath' })
+  async handleUploadFilePath(@Payload() filepath: string) {
+    return this.uploadsService.handleUploadFilePath(filepath);
+  }
 }

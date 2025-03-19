@@ -53,4 +53,23 @@ export class UploadsService {
 
     return urlsArray;
   }
+
+  public handleUploadFilePath = async (filePath: string) => {
+    try {
+      const result = await cloudinary.v2.uploader.upload(filePath, {
+        resource_type: 'auto',
+        type: 'upload',
+        timeout: 60000,
+        access_mode: 'public',
+        invalidate: true,
+        use_filename: true,
+        unique_filename: false,
+      });
+
+      return result.secure_url;
+    } catch (err) {
+      console.error('❌ Upload failed:', err);
+      throw err;
+    }
+  };
 }

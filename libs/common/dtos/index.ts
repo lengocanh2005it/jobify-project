@@ -33,3 +33,4 @@ export * from './update-password.dto';
 export * from './update-review.dto';
 export * from './update-user.dto';
 export * from './verify-email.dto';
+export * from './generate-report.dto';

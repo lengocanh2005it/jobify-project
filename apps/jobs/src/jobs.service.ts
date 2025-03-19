@@ -1375,6 +1375,35 @@ export class JobsService implements OnModuleInit {
     });
   };
 
+  public handleGenerateJobReportData = async () => {
+    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
+      const jobRepository = queryRunner.manager.getRepository(Job);
+
+      return jobRepository
+        .createQueryBuilder('job')
+        .innerJoin('job.recruiter', 'recruiter')
+        .innerJoin('recruiter.company', 'company')
+        .leftJoin('job.savedByUsers', 'savedByUsers')
+        .leftJoin('job.applications', 'applications')
+        .leftJoin(
+          'transaction',
+          'transaction',
+          'transaction.user_id = job.recruiter_id AND transaction.status = :status',
+          { status: 'SUCCESS' },
+        )
+        .select([
+          'company.name AS company',
+          'COUNT(DISTINCT job.id) AS totalJobs',
+          'COUNT(DISTINCT applications.id) AS totalApplications',
+          'COUNT(DISTINCT savedByUsers.id) AS totalSavedJobs',
+          'SUM(CASE WHEN job.status = "closed" THEN 1 ELSE 0 END) AS totalClosedJobs',
+          'COALESCE(SUM(transaction.amount), 0) AS revenue',
+        ])
+        .groupBy('company.id')
+        .getRawMany();
+    });
+  };
+
   private formatContractType(jobType: string): string {
     const contractTypes: Record<string, string> = {
       full_time: 'Full-time',
