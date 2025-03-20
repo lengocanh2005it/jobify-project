@@ -1414,4 +1414,21 @@ export class JobsService implements OnModuleInit {
 
     return contractTypes[jobType] || 'Other';
   }
+
+  public handleSearchJobsByTitle = async (title: string) => {
+    const { hits } = await this.elasticsearchService.search<Job>({
+      index: ElasticIndexes.JOBS,
+      body: {
+        query: {
+          multi_match: {
+            query: title,
+            fields: ['title^3', 'description'],
+            fuzziness: 'AUTO',
+            operator: 'OR',
+          },
+        },
+      },
+    });
+    return hits.hits.map((hit) => hit._source);
+  };
 }

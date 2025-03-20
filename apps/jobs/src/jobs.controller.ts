@@ -125,4 +125,9 @@ export class JobsController {
   async handleGetReportData() {
     return this.jobsService.handleGenerateJobReportData();
   }
+
+  @MessagePattern({ cmd: 'search-jobs-by-title' })
+  async handleSearchJobsByTitle(@Payload() title: string) {
+    return this.jobsService.handleSearchJobsByTitle(title);
+  }
 }
