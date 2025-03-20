@@ -38,6 +38,7 @@ export class JobsService implements OnModuleInit {
     @Inject('USERS_SERVICE') private readonly rabbitMqUserClient: ClientProxy,
     private readonly transactionsProvider: TransactionsProvider,
     private readonly elasticsearchService: ElasticsearchService,
+    @Inject('JOBS_SERVICE') private readonly rabbitMqJobClient: ClientProxy,
   ) {}
 
   async onModuleInit() {

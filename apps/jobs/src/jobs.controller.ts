@@ -130,4 +130,7 @@ export class JobsController {
   async handleSearchJobsByTitle(@Payload() title: string) {
     return this.jobsService.handleSearchJobsByTitle(title);
   }
+
+  @MessagePattern({ cmd: 'job.approved' })
+  async jobApproved() {}
 }

@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
+import { SseService } from 'apps/api-gateway/src/sse/sse.service';
 import { User } from 'apps/users/src/entities';
 import {
   CreateJobDto,
@@ -16,6 +17,7 @@ import { lastValueFrom } from 'rxjs';
 export class JobsService {
   constructor(
     @Inject('JOBS_SERVICE') private readonly rabbitMqJobsClient: ClientProxy,
+    private readonly sseService: SseService,
   ) {}
 
   public handleCreateJob = async (createJobDto: CreateJobDto, user: User) => {
@@ -28,9 +30,20 @@ export class JobsService {
   };
 
   public handleProcessJobs = async (processJobsDto: ProcessJobsDto) => {
-    return await lastValueFrom(
+    const result = await lastValueFrom(
       this.rabbitMqJobsClient.send({ cmd: 'process-jobs' }, processJobsDto),
     );
+
+    const updatedJobs = [
+      ...(result.jobs?.approved_jobs || []),
+      ...(result.jobs?.rejected_jobs || []),
+    ];
+
+    if (updatedJobs.length > 0) {
+      this.sseService.handleSendJobUpdates(updatedJobs);
+    }
+
+    return result;
   };
 
   public handleGetJobs = async (user: User, filters?: SearchJobsDto) => {
