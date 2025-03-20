@@ -21,6 +21,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AdminModule } from 'apps/api-gateway/src/admin/admin.module';
 import { ReportsModule } from 'apps/api-gateway/src/reports/reports.module';
+import { SearchModule } from 'apps/api-gateway/src/search/search.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { ReportsModule } from 'apps/api-gateway/src/reports/reports.module';
     ConversationsModule,
     AdminModule,
     ReportsModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [
