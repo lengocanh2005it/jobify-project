@@ -2,6 +2,7 @@ import configuration from '@app/common/config/configuration';
 import { RabbitMqModule } from '@app/common/rabbitmq';
 import { createKeyv } from '@keyv/redis';
 import { HttpModule } from '@nestjs/axios';
+import { BullModule } from '@nestjs/bullmq';
 import { CacheModule } from '@nestjs/cache-manager';
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -19,6 +20,7 @@ import {
   HTTP_MODULE_MAX_REDIRECT,
   HTTP_MODULE_TIMEOUT,
 } from 'libs/common/constants';
+import { entities } from 'libs/common/entities';
 import { CustomValidationPipe } from 'libs/common/pipes';
 import {
   FacebookProvider,
@@ -29,7 +31,6 @@ import {
 } from 'libs/common/providers';
 import * as multer from 'multer';
 import { CommonService } from './common.service';
-import { BullModule } from '@nestjs/bullmq';
 
 @Global()
 @Module({
@@ -59,11 +60,8 @@ import { BullModule } from '@nestjs/bullmq';
         database: configService.get<string>('database.name'),
         port: configService.get<number>('database.port'),
         host: configService.get<string>('database.host'),
-        entities: ['dist/**/*.entity.js'],
-        migrations: [
-          'dist/apps/api-gateway/apps/api-gateway/src/config/migrations/*.js',
-        ],
-        synchronize: false,
+        entities,
+        synchronize: true,
         logging: false,
       }),
     }),
