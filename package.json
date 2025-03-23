@@ -32,10 +32,6 @@
     "start:dev:uploads": "nest start uploads --watch",
     "start:dev:interviews": "nest start interviews --watch",
     "start:dev:admin": "nest start admin --watch",
-    "typeorm": "npm run build && npx typeorm -d dist/apps/api-gateway/apps/api-gateway/src/config/typeorm.config.js",
-    "migration:generate": "npm run typeorm -- migration:generate",
-    "migration:run": "npm run typeorm -- migration:run",
-    "migration:revert": "npm run typeorm -- migration:revert",
     "start:dev:all": "node scripts/start-dev-all.js",
     "start:prod:all": "node scripts/start-prod-all.js",
     "start:build:all": "node scripts/build-all.js"
