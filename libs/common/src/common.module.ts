@@ -31,6 +31,7 @@ import {
 } from 'libs/common/providers';
 import * as multer from 'multer';
 import { CommonService } from './common.service';
+import { LoggerModule } from 'nestjs-pino';
 
 @Global()
 @Module({
@@ -117,6 +118,14 @@ import { CommonService } from './common.service';
         },
       }),
     }),
+    LoggerModule.forRoot({
+      pinoHttp: {
+        transport: {
+          target: 'pino-pretty',
+        },
+        autoLogging: false,
+      },
+    }),
   ],
   providers: [
     CommonService,
@@ -143,6 +152,7 @@ import { CommonService } from './common.service';
     HttpModule,
     RabbitMqModule,
     BullModule,
+    LoggerModule,
   ],
 })
 export class CommonModule {}

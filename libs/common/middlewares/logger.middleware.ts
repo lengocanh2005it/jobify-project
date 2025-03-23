@@ -1,9 +1,10 @@
-import { Injectable, Logger, NestMiddleware } from '@nestjs/common';
+import { Injectable, NestMiddleware } from '@nestjs/common';
 import { NextFunction, Request, Response } from 'express';
+import { PinoLogger } from 'nestjs-pino';
 
 @Injectable()
 export class LoggerMiddleware implements NestMiddleware {
-  private readonly logger = new Logger('HTTP');
+  constructor(private readonly logger: PinoLogger) {}
 
   use(req: Request, res: Response, next: NextFunction) {
     const { ip, originalUrl, method } = req;
@@ -13,8 +14,9 @@ export class LoggerMiddleware implements NestMiddleware {
       const { statusCode } = res;
       const contentLength = res.get('content-length');
 
-      this.logger.log(
-        `${method} ${originalUrl} ${statusCode} ${contentLength} - ${userAgent} ${ip}`,
+      this.logger.info(
+        { method, url: originalUrl, statusCode, contentLength, userAgent, ip },
+        'Incoming request',
       );
     });
 
