@@ -24,7 +24,6 @@ export * from './search-messages.dto';
 export * from './search-notifications.dto';
 export * from './search-reviews.dto';
 export * from './search-transactions.dto';
-export * from './update-application.dto';
 export * from './update-company.dto';
 export * from './update-interview.dto';
 export * from './update-job.dto';

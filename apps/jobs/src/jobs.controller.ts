@@ -95,11 +95,6 @@ export class JobsController {
     return this.jobsService.handleRemoveSavedJobs(removeSavedJobsDto, user);
   }
 
-  @MessagePattern({ cmd: 'get-jobs-recruiter' })
-  async handleGetAllApplicationsOfJobs(@Payload() recruiterId: string) {
-    return this.jobsService.handleGetAllApplicationsOfJobs(recruiterId);
-  }
-
   @MessagePattern({ cmd: 'get-company-by-recruiter-id' })
   async handleGetCompanyByRecruiterId(@Payload() recruiterId: string) {
     return this.jobsService.handleGetCompanyByRecruiterId(recruiterId);
@@ -131,6 +126,28 @@ export class JobsController {
     return this.jobsService.handleSearchJobsByTitle(title);
   }
 
-  @MessagePattern({ cmd: 'job.approved' })
-  async jobApproved() {}
+  @MessagePattern({ cmd: 'calculate-statistics-jobs' })
+  async handleCalculateStatisticsOfJobs(@Payload() days?: number) {
+    return this.jobsService.handleCalculateStatisticsOfJobs(days);
+  }
+
+  @MessagePattern({ cmd: 'calculate-jobs-companies' })
+  async handleCalculateJobsOfCompanies(
+    @Payload('top') top?: number,
+    @Payload('isDetailed') isDetailed?: boolean,
+  ) {
+    return this.jobsService.handleGetStatisticsJobsOfCompanies(top, isDetailed);
+  }
+
+  @MessagePattern({
+    cmd: 'calculate-statistics-salaries-positions',
+  })
+  async handleCalculateStatisticsSalariesOfPositions() {
+    return this.jobsService.handleGetStatisticsSalariesOfPositions();
+  }
+
+  @MessagePattern({ cmd: 'calculate-statistics-job-types' })
+  async handleCalculateStatisticsJobTypes() {
+    return this.jobsService.handleGetStatisticsOfJobTypes();
+  }
 }

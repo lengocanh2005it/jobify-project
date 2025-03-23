@@ -1,4 +1,4 @@
-import { Transform } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsNotEmpty,
   IsOptional,
@@ -9,6 +9,13 @@ import {
 } from 'class-validator';
 
 export class RemoveSavedJobsDto {
+  @ApiProperty({
+    name: 'jobIds',
+    type: String,
+    description: 'The jobIds that write in string',
+    example:
+      '17118ca1-a8a7-4fd3-9d3d-08f23cf1cf55,17118ca1-a8a7-4fd3-9d3d-08f23cf1cf55,17118ca1-a8a7-4fd3-9d3d-08f23cf1cf55',
+  })
   @IsString()
   @IsNotEmpty()
   @MinLength(1)
@@ -20,6 +27,11 @@ export class RemoveSavedJobsDto {
   )
   readonly jobIds!: string;
 
+  @ApiPropertyOptional({
+    name: 'candidate_id',
+    description: 'The candidate id',
+    example: '17118ca1-a8a7-4fd3-9d3d-08f23cf1cf55',
+  })
   @IsOptional()
   @IsString()
   @IsUUID()
