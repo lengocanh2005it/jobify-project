@@ -8,6 +8,12 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiForbiddenResponse,
+  ApiOperation,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { PaymentsService } from 'apps/api-gateway/src/payments/payments.service';
 import { User } from 'apps/users/src/entities';
 import { Request } from 'express';
@@ -23,7 +29,21 @@ export class PaymentsController {
   @Post()
   @ResponseMessage('Checkout session created successfully.')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @ApiBearerAuth()
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  @ApiOperation({
+    summary: 'Create checkout session',
+    description:
+      'Create checkout session for payment of premium package using Stripe.',
+  })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        checkout_session_url: 'https://stripe...',
+      },
+    },
+  })
   async handleCreatePayment(@Req() request: Request) {
     const user = request.user as User;
 
@@ -32,6 +52,18 @@ export class PaymentsController {
 
   @Post('stripe/webhooks')
   @ResponseMessage('Updated transaction from Stripe Webhook successfully.')
+  @ApiOperation({
+    summary: 'Stripe webhooks',
+    description: 'Handling stripe webhooks',
+  })
+  @ApiResponse({
+    status: 201,
+    schema: {
+      example: {
+        received: true,
+      },
+    },
+  })
   async handleStripeWebhook(@Req() req: Request) {
     const sig = req.headers['stripe-signature'] as string;
 
@@ -42,7 +74,54 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Get all payments successfully!')
   @Roles(Role.ADMIN)
+  @ApiBearerAuth()
   @UseInterceptors(CacheInterceptor)
+  @ApiOperation({
+    summary: 'Get all payments',
+    description: 'Get all payments of users.',
+  })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: [
+        {
+          id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+          amount: 1200,
+          status: 'PENDING',
+          payment_date: '2025-03-20T12:12:12Z',
+          expiry_date: '2025-03-25T12:12:12Z',
+          user: {
+            id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+            full_name: 'John Doe',
+            email: 'johndoe01@gmail.com',
+            phone_number: '+124345345',
+            is_premium: true,
+            premium_expiry: '2025-03-30T12:12:12Z',
+            address: 'Viet Nam',
+          },
+        },
+        {
+          id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+          amount: 1200,
+          status: 'PENDING',
+          payment_date: '2025-03-20T12:12:12Z',
+          expiry_date: '2025-03-25T12:12:12Z',
+          user: {
+            id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+            full_name: 'Luke Coleman',
+            email: 'johndoe01@gmail.com',
+            phone_number: '+124345345',
+            is_premium: true,
+            premium_expiry: '2025-03-30T12:12:12Z',
+            address: 'Viet Nam',
+          },
+        },
+      ],
+    },
+  })
+  @ApiForbiddenResponse({
+    description: 'Only ADMIN can have permission to get all payments.',
+  })
   async getPayments(@Query() searchTransactionsDto?: SearchTransactionsDto) {
     return this.paymentsService.handleGetPayments(searchTransactionsDto);
   }

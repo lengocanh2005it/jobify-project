@@ -264,6 +264,7 @@ export class JobsService implements OnModuleInit {
             'salary_max',
             'posted_at',
             'expired_at',
+            'description',
           ]),
           recruiter: savedJob.recruiter
             ? {
@@ -1061,50 +1062,6 @@ export class JobsService implements OnModuleInit {
     });
   };
 
-  public handleGetAllApplicationsOfJobs = async (recruiterId: string) => {
-    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
-      const jobRepository = queryRunner.manager.getRepository(Job);
-
-      const recruiter = await lastValueFrom<User | null>(
-        this.rabbitMqUserClient.send({ cmd: 'get-user' }, recruiterId),
-      );
-
-      if (!recruiter)
-        throw new RpcException(
-          generateRpcExceptionResponse(
-            HttpStatus.NOT_FOUND,
-            `Recruiter with id: '${recruiterId}' not found.`,
-          ),
-        );
-
-      const jobs = await jobRepository.find({
-        where: { recruiter: { id: recruiterId } },
-        relations: [
-          'recruiter',
-          'applications',
-          'applications.candidate',
-          'applications.candidate.skills',
-        ],
-      });
-
-      return jobs.map(({ applications, recruiter, ...res }) => ({
-        ...res,
-        applications: applications.map(({ candidate, ...res }) => ({
-          ...res,
-          candidate: {
-            id: candidate.id,
-            full_name: candidate.full_name,
-            email: candidate.email,
-            bio: candidate.bio,
-            phone_number: candidate.phone_number,
-            skills: candidate.skills.map((skill) => skill.name),
-            certifications: candidate.certifications,
-          },
-        })),
-      }));
-    });
-  };
-
   public handleGetCompanyByRecruiterId = async (recruiterId: string) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
       const companyRepository = queryRunner.manager.getRepository(Company);
@@ -1197,6 +1154,7 @@ export class JobsService implements OnModuleInit {
         id: job.id,
         title: job.title,
         address: job.address,
+        description: job.description,
         job_type: job.job_type,
         salary_min: job.salary_min,
         salary_max: job.salary_max,

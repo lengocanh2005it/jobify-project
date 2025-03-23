@@ -14,10 +14,20 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { ReviewsService } from 'apps/api-gateway/src/reviews/reviews.service';
 import { User } from 'apps/users/src/entities';
 import { Request } from 'express';
-import { Role } from 'libs/common/constants';
+import { API_TAGS, Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
 import {
   CreateReviewDto,
@@ -28,6 +38,8 @@ import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 
 @Controller('reviews')
 @UseGuards(JwtAuthGuard, RoleAuthGuard)
+@ApiBearerAuth()
+@ApiTags(API_TAGS.REVIEWS)
 export class ReviewsController {
   constructor(
     private readonly reviewsService: ReviewsService,
@@ -37,6 +49,41 @@ export class ReviewsController {
   @Post()
   @Roles(Role.CANDIDATE)
   @ResponseMessage('New review created successfully!')
+  @ApiOperation({
+    summary: 'Create a new review',
+    description: 'Create a new review with some given data.',
+  })
+  @ApiForbiddenResponse({
+    description: 'Only CANDIDATE can have permission to create a new review.',
+  })
+  @ApiResponse({
+    status: 201,
+    schema: {
+      example: {
+        id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+        ratings_number: 2,
+        comment: 'Bad Service',
+        company: {
+          name: 'FPT Software',
+          bio: 'Some bio of FPT Software...',
+          id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+          address: 'Ha Noi',
+          website: 'https://fpt.software.com.vn',
+        },
+        candidate: {
+          id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+          email: 'user123@gmail.com',
+          phone_number: '+24523423423',
+          full_name: 'John Doe',
+          bio: 'Specialize in Backend Developer with 5 years experiences.',
+        },
+      },
+    },
+  })
+  @ApiBody({
+    type: CreateReviewDto,
+    description: 'Some give data to be create a new review.',
+  })
   async createReview(
     @Body() createReviewDto: CreateReviewDto,
     @Req() request: Request,
@@ -50,6 +97,78 @@ export class ReviewsController {
   @Roles(Role.ADMIN, Role.RECRUITER, Role.CANDIDATE)
   @ResponseMessage('Reviews fetched successfully!')
   @UseInterceptors(CacheInterceptor)
+  @ApiOperation({
+    summary: 'Get reviews',
+    description: 'Get all reviews about the companies in the system.',
+  })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: [
+        {
+          id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+          ratings_number: 2,
+          comment: 'Bad Service',
+          company: {
+            name: 'FPT Software',
+            bio: 'Some bio of FPT Software...',
+            id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+            address: 'Ha Noi',
+            website: 'https://fpt.software.com.vn',
+          },
+          candidate: {
+            id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+            email: 'user123@gmail.com',
+            phone_number: '+24523423423',
+            full_name: 'John Doe',
+            bio: 'Specialize in Backend Developer with 5 years experiences.',
+          },
+        },
+        {
+          id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+          ratings_number: 2,
+          comment: 'Bad Service',
+          company: {
+            name: 'FPT Software',
+            bio: 'Some bio of FPT Software...',
+            id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+            address: 'Ha Noi',
+            website: 'https://fpt.software.com.vn',
+          },
+          candidate: {
+            id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+            email: 'user123@gmail.com',
+            phone_number: '+24523423423',
+            full_name: 'John Doe',
+            bio: 'Specialize in Backend Developer with 5 years experiences.',
+          },
+        },
+        {
+          id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+          ratings_number: 2,
+          comment: 'Bad Service',
+          company: {
+            name: 'FPT Software',
+            bio: 'Some bio of FPT Software...',
+            id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+            address: 'Ha Noi',
+            website: 'https://fpt.software.com.vn',
+          },
+          candidate: {
+            id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+            email: 'user123@gmail.com',
+            phone_number: '+24523423423',
+            full_name: 'John Doe',
+            bio: 'Specialize in Backend Developer with 5 years experiences.',
+          },
+        },
+      ],
+    },
+  })
+  @ApiForbiddenResponse({
+    description:
+      'Only ADMINS, RECRUITERS and CANDIDATES can have permission to get all reviews.',
+  })
   async getReviews(
     @Req() request: Request,
     @Query() searchReviewsDto?: SearchReviewsDto,
@@ -62,6 +181,43 @@ export class ReviewsController {
   @Patch(':id')
   @Roles(Role.ADMIN, Role.CANDIDATE)
   @ResponseMessage('Review updated successfully!')
+  @ApiOperation({
+    summary: 'Update review',
+    description: 'Update an existing review by reviewId',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'The id of review that want to update.',
+    example: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+  })
+  @ApiBody({
+    type: UpdateReviewDto,
+    description: 'Some given data need to be update the review.',
+  })
+  @ApiResponse({
+    status: 201,
+    schema: {
+      example: {
+        id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+        ratings_number: 2,
+        comment: 'Bad Service',
+        company: {
+          name: 'FPT Software',
+          bio: 'Some bio of FPT Software...',
+          id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+          address: 'Ha Noi',
+          website: 'https://fpt.software.com.vn',
+        },
+        candidate: {
+          id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+          email: 'user123@gmail.com',
+          phone_number: '+24523423423',
+          full_name: 'John Doe',
+          bio: 'Specialize in Backend Developer with 5 years experiences.',
+        },
+      },
+    },
+  })
   async updateReview(
     @Body() updateReviewDto: UpdateReviewDto,
     @Param('id', ParseUUIDPipe) reviewId: string,
@@ -79,6 +235,24 @@ export class ReviewsController {
   @Delete(':id')
   @ResponseMessage('Review deleted successfully!')
   @Roles(Role.ADMIN, Role.CANDIDATE)
+  @ApiOperation({
+    summary: 'Delete a review',
+    description: 'Delete an existing review by review id.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'The interview id',
+    example: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+  })
+  @ApiNotFoundResponse({
+    description: 'Review not found.',
+  })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: 'Review deleted successfully.',
+    },
+  })
   async deleteReview(
     @Param('id', ParseUUIDPipe) reviewId: string,
     @Req() request: Request,
@@ -91,6 +265,46 @@ export class ReviewsController {
   @Get(':id')
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
   @ResponseMessage('Review fetched successfully!')
+  @ApiOperation({
+    summary: 'Get review',
+    description: 'Get an existing review by review id.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'The id of review',
+    example: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+  })
+  @ApiNotFoundResponse({
+    description: 'Review not found.',
+  })
+  @ApiForbiddenResponse({
+    description:
+      'Only ADMINS, RECRUITERS and CANDIDATES can have permission to delete review.',
+  })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+        ratings_number: 2,
+        comment: 'Bad Service',
+        company: {
+          name: 'FPT Software',
+          bio: 'Some bio of FPT Software...',
+          id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+          address: 'Ha Noi',
+          website: 'https://fpt.software.com.vn',
+        },
+        candidate: {
+          id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+          email: 'user123@gmail.com',
+          phone_number: '+24523423423',
+          full_name: 'John Doe',
+          bio: 'Specialize in Backend Developer with 5 years experiences.',
+        },
+      },
+    },
+  })
   async getReview(
     @Param('id', ParseUUIDPipe) reviewId: string,
     @Req() request: Request,

@@ -22,12 +22,16 @@ export class PaymentsService {
       ? body.toString()
       : JSON.stringify(body);
 
-    return await lastValueFrom(
+    await lastValueFrom(
       this.rabbitMqPaymentClient.emit(
         { cmd: 'stripe-webhooks' },
         { sig, body: rawBody },
       ),
     );
+
+    return {
+      received: true,
+    };
   };
 
   public handleGetPayments = async (

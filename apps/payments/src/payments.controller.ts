@@ -36,4 +36,9 @@ export class PaymentsController {
   ) {
     return this.paymentsService.handleGetPayments(searchTransactionsDto);
   }
+
+  @MessagePattern({ cmd: 'calculate-revenue-statistics' })
+  async handleCalculateStatisticsOfRevenue() {
+    return this.paymentsService.handleCalculateStatisticsRevenue();
+  }
 }

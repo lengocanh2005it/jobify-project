@@ -153,4 +153,9 @@ export class UsersController {
   async handleGetTotalUsers() {
     return this.usersService.handleGetTotalUsers();
   }
+
+  @MessagePattern({ cmd: 'calculate-statistics-users' })
+  async handleGetStatisticsOfUser() {
+    return this.usersService.handleCalculateStatisticsOfUsers();
+  }
 }

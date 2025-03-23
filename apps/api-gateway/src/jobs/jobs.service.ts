@@ -114,10 +114,4 @@ export class JobsService {
       ),
     );
   };
-
-  public handleGetAllApplicationsOfJobs = async (recruiterId: string) => {
-    return await lastValueFrom(
-      this.rabbitMqJobsClient.send({ cmd: 'get-jobs-recruiter' }, recruiterId),
-    );
-  };
 }

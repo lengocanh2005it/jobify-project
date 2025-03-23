@@ -79,4 +79,9 @@ export class ApplicationsController {
       applicationId,
     );
   }
+
+  @MessagePattern({ cmd: 'calculate-statistics-applications' })
+  async handleCalculateStatisticsOfApplications() {
+    return this.applicationsService.handleCalculateStatisticsOfApplications();
+  }
 }

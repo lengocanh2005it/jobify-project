@@ -1,46 +1,77 @@
-import { Injectable } from '@nestjs/common';
-import { ApplicationsService } from 'apps/applications/src/applications.service';
-import { JobsService } from 'apps/jobs/src/jobs.service';
-import { PaymentsService } from 'apps/payments/src/payments.service';
-import { UsersService } from 'apps/users/src/users.service';
+import { Inject, Injectable } from '@nestjs/common';
+import { ClientProxy } from '@nestjs/microservices';
+import { lastValueFrom } from 'rxjs';
 
 @Injectable()
 export class AdminService {
   constructor(
-    private readonly usersService: UsersService,
-    private readonly jobsService: JobsService,
-    private readonly applicationsService: ApplicationsService,
-    private readonly paymentsService: PaymentsService,
+    @Inject('USERS_SERVICE') private readonly rabbitMqUserClient: ClientProxy,
+    @Inject('JOBS_SERVICE') private readonly rabbitMqJobClient: ClientProxy,
+    @Inject('APPLICATIONS_SERVICE')
+    private readonly rabbitMqApplicationClient: ClientProxy,
+    @Inject('PAYMENTS_SERVICE')
+    private readonly rabbitMqPaymentClient: ClientProxy,
   ) {}
 
   public handleGetStatisticsOfUsers = async () => {
-    return this.usersService.handleCalculateStatisticsOfUsers();
+    return lastValueFrom(
+      this.rabbitMqUserClient.send({ cmd: 'calculate-statistics-users' }, {}),
+    );
   };
 
   public handleGetStatisticsOfJobs = async (days?: number) => {
-    return this.jobsService.handleCalculateStatisticsOfJobs(days);
+    return lastValueFrom(
+      this.rabbitMqJobClient.send({ cmd: 'calculate-statistics-jobs' }, days),
+    );
   };
 
   public handleGetStatisticsOfApplications = async () => {
-    return this.applicationsService.handleCalculateStatisticsOfApplications();
+    return lastValueFrom(
+      this.rabbitMqApplicationClient.send(
+        { cmd: 'calculate-statistics-applications' },
+        {},
+      ),
+    );
   };
 
   public handleGetStatisticsJobsOfCompanies = async (
     top?: number,
     isDetailed?: boolean,
   ) => {
-    return this.jobsService.handleGetStatisticsJobsOfCompanies(top, isDetailed);
+    return lastValueFrom(
+      this.rabbitMqJobClient.send(
+        { cmd: 'calculate-jobs-companies' },
+        { top, isDetailed },
+      ),
+    );
   };
 
   public handleGetStatisticsRevenue = async () => {
-    return this.paymentsService.handleCalculateStatisticsRevenue();
+    return lastValueFrom(
+      this.rabbitMqPaymentClient.send(
+        { cmd: 'calculate-revenue-statistics' },
+        {},
+      ),
+    );
   };
 
   public handleGetStatisticsSalariesOfPositions = async () => {
-    return this.jobsService.handleGetStatisticsSalariesOfPositions();
+    return lastValueFrom(
+      this.rabbitMqJobClient.send(
+        {
+          cmd: 'calculate-statistics-salaries-positions',
+        },
+        {},
+      ),
+    );
   };
 
   public handleGetStatisticsOfJobTypes = async () => {
-    return this.jobsService.handleGetStatisticsOfJobTypes();
+    return lastValueFrom(
+      this.rabbitMqJobClient.send(
+        { cmd: 'calculate-statistics-job-types' },
+        {},
+      ),
+    );
   };
 }
