@@ -56,4 +56,9 @@ export default () => ({
   rabbitmq: {
     url: process.env.RABBITMQ_URL,
   },
+  google_recaptcha: {
+    site_key: process.env.GOOGLE_RECAPTCHA_SITE_KEY,
+    secret_key: process.env.GOOGLE_RECAPTCHA_SECRET_KEY,
+  },
+  node_env: process.env.NODE_ENV,
 });
