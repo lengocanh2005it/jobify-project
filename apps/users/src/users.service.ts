@@ -60,78 +60,84 @@ export class UsersService implements OnModuleInit {
 
   public getUsers = async (query: PaginateQuery) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
-      const userRepository = queryRunner.manager.getRepository(User);
+      try {
+        const userRepository = queryRunner.manager.getRepository(User);
 
-      let userIds: string[] | null = null;
+        let userIds: string[] | null = null;
 
-      const search = query.search;
+        const search = query.search;
 
-      if (search) {
-        let field = 'email';
+        if (search) {
+          let field = 'email';
 
-        let value = search;
+          let value = search;
 
-        if (search.includes(':')) {
-          const [searchField, searchValue] = search.split(':');
+          if (search.includes(':')) {
+            const [searchField, searchValue] = search.split(':');
 
-          field = searchField.trim();
+            field = searchField.trim();
 
-          value = searchValue.trim();
-        }
+            value = searchValue.trim();
+          }
 
-        const { hits } = await this.elasticsearchService.search({
-          index: ElasticIndexes.USERS,
-          body: {
-            query: {
-              bool: {
-                should:
-                  field === 'email'
-                    ? value.includes('@')
-                      ? [{ term: { 'email.keyword': value } }]
-                      : [{ wildcard: { email: `*${value}*` } }]
-                    : [
-                        { match_phrase: { [field]: value } },
-                        { wildcard: { [field]: `*${value}*` } },
-                      ],
+          const { hits } = await this.elasticsearchService.search({
+            index: ElasticIndexes.USERS,
+            body: {
+              query: {
+                bool: {
+                  should:
+                    field === 'email'
+                      ? value.includes('@')
+                        ? [{ term: { 'email.keyword': value } }]
+                        : [{ wildcard: { email: `*${value}*` } }]
+                      : [
+                          { match_phrase: { [field]: value } },
+                          { wildcard: { [field]: `*${value}*` } },
+                        ],
+                },
               },
             },
-          },
+          });
+
+          userIds = hits.hits.map(
+            (hit) => (hit._source as Partial<User>).id as string,
+          );
+        }
+
+        const qb = userRepository
+          .createQueryBuilder('user')
+          .leftJoinAndSelect('user.role', 'role')
+          .select([
+            'user.id',
+            'user.email',
+            'user.address',
+            'user.full_name',
+            'user.phone_number',
+            'user.bio',
+            'user.avatar_url',
+            'user.is_premium',
+            'user.expected_salary',
+            'user.premium_expiry',
+            'user.createdAt',
+            'role.name',
+          ])
+          .andWhere('role.name != :roleName', { roleName: 'admin' });
+
+        if (userIds && userIds.length > 0) {
+          qb.andWhere('user.id IN (:...userIds)', { userIds });
+        }
+
+        return paginate(query, qb, {
+          sortableColumns: ['id', 'email'],
+          defaultSortBy: [['id', 'ASC']],
+          maxLimit: 100,
+          select: query.select ?? [],
         });
-
-        userIds = hits.hits.map(
-          (hit) => (hit._source as Partial<User>).id as string,
-        );
+      } catch (err) {
+        if (err?.meta?.statusCode === 404) return [];
+        console.error('Elasticsearch search error: ', err);
+        throw err;
       }
-
-      const qb = userRepository
-        .createQueryBuilder('user')
-        .leftJoinAndSelect('user.role', 'role')
-        .select([
-          'user.id',
-          'user.email',
-          'user.address',
-          'user.full_name',
-          'user.phone_number',
-          'user.bio',
-          'user.avatar_url',
-          'user.is_premium',
-          'user.expected_salary',
-          'user.premium_expiry',
-          'user.createdAt',
-          'role.name',
-        ])
-        .andWhere('role.name != :roleName', { roleName: 'admin' });
-
-      if (userIds && userIds.length > 0) {
-        qb.andWhere('user.id IN (:...userIds)', { userIds });
-      }
-
-      return paginate(query, qb, {
-        sortableColumns: ['id', 'email'],
-        defaultSortBy: [['id', 'ASC']],
-        maxLimit: 100,
-        select: query.select ?? [],
-      });
     });
   };
 

@@ -49,6 +49,8 @@ export enum ElasticIndexes {
   INTERVIEWS = 'interviews',
   TRANSACTIONS = 'transactions',
   REVIEWS = 'reviews',
+  CONVERSATIONS = 'conversations',
+  NOTIFICATIONS = 'notifications',
 }
 
 export enum JobCategory {

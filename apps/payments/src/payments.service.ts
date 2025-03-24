@@ -288,91 +288,98 @@ export class PaymentsService implements OnModuleInit {
     searchTransactionsDto?: SearchTransactionsDto,
   ) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
-      const must: any[] = [];
+      try {
+        const must: any[] = [];
 
-      if (searchTransactionsDto) {
-        if (searchTransactionsDto.status) {
-          must.push({
-            match: { status: searchTransactionsDto.status },
-          });
+        if (searchTransactionsDto) {
+          if (searchTransactionsDto.status) {
+            must.push({
+              match: { status: searchTransactionsDto.status },
+            });
+          }
+
+          if (
+            searchTransactionsDto.paymentDateAfter ||
+            searchTransactionsDto.paymentDateBefore
+          ) {
+            const rangeFilter: any = { payment_date: {} };
+
+            if (searchTransactionsDto.paymentDateAfter) {
+              rangeFilter.payment_date.gte =
+                searchTransactionsDto.paymentDateAfter;
+            }
+
+            if (searchTransactionsDto.paymentDateBefore) {
+              rangeFilter.payment_date.lte =
+                searchTransactionsDto.paymentDateBefore;
+            }
+
+            must.push({ range: rangeFilter });
+          }
+
+          if (
+            searchTransactionsDto.expiryDateAfter ||
+            searchTransactionsDto.expiryDateBefore
+          ) {
+            const rangeFilter: any = { expiry_date: {} };
+
+            if (searchTransactionsDto.expiryDateAfter) {
+              rangeFilter.expiry_date.gte =
+                searchTransactionsDto.expiryDateAfter;
+            }
+
+            if (searchTransactionsDto.expiryDateBefore) {
+              rangeFilter.expiry_date.lte =
+                searchTransactionsDto.expiryDateBefore;
+            }
+
+            must.push({ range: rangeFilter });
+          }
+
+          if (searchTransactionsDto.user_email) {
+            must.push({
+              match: {
+                'user.email.keyword': searchTransactionsDto.user_email,
+              },
+            });
+          }
+
+          if (searchTransactionsDto.user_fullName) {
+            must.push({
+              match: {
+                'user.full_name': searchTransactionsDto.user_fullName,
+              },
+            });
+          }
+
+          if (searchTransactionsDto.user_phoneNumber) {
+            must.push({
+              wildcard: {
+                'user.phone_number.keyword': `*${searchTransactionsDto.user_phoneNumber}*`,
+              },
+            });
+          }
         }
 
-        if (
-          searchTransactionsDto.paymentDateAfter ||
-          searchTransactionsDto.paymentDateBefore
-        ) {
-          const rangeFilter: any = { payment_date: {} };
-
-          if (searchTransactionsDto.paymentDateAfter) {
-            rangeFilter.payment_date.gte =
-              searchTransactionsDto.paymentDateAfter;
-          }
-
-          if (searchTransactionsDto.paymentDateBefore) {
-            rangeFilter.payment_date.lte =
-              searchTransactionsDto.paymentDateBefore;
-          }
-
-          must.push({ range: rangeFilter });
-        }
-
-        if (
-          searchTransactionsDto.expiryDateAfter ||
-          searchTransactionsDto.expiryDateBefore
-        ) {
-          const rangeFilter: any = { expiry_date: {} };
-
-          if (searchTransactionsDto.expiryDateAfter) {
-            rangeFilter.expiry_date.gte = searchTransactionsDto.expiryDateAfter;
-          }
-
-          if (searchTransactionsDto.expiryDateBefore) {
-            rangeFilter.expiry_date.lte =
-              searchTransactionsDto.expiryDateBefore;
-          }
-
-          must.push({ range: rangeFilter });
-        }
-
-        if (searchTransactionsDto.user_email) {
-          must.push({
-            match: {
-              'user.email.keyword': searchTransactionsDto.user_email,
+        const queryBody = {
+          query: {
+            bool: {
+              must,
             },
-          });
-        }
-
-        if (searchTransactionsDto.user_fullName) {
-          must.push({
-            match: {
-              'user.full_name': searchTransactionsDto.user_fullName,
-            },
-          });
-        }
-
-        if (searchTransactionsDto.user_phoneNumber) {
-          must.push({
-            wildcard: {
-              'user.phone_number.keyword': `*${searchTransactionsDto.user_phoneNumber}*`,
-            },
-          });
-        }
-      }
-
-      const queryBody = {
-        query: {
-          bool: {
-            must,
           },
-        },
-      };
+        };
 
-      const { hits } = await this.elasticsearchService.search({
-        index: ElasticIndexes.TRANSACTIONS,
-        body: queryBody,
-      });
+        const { hits } = await this.elasticsearchService.search({
+          index: ElasticIndexes.TRANSACTIONS,
+          body: queryBody,
+        });
 
-      return hits.hits.map((hit) => hit._source);
+        return hits.hits.map((hit) => hit._source);
+      } catch (err) {
+        if (err?.meta?.statusCode === 404) return [];
+        console.error('Elasticsearch search error: ', err);
+        throw err;
+      }
     });
   };
 
