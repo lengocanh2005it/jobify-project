@@ -35,7 +35,11 @@ import {
   UpdatePasswordDto,
   VerifyEmailDto,
 } from 'libs/common/dtos';
-import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
+import {
+  CustomGoogleRecaptchaGuard,
+  JwtAuthGuard,
+  RoleAuthGuard,
+} from 'libs/common/guards';
 import { FileValidationPipe } from 'libs/common/pipes';
 import { CreateSocialAccount, SocialLogin } from 'libs/common/utils';
 
@@ -48,6 +52,7 @@ export class AuthController {
   ) {}
 
   @Post('sign-in')
+  @UseGuards(CustomGoogleRecaptchaGuard)
   @ResponseMessage('Logged in successfully.')
   @ApiOperation({
     summary: 'User login',
@@ -73,6 +78,7 @@ export class AuthController {
   }
 
   @Post('sign-up')
+  @UseGuards(CustomGoogleRecaptchaGuard)
   @UseInterceptors(AnyFilesInterceptor())
   @ResponseMessage('Signed up successfully.')
   @ApiOperation({
@@ -274,7 +280,7 @@ export class AuthController {
 
   @Post('update-password')
   @ResponseMessage('Password updated successfully.')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleAuthGuard, CustomGoogleRecaptchaGuard)
   @ApiBearerAuth()
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
   @ApiOperation({
@@ -305,8 +311,7 @@ export class AuthController {
 
   @Post('forget-password')
   @ResponseMessage('OTP has been sent to email.')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
-  @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  @UseGuards(CustomGoogleRecaptchaGuard)
   @ApiOperation({
     summary: 'User forget password',
     description: 'Sent OTP to email of user to reset password.',

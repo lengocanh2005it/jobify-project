@@ -85,3 +85,4 @@ export const BULLMQ_RETRY_DELAY = 5000;
 export const HTTP_MODULE_TIMEOUT = 5000;
 export const HTTP_MODULE_MAX_REDIRECT = 5;
 export const DEFAULT_CACHE_TTL = 300000;
+export const GOOGLE_RECAPTCHA_SCORE = 0.8;

@@ -17,6 +17,7 @@ import {
   DEFAULT_CACHE_TTL,
   DEFAULT_THROTTLER_LIMIT,
   DEFAULT_THROTTLER_TTL,
+  GOOGLE_RECAPTCHA_SCORE,
   HTTP_MODULE_MAX_REDIRECT,
   HTTP_MODULE_TIMEOUT,
 } from 'libs/common/constants';
@@ -32,6 +33,7 @@ import {
 import * as multer from 'multer';
 import { CommonService } from './common.service';
 import { LoggerModule } from 'nestjs-pino';
+import { GoogleRecaptchaModule } from '@nestlab/google-recaptcha';
 
 @Global()
 @Module({
@@ -126,6 +128,17 @@ import { LoggerModule } from 'nestjs-pino';
         autoLogging: false,
       },
     }),
+    GoogleRecaptchaModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        secretKey: configService.get<string>('google_recaptcha.secret_key', ''),
+        response: (req) => req.headers.recaptcha,
+        skipIf: configService.get<string>('node_env', '') !== 'production',
+        actions: ['sign-up', 'sign-in'],
+        score: GOOGLE_RECAPTCHA_SCORE,
+      }),
+    }),
   ],
   providers: [
     CommonService,
@@ -153,6 +166,7 @@ import { LoggerModule } from 'nestjs-pino';
     RabbitMqModule,
     BullModule,
     LoggerModule,
+    GoogleRecaptchaModule,
   ],
 })
 export class CommonModule {}

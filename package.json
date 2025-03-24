@@ -56,6 +56,7 @@
     "@nestjs/throttler": "^6.4.0",
     "@nestjs/typeorm": "^11.0.0",
     "@nestjs/websockets": "^11.0.12",
+    "@nestlab/google-recaptcha": "^3.9.0",
     "@react-email/components": "^0.0.33",
     "@react-email/render": "^1.0.5",
     "amqp-connection-manager": "^4.1.14",

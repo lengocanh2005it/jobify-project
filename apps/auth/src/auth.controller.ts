@@ -1,4 +1,4 @@
-import { Controller, UseInterceptors } from '@nestjs/common';
+import { Controller, UseGuards, UseInterceptors } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities';
 import { EmailType, Provider } from 'libs/common/constants';
@@ -6,6 +6,7 @@ import { LoginDto, UpdatePasswordDto } from 'libs/common/dtos';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 import { CreateSocialAccount } from 'libs/common/utils';
 import { AuthService } from './auth.service';
+import { GoogleRecaptchaGuard, Recaptcha } from '@nestlab/google-recaptcha';
 
 @Controller()
 @UseInterceptors(ServicesExceptionInterceptor)
