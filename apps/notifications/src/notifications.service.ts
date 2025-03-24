@@ -1,4 +1,5 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { Application } from 'apps/applications/src/entities';
 import {
@@ -6,7 +7,7 @@ import {
   UserNotification,
 } from 'apps/notifications/src/entities';
 import { User } from 'apps/users/src/entities';
-import { NotificationTypes } from 'libs/common/constants';
+import { ElasticIndexes, NotificationTypes } from 'libs/common/constants';
 import { SearchNotificationsDto } from 'libs/common/dtos';
 import { TransactionsProvider } from 'libs/common/providers';
 import {
@@ -15,13 +16,26 @@ import {
 } from 'libs/common/utils';
 import { omit } from 'lodash';
 import { lastValueFrom } from 'rxjs';
+import { Repository } from 'typeorm';
 
 @Injectable()
-export class NotificationsService {
+export class NotificationsService implements OnModuleInit {
   constructor(
     @Inject('USERS_SERVICE') private readonly rabbitMqUserClient: ClientProxy,
     private readonly transactionsProvider: TransactionsProvider,
+    private readonly elasticsearchService: ElasticsearchService,
   ) {}
+
+  async onModuleInit() {
+    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
+      const userNotificationsRepository =
+        queryRunner.manager.getRepository(UserNotification);
+
+      return this.handleSyncNotificationsToElasticsearch(
+        userNotificationsRepository,
+      );
+    });
+  }
 
   public handleCreateNotifications = async (
     userIds: string[],
@@ -125,72 +139,81 @@ export class NotificationsService {
     filters?: SearchNotificationsDto,
   ) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
-      const userNotificationRepository =
-        queryRunner.manager.getRepository(UserNotification);
+      try {
+        const userNotificationRepository =
+          queryRunner.manager.getRepository(UserNotification);
 
-      const query = userNotificationRepository
-        .createQueryBuilder('user-notification')
-        .leftJoinAndSelect('user-notification.user', 'user')
-        .leftJoinAndSelect('user-notification.job', 'job')
-        .leftJoinAndSelect('user-notification.application', 'application')
-        .leftJoinAndSelect('user-notification.interview', 'interview')
-        .leftJoinAndSelect('user-notification.notification', 'notification')
-        .andWhere('user.id = :id', { id: user.id })
-        .select([
-          'user-notification',
-          'notification',
-          'job',
-          'application.id',
-          'application.resume_link',
-          'application.cover_letter_link',
-          'application.applied_at',
-          'interview',
-        ]);
+        const query = userNotificationRepository
+          .createQueryBuilder('user-notification')
+          .leftJoinAndSelect('user-notification.user', 'user')
+          .leftJoinAndSelect('user-notification.job', 'job')
+          .leftJoinAndSelect('user-notification.application', 'application')
+          .leftJoinAndSelect('user-notification.interview', 'interview')
+          .leftJoinAndSelect('user-notification.notification', 'notification')
+          .andWhere('user.id = :id', { id: user.id })
+          .select([
+            'user-notification',
+            'notification.id',
+            'notification.title',
+            'notification.message',
+            'notification.type',
+            'job',
+            'application.id',
+            'application.resume_link',
+            'application.cover_letter_link',
+            'application.applied_at',
+            'interview',
+          ]);
 
-      if (filters?.title) {
-        query.andWhere('LOWER(notification.title) LIKE LOWER(:title)', {
-          title: filters.title,
-        });
-      }
+        if (filters?.title) {
+          query.andWhere('LOWER(notification.title) LIKE LOWER(:title)', {
+            title: filters.title,
+          });
+        }
 
-      if (filters?.type) {
-        query.andWhere('notification.type = :type', {
-          type: filters.type,
-        });
-      }
+        if (filters?.type) {
+          query.andWhere('notification.type = :type', {
+            type: filters.type,
+          });
+        }
 
-      if (filters?.is_read) {
-        query.andWhere('user-notification.is_read = :is_read', {
-          is_read: filters.is_read,
-        });
-      }
+        if (filters?.is_read) {
+          query.andWhere('user-notification.is_read = :is_read', {
+            is_read: filters.is_read,
+          });
+        }
 
-      if (filters?.createdAfter) {
-        const createdAfterDate = new Date(
-          `${filters.createdAfter}T00:00:00.000Z`,
+        if (filters?.createdAfter) {
+          const createdAfterDate = new Date(
+            `${filters.createdAfter}T00:00:00.000Z`,
+          );
+
+          query.andWhere('user-notification.createdAt >= :createdAfter', {
+            createdAfter: createdAfterDate,
+          });
+        }
+
+        if (filters?.createdBefore) {
+          const createdBeforeDate = new Date(
+            `${filters.createdBefore}T00:00:00.000Z`,
+          );
+
+          query.andWhere('user-notification.createdAt >= :createdBefore', {
+            createdBefore: createdBeforeDate,
+          });
+        }
+
+        return (await query.getMany()).map((userNotification) =>
+          userNotification.notification.title ===
+          NotificationTypes.RECOMMENDED_JOB.title
+            ? omit(userNotification, ['user', 'application'])
+            : omit(userNotification, ['user', 'job']),
         );
-
-        query.andWhere('user-notification.createdAt >= :createdAfter', {
-          createdAfter: createdAfterDate,
-        });
+      } catch (error) {
+        if (error?.meta?.statusCode === 404) return [];
+        console.error('Elasticsearch search error: ', error);
+        throw error;
       }
-
-      if (filters?.createdBefore) {
-        const createdBeforeDate = new Date(
-          `${filters.createdBefore}T00:00:00.000Z`,
-        );
-
-        query.andWhere('user-notification.createdAt >= :createdBefore', {
-          createdBefore: createdBeforeDate,
-        });
-      }
-
-      return (await query.getMany()).map((userNotification) =>
-        userNotification.notification.title ===
-        NotificationTypes.RECOMMENDED_JOB.title
-          ? omit(userNotification, ['user', 'application'])
-          : omit(userNotification, ['user', 'job']),
-      );
     });
   };
 
@@ -263,9 +286,58 @@ export class NotificationsService {
         id: userNotificationId,
       });
 
+      await this.elasticsearchService.delete({
+        index: ElasticIndexes.NOTIFICATIONS,
+        id: userNotificationId,
+      });
+
       return {
         success: 'Notification deleted successfully!',
       };
     });
+  };
+
+  private handleSyncNotificationsToElasticsearch = async (
+    userNotificationRepository: Repository<UserNotification>,
+  ) => {
+    const userNotifications = await userNotificationRepository
+      .createQueryBuilder('user-notification')
+      .leftJoinAndSelect('user-notification.user', 'user')
+      .leftJoinAndSelect('user-notification.job', 'job')
+      .leftJoinAndSelect('user-notification.application', 'application')
+      .leftJoinAndSelect('user-notification.interview', 'interview')
+      .leftJoinAndSelect('user-notification.notification', 'notification')
+      .select([
+        'user-notification',
+        'notification.id',
+        'notification.title',
+        'notification.message',
+        'notification.type',
+        'job',
+        'application.id',
+        'application.resume_link',
+        'application.cover_letter_link',
+        'application.applied_at',
+        'interview',
+      ])
+      .orderBy('user-notification.createdAt', 'DESC')
+      .getMany();
+
+    const bulkBody = userNotifications.flatMap((userNotification) => [
+      {
+        index: {
+          _index: ElasticIndexes.NOTIFICATIONS,
+          _id: userNotification.id,
+        },
+      },
+      userNotification,
+    ]);
+
+    if (bulkBody.length > 0) {
+      await this.elasticsearchService.bulk({
+        index: ElasticIndexes.NOTIFICATIONS,
+        body: bulkBody,
+      });
+    }
   };
 }

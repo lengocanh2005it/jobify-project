@@ -18,6 +18,7 @@ import {
   UrlResponseType,
 } from 'libs/common/utils';
 import { omit, pick } from 'lodash';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { lastValueFrom } from 'rxjs';
 import { Repository } from 'typeorm';
 
@@ -195,74 +196,82 @@ export class ApplicationsService implements OnModuleInit {
     filters?: SearchApplicationsDto,
   ) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
-      const { id, role } = user;
+      try {
+        const { id, role } = user;
 
-      const must: any[] = [];
+        const must: any[] = [];
 
-      if (filters) {
-        if (filters.status) {
-          must.push({
-            match: { status: filters.status },
-          });
-        }
-
-        if (filters.jobTitle) {
-          must.push({
-            match: { 'job.title': filters.jobTitle },
-          });
-        }
-
-        if (filters.appliedAfter || filters.appliedBefore) {
-          const rangeFilter: any = { applied_at: {} };
-
-          if (filters.appliedAfter) {
-            rangeFilter.applied_at.gte = filters.appliedAfter;
-          }
-          if (filters.appliedBefore) {
-            rangeFilter.applied_at.lte = filters.appliedBefore;
+        if (filters) {
+          if (filters.status) {
+            must.push({
+              match: { status: filters.status },
+            });
           }
 
-          must.push({ range: rangeFilter });
+          if (filters.jobTitle) {
+            must.push({
+              match: { 'job.title': filters.jobTitle },
+            });
+          }
+
+          if (filters.appliedAfter || filters.appliedBefore) {
+            const rangeFilter: any = { applied_at: {} };
+
+            if (filters.appliedAfter) {
+              rangeFilter.applied_at.gte = filters.appliedAfter;
+            }
+            if (filters.appliedBefore) {
+              rangeFilter.applied_at.lte = filters.appliedBefore;
+            }
+
+            must.push({ range: rangeFilter });
+          }
+
+          if (filters.candidate_email) {
+            must.push({
+              term: { 'candidate.email.keyword': filters.candidate_email },
+            });
+          }
+
+          if (filters.candidate_name) {
+            must.push({
+              wildcard: {
+                'candidate.full_name': `*${filters.candidate_name}*`,
+              },
+            });
+          }
         }
 
-        if (filters.candidate_email) {
-          must.push({
-            term: { 'candidate.email.keyword': filters.candidate_email },
-          });
+        switch (role.name) {
+          case 'recruiter':
+            must.push({ match: { 'job.recruiter.id': id } });
+            break;
+          case 'admin':
+            break;
+          default:
+            must.push({ match: { 'candidate.id': id } });
+            break;
         }
 
-        if (filters.candidate_name) {
-          must.push({
-            wildcard: { 'candidate.full_name': `*${filters.candidate_name}*` },
-          });
-        }
-      }
-
-      switch (role.name) {
-        case 'recruiter':
-          must.push({ match: { 'job.recruiter.id': id } });
-          break;
-        case 'admin':
-          break;
-        default:
-          must.push({ match: { 'candidate.id': id } });
-          break;
-      }
-
-      const queryBody = {
-        query: {
-          bool: {
-            must,
+        const queryBody = {
+          query: {
+            bool: {
+              must,
+            },
           },
-        },
-      };
+        };
 
-      const { hits } = await this.elasticsearchService.search({
-        index: ElasticIndexes.APPLICATIONS,
-        body: queryBody,
-      });
+        const { hits } = await this.elasticsearchService.search({
+          index: ElasticIndexes.APPLICATIONS,
+          body: queryBody,
+        });
 
-      return hits.hits.map((hit) => hit._source);
+        return hits.hits.map((hit) => hit._source);
+      } catch (error) {
+        if (error?.meta?.statusCode === 404) return [];
+        console.error('Elasticsearch search error:', error);
+        throw error;
+      }
     });
   };
 
@@ -682,20 +691,6 @@ export class ApplicationsService implements OnModuleInit {
     });
   };
 
-  public handleGetApplicationsOfCandidate = async (candidateId: string) => {
-    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
-      const applicationRepository =
-        queryRunner.manager.getRepository(Application);
-
-      return applicationRepository.find({
-        where: {
-          candidate: { id: candidateId },
-        },
-        relations: ['job'],
-      });
-    });
-  };
-
   private checkApplicationAccess(
     application: Application,
     user: User,
@@ -880,6 +875,7 @@ export class ApplicationsService implements OnModuleInit {
       .leftJoinAndSelect('application.candidate', 'candidate')
       .leftJoinAndSelect('application.job', 'job')
       .leftJoinAndSelect('job.recruiter', 'recruiter')
+      .orderBy('application.createdAt')
       .getMany();
 
     const bulkBody = applications.flatMap(

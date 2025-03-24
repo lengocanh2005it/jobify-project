@@ -562,94 +562,100 @@ export class InterviewsService implements OnModuleInit {
     user: User,
     filters?: SearchInterviewsDto,
   ) => {
-    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
-      const { role, id } = user;
+    return this.transactionsProvider.executeTransaction(async () => {
+      try {
+        const { role, id } = user;
 
-      const must: any[] = [];
+        const must: any[] = [];
 
-      if (filters) {
-        if (filters?.title) {
-          must.push({
-            match: { title: filters.title },
-          });
-        }
-
-        if (filters.interviewDateAfter || filters.interviewDateBefore) {
-          const rangeFilter: any = { interview_date: {} };
-
-          if (filters.interviewDateAfter) {
-            rangeFilter.interview_date.gte = filters.interviewDateAfter;
+        if (filters) {
+          if (filters?.title) {
+            must.push({
+              match: { title: filters.title },
+            });
           }
 
-          if (filters.interviewDateBefore) {
-            rangeFilter.interview_date.lte = filters.interviewDateBefore;
+          if (filters.interviewDateAfter || filters.interviewDateBefore) {
+            const rangeFilter: any = { interview_date: {} };
+
+            if (filters.interviewDateAfter) {
+              rangeFilter.interview_date.gte = filters.interviewDateAfter;
+            }
+
+            if (filters.interviewDateBefore) {
+              rangeFilter.interview_date.lte = filters.interviewDateBefore;
+            }
+
+            must.push({ range: rangeFilter });
           }
 
-          must.push({ range: rangeFilter });
+          if (filters.status) {
+            must.push({
+              match: {
+                status: filters.status,
+              },
+            });
+          }
+
+          if (filters.approval_status) {
+            must.push({
+              match: {
+                approval_status: filters.approval_status,
+              },
+            });
+          }
+
+          if (filters.interview_type) {
+            must.push({
+              match: {
+                interview_type: filters.interview_type,
+              },
+            });
+          }
+
+          if (filters.result) {
+            must.push({
+              result: filters.result,
+            });
+          }
+
+          if (filters.score) {
+            must.push({
+              score: filters.score,
+            });
+          }
         }
 
-        if (filters.status) {
-          must.push({
-            match: {
-              status: filters.status,
+        switch (role.name) {
+          case 'recruiter':
+            must.push({ match: { 'recruiter.id': id } });
+            break;
+          case 'admin':
+            break;
+          default:
+            must.push({ match: { 'candidate.id': id } });
+            break;
+        }
+
+        const queryBody = {
+          query: {
+            bool: {
+              must,
             },
-          });
-        }
-
-        if (filters.approval_status) {
-          must.push({
-            match: {
-              approval_status: filters.approval_status,
-            },
-          });
-        }
-
-        if (filters.interview_type) {
-          must.push({
-            match: {
-              interview_type: filters.interview_type,
-            },
-          });
-        }
-
-        if (filters.result) {
-          must.push({
-            result: filters.result,
-          });
-        }
-
-        if (filters.score) {
-          must.push({
-            score: filters.score,
-          });
-        }
-      }
-
-      switch (role.name) {
-        case 'recruiter':
-          must.push({ match: { 'recruiter.id': id } });
-          break;
-        case 'admin':
-          break;
-        default:
-          must.push({ match: { 'candidate.id': id } });
-          break;
-      }
-
-      const queryBody = {
-        query: {
-          bool: {
-            must,
           },
-        },
-      };
+        };
 
-      const { hits } = await this.elasticsearchService.search({
-        index: ElasticIndexes.INTERVIEWS,
-        body: queryBody,
-      });
+        const { hits } = await this.elasticsearchService.search({
+          index: ElasticIndexes.INTERVIEWS,
+          body: queryBody,
+        });
 
-      return hits.hits.map((hit) => hit._source);
+        return hits.hits.map((hit) => hit._source);
+      } catch (error) {
+        if (error?.meta?.statusCode === 404) return [];
+        console.error('Elasticsearch search error: ', error);
+        throw error;
+      }
     });
   };
 
@@ -876,9 +882,11 @@ export class InterviewsService implements OnModuleInit {
   private handleSyncInterviewsToElasticSearch = async (
     interviewRepository: Repository<Interview>,
   ) => {
-    const interviews = await interviewRepository.find({
-      relations: ['recruiter', 'candidate', 'job', 'recruiter.company'],
-    });
+    const interviews = (
+      await interviewRepository.find({
+        relations: ['recruiter', 'candidate', 'job', 'recruiter.company'],
+      })
+    ).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
     const bulkBody = interviews.flatMap((interview) => [
       { index: { _index: ElasticIndexes.INTERVIEWS, _id: interview.id } },

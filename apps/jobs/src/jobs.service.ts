@@ -38,7 +38,6 @@ export class JobsService implements OnModuleInit {
     @Inject('USERS_SERVICE') private readonly rabbitMqUserClient: ClientProxy,
     private readonly transactionsProvider: TransactionsProvider,
     private readonly elasticsearchService: ElasticsearchService,
-    @Inject('JOBS_SERVICE') private readonly rabbitMqJobClient: ClientProxy,
   ) {}
 
   async onModuleInit() {
@@ -501,90 +500,96 @@ export class JobsService implements OnModuleInit {
 
   public handleGetJobs = async (user: User, filters?: SearchJobsDto) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
-      const must: any[] = [];
+      try {
+        const must: any[] = [];
 
-      if (filters) {
-        if (filters.title) {
-          must.push({
-            match: { title: filters.title },
-          });
-        }
-
-        if (filters.postedAfter || filters.postedBefore) {
-          const rangeFilter: any = { posted_at: {} };
-
-          if (filters.postedAfter) {
-            rangeFilter.posted_at.gte = filters.postedAfter;
-          }
-          if (filters.postedBefore) {
-            rangeFilter.posted_at.lte = filters.postedBefore;
+        if (filters) {
+          if (filters.title) {
+            must.push({
+              match: { title: filters.title },
+            });
           }
 
-          must.push({ range: rangeFilter });
-        }
+          if (filters.postedAfter || filters.postedBefore) {
+            const rangeFilter: any = { posted_at: {} };
 
-        if (filters.expiredAfter || filters.expiredBefore) {
-          const rangeFilter: any = { expired_at: {} };
+            if (filters.postedAfter) {
+              rangeFilter.posted_at.gte = filters.postedAfter;
+            }
+            if (filters.postedBefore) {
+              rangeFilter.posted_at.lte = filters.postedBefore;
+            }
 
-          if (filters.expiredAfter) {
-            rangeFilter.expired_at.gte = filters.expiredAfter;
+            must.push({ range: rangeFilter });
           }
-          if (filters.expiredBefore) {
-            rangeFilter.expired_at.lte = filters.expiredBefore;
+
+          if (filters.expiredAfter || filters.expiredBefore) {
+            const rangeFilter: any = { expired_at: {} };
+
+            if (filters.expiredAfter) {
+              rangeFilter.expired_at.gte = filters.expiredAfter;
+            }
+            if (filters.expiredBefore) {
+              rangeFilter.expired_at.lte = filters.expiredBefore;
+            }
+
+            must.push({ range: rangeFilter });
           }
 
-          must.push({ range: rangeFilter });
-        }
-
-        if (filters.address) {
-          must.push({
-            match: {
-              address: {
-                query: filters.address,
-                fuzziness: 'AUTO',
+          if (filters.address) {
+            must.push({
+              match: {
+                address: {
+                  query: filters.address,
+                  fuzziness: 'AUTO',
+                },
               },
+            });
+          }
+
+          if (filters.job_type) {
+            must.push({
+              match: { job_type: filters.job_type },
+            });
+          }
+
+          if (filters.salary_min) {
+            must.push({
+              range: { salary_min: { gte: filters.salary_min } },
+            });
+          }
+
+          if (filters.salary_max) {
+            must.push({
+              range: { salary_max: { lte: filters.salary_max } },
+            });
+          }
+        }
+
+        const queryBody = {
+          query: {
+            bool: {
+              must: [
+                ...(user.role.name === 'recruiter'
+                  ? [{ match: { 'recruiter.company': user.company.name } }]
+                  : []),
+                ...must,
+              ],
             },
-          });
-        }
-
-        if (filters.job_type) {
-          must.push({
-            match: { job_type: filters.job_type },
-          });
-        }
-
-        if (filters.salary_min) {
-          must.push({
-            range: { salary_min: { gte: filters.salary_min } },
-          });
-        }
-
-        if (filters.salary_max) {
-          must.push({
-            range: { salary_max: { lte: filters.salary_max } },
-          });
-        }
-      }
-
-      const queryBody = {
-        query: {
-          bool: {
-            must: [
-              ...(user.role.name === 'recruiter'
-                ? [{ match: { 'recruiter.company': user.company.name } }]
-                : []),
-              ...must,
-            ],
           },
-        },
-      };
+        };
 
-      const { hits } = await this.elasticsearchService.search({
-        index: ElasticIndexes.JOBS,
-        body: queryBody,
-      });
+        const { hits } = await this.elasticsearchService.search({
+          index: ElasticIndexes.JOBS,
+          body: queryBody,
+        });
 
-      return hits.hits.map((hit) => hit._source);
+        return hits.hits.map((hit) => hit._source);
+      } catch (error) {
+        if (error?.meta?.statusCode === 404) return [];
+        console.error('Elasticsearch search error: ', error);
+        throw error;
+      }
     });
   };
 
@@ -1375,19 +1380,26 @@ export class JobsService implements OnModuleInit {
   }
 
   public handleSearchJobsByTitle = async (title: string) => {
-    const { hits } = await this.elasticsearchService.search<Job>({
-      index: ElasticIndexes.JOBS,
-      body: {
-        query: {
-          multi_match: {
-            query: title,
-            fields: ['title^3', 'description'],
-            fuzziness: 'AUTO',
-            operator: 'OR',
+    try {
+      const { hits } = await this.elasticsearchService.search<Job>({
+        index: ElasticIndexes.JOBS,
+        body: {
+          query: {
+            multi_match: {
+              query: title,
+              fields: ['title^3', 'description'],
+              fuzziness: 'AUTO',
+              operator: 'OR',
+            },
           },
         },
-      },
-    });
-    return hits.hits.map((hit) => hit._source);
+      });
+
+      return hits.hits.map((hit) => hit._source);
+    } catch (err) {
+      if (err?.meta?.statusCode === 404) return [];
+      console.error('Elasticsearch search error: ', err);
+      throw err;
+    }
   };
 }

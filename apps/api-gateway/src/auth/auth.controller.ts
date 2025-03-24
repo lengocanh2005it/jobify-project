@@ -24,7 +24,7 @@ import {
 import { AuthService } from 'apps/api-gateway/src/auth/auth.service';
 import { User } from 'apps/users/src/entities';
 import { Request, Response } from 'express';
-import { API_TAGS, Provider, Role } from 'libs/common/constants';
+import { API_TAGS, Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
 import {
   CreateCompanyDto,

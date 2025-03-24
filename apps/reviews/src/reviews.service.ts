@@ -132,78 +132,84 @@ export class ReviewsService implements OnModuleInit {
     searchReviewsDto?: SearchReviewsDto,
   ) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
-      const { role, company, id } = user;
+      try {
+        const { role, company, id } = user;
 
-      const must: any[] = [];
+        const must: any[] = [];
 
-      if (searchReviewsDto) {
-        if (searchReviewsDto.ratings_number) {
-          must.push({
-            match: {
-              ratings_number: searchReviewsDto.ratings_number,
-            },
-          });
-        }
-
-        if (searchReviewsDto.candidate_name) {
-          if (role.name === 'candidate')
-            throw new RpcException(
-              generateRpcExceptionResponse(
-                HttpStatus.BAD_REQUEST,
-                `You can only get all reviews that belongs to you.`,
-              ),
-            );
-
-          must.push({
-            match: {
-              'candidate.full_name': searchReviewsDto.candidate_name,
-            },
-          });
-        }
-
-        if (
-          searchReviewsDto.reviewDateAfter ||
-          searchReviewsDto.reviewDateBefore
-        ) {
-          const rangeFilter: any = { createdAt: {} };
-
-          if (searchReviewsDto.reviewDateAfter) {
-            rangeFilter.createdAt.gte = searchReviewsDto.reviewDateAfter;
+        if (searchReviewsDto) {
+          if (searchReviewsDto.ratings_number) {
+            must.push({
+              match: {
+                ratings_number: searchReviewsDto.ratings_number,
+              },
+            });
           }
 
-          if (searchReviewsDto.reviewDateBefore) {
-            rangeFilter.createdAt.lte = searchReviewsDto.reviewDateBefore;
+          if (searchReviewsDto.candidate_name) {
+            if (role.name === 'candidate')
+              throw new RpcException(
+                generateRpcExceptionResponse(
+                  HttpStatus.BAD_REQUEST,
+                  `You can only get all reviews that belongs to you.`,
+                ),
+              );
+
+            must.push({
+              match: {
+                'candidate.full_name': searchReviewsDto.candidate_name,
+              },
+            });
           }
 
-          must.push({ range: rangeFilter });
+          if (
+            searchReviewsDto.reviewDateAfter ||
+            searchReviewsDto.reviewDateBefore
+          ) {
+            const rangeFilter: any = { createdAt: {} };
+
+            if (searchReviewsDto.reviewDateAfter) {
+              rangeFilter.createdAt.gte = searchReviewsDto.reviewDateAfter;
+            }
+
+            if (searchReviewsDto.reviewDateBefore) {
+              rangeFilter.createdAt.lte = searchReviewsDto.reviewDateBefore;
+            }
+
+            must.push({ range: rangeFilter });
+          }
         }
-      }
 
-      switch (role.name) {
-        case 'recruiter':
-          must.push({ match: { 'company.id': company.id } });
-          break;
-        case 'admin':
-          break;
-        default:
-          must.push({ match: { 'candidate.id': id } });
-          break;
-      }
+        switch (role.name) {
+          case 'recruiter':
+            must.push({ match: { 'company.id': company.id } });
+            break;
+          case 'admin':
+            break;
+          default:
+            must.push({ match: { 'candidate.id': id } });
+            break;
+        }
 
-      const queryBody = {
-        query: {
-          bool: {
-            must,
+        const queryBody = {
+          query: {
+            bool: {
+              must,
+            },
           },
-        },
-      };
+        };
 
-      const { hits } = await this.elasticsearchService.search<Review>({
-        index: ElasticIndexes.REVIEWS,
-        body: queryBody,
-      });
+        const { hits } = await this.elasticsearchService.search<Review>({
+          index: ElasticIndexes.REVIEWS,
+          body: queryBody,
+        });
 
-      return hits.hits.map((hit) => hit._source);
+        return hits.hits.map((hit) => hit._source);
+      } catch (err) {
+        if (err?.meta?.statusCode === 404) return [];
+        console.error('Elasticsearch search error: ', err);
+        throw err;
+      }
     });
   };
 

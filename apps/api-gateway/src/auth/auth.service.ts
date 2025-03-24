@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { ClientProxy, RpcException } from '@nestjs/microservices';
+import { ClientProxy } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities';
 import { Provider } from 'libs/common/constants';
 import {
@@ -10,7 +10,7 @@ import {
   UpdatePasswordDto,
 } from 'libs/common/dtos';
 import { CreateSocialAccount } from 'libs/common/utils';
-import { catchError, lastValueFrom } from 'rxjs';
+import { lastValueFrom } from 'rxjs';
 
 @Injectable()
 export class AuthService {

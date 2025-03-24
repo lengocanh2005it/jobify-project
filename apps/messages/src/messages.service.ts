@@ -1,8 +1,9 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { Conversation, Message } from 'apps/messages/src/entities';
 import { User } from 'apps/users/src/entities';
-import { NotificationTypes } from 'libs/common/constants';
+import { ElasticIndexes, NotificationTypes } from 'libs/common/constants';
 import {
   CreateMessagesDto,
   SearchMessagesDto,
@@ -14,10 +15,10 @@ import {
   UrlResponseType,
 } from 'libs/common/utils';
 import { lastValueFrom } from 'rxjs';
-import { In } from 'typeorm';
+import { In, Repository } from 'typeorm';
 
 @Injectable()
-export class MessagesService {
+export class MessagesService implements OnModuleInit {
   constructor(
     @Inject('USERS_SERVICE') private readonly rabbitMqUserClient: ClientProxy,
     @Inject('UPLOADS_SERVICE')
@@ -25,7 +26,17 @@ export class MessagesService {
     @Inject('NOTIFICATIONS_SERVICE')
     private readonly rabbitMqNotificationClient: ClientProxy,
     private readonly transactionsProvider: TransactionsProvider,
+    private readonly elasticsearchService: ElasticsearchService,
   ) {}
+
+  async onModuleInit() {
+    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
+      const conversationRepository =
+        queryRunner.manager.getRepository(Conversation);
+
+      return this.handleSyncAllMessagesToElasticsearch(conversationRepository);
+    });
+  }
 
   public handleCreateMessage = async (
     user: User,
@@ -151,9 +162,14 @@ export class MessagesService {
       } else {
         existingConversation = (await conversationRepository.findOne({
           where: { id: existingConversation.id },
-          relations: ['messages'],
+          relations: [
+            'messages',
+            'messages.sender',
+            'messages.receiver',
+            'messages.sender.role',
+            'messages.receiver.role',
+          ],
         })) as Conversation;
-
         if (newMessage) {
           existingConversation.messages.push(newMessage);
         }
@@ -173,72 +189,6 @@ export class MessagesService {
               ? attachmentMessage.id
               : '',
         },
-        relations: [
-          'receiver',
-          'repliedMessage',
-          'conversation',
-          'conversation.participants',
-          'conversation.messages',
-          'conversation.messages.sender',
-          'conversation.messages.sender.role',
-          'conversation.messages.receiver',
-          'conversation.messages.receiver.role',
-        ],
-        select: {
-          id: true,
-          content: true,
-          is_read: true,
-          read_at: true,
-          type: true,
-          attachment_url: true,
-          repliedMessage: {
-            id: true,
-            content: true,
-            type: true,
-            attachment_url: true,
-          },
-          receiver: {
-            id: true,
-            email: true,
-            phone_number: true,
-            full_name: true,
-          },
-          conversation: {
-            id: true,
-            conversation_name: true,
-            participants: {
-              id: true,
-              full_name: true,
-              email: true,
-            },
-            messages: {
-              id: true,
-              content: true,
-              is_read: true,
-              read_at: true,
-              type: true,
-              attachment_url: true,
-              sender: {
-                id: true,
-                email: true,
-                phone_number: true,
-                full_name: true,
-                role: {
-                  name: true,
-                },
-              },
-              receiver: {
-                id: true,
-                email: true,
-                phone_number: true,
-                full_name: true,
-                role: {
-                  name: true,
-                },
-              },
-            },
-          },
-        },
       })) as Message;
 
       const { title, description, key } = NotificationTypes.NEW_MESSAGE;
@@ -255,70 +205,86 @@ export class MessagesService {
         userIds: [receiver_id],
       });
 
-      return newMessage;
+      await this.elasticsearchService.index({
+        index: ElasticIndexes.CONVERSATIONS,
+        id: existingConversation.id,
+        body: {
+          id: existingConversation.id,
+          conversation_nme: existingConversation.conversation_name,
+          messages: existingConversation.messages.map((message) => ({
+            id: message.id,
+            content: message.content,
+            is_read: message.is_read,
+            createdAt: message.createdAt,
+            updatedAt: message.updatedAt,
+            read_at: message.read_at,
+            type: message.type,
+            attachment_url: message.attachment_url,
+            conversation: {
+              id: existingConversation.id,
+              conversation_name: existingConversation.conversation_name,
+              sender: {
+                id: newMessage.sender.id,
+                full_name: newMessage.sender.full_name,
+                email: newMessage.sender.email,
+                phone_number: newMessage.sender.phone_number,
+                role: {
+                  name: newMessage.sender.role.name,
+                },
+              },
+              receiver: {
+                id: newMessage.receiver.id,
+                full_name: newMessage.receiver.full_name,
+                email: newMessage.receiver.email,
+                phone_number: newMessage.receiver.phone_number,
+                role: {
+                  name: newMessage.receiver.role.name,
+                },
+              },
+            },
+          })),
+        },
+      });
+
+      return this.elasticsearchService.get({
+        index: ElasticIndexes.CONVERSATIONS,
+        id: newMessage.id,
+      });
     });
   };
 
   public handleGetMessages = async (user: User) => {
-    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
-      const conversationRepository =
-        queryRunner.manager.getRepository(Conversation);
+    return this.transactionsProvider.executeTransaction(async () => {
+      try {
+        const { id } = user;
 
-      const { id } = user;
-
-      const conversations = await conversationRepository.find({
-        where: {
-          participants: {
-            id,
-          },
-        },
-        relations: [
-          'messages',
-          'messages.sender',
-          'messages.receiver',
-          'messages.sender.role',
-          'messages.receiver.role',
-        ],
-        select: {
-          id: true,
-          conversation_name: true,
-          messages: {
-            id: true,
-            content: true,
-            is_read: true,
-            createdAt: true,
-            updatedAt: true,
-            read_at: true,
-            type: true,
-            attachment_url: true,
-            sender: {
-              id: true,
-              email: true,
-              full_name: true,
-              phone_number: true,
-              role: {
-                name: true,
-              },
-            },
-            receiver: {
-              id: true,
-              email: true,
-              full_name: true,
-              phone_number: true,
-              role: {
-                name: true,
-              },
+        const { hits } = await this.elasticsearchService.search<Conversation>({
+          index: ElasticIndexes.CONVERSATIONS,
+          body: {
+            query: {
+              match_all: {},
             },
           },
-        },
-      });
+        });
 
-      return conversations.map((conversation) => ({
-        ...(conversation?.conversation_name
-          ? { conversationName: conversation.conversation_name }
-          : { conversationId: conversation.id }),
-        messages: conversation.messages,
-      }));
+        if (!hits?.hits?.length) return [];
+
+        return hits.hits
+          .map((hit) => hit._source)
+          .filter((conversation) =>
+            conversation?.participants.map((user) => user.id).includes(id),
+          )
+          .map((conversation) => ({
+            ...(conversation?.conversation_name
+              ? { conversationName: conversation.conversation_name }
+              : { conversationId: conversation?.id }),
+            messages: conversation?.messages,
+          }));
+      } catch (error) {
+        if (error?.meta?.statusCode === 404) return [];
+        console.error('Elasticsearch search error:', error);
+        throw error;
+      }
     });
   };
 
@@ -465,6 +431,11 @@ export class MessagesService {
           ),
         );
 
+      await this.elasticsearchService.delete({
+        index: ElasticIndexes.CONVERSATIONS,
+        id: conversationId,
+      });
+
       await conversationRepository.softDelete({ id: conversationId });
 
       return {
@@ -548,7 +519,7 @@ export class MessagesService {
         },
       );
 
-      return messageRepository.findOne({
+      const newMessage = await messageRepository.findOne({
         where: {
           id: messageId,
         },
@@ -580,6 +551,27 @@ export class MessagesService {
           },
         },
       });
+
+      const doc = await this.elasticsearchService.get<Conversation>({
+        index: ElasticIndexes.CONVERSATIONS,
+        id: message.conversation.id,
+      });
+
+      const updatedMessages = doc._source?.messages.map((msg) =>
+        msg.id === messageId ? { ...msg, newMessage } : msg,
+      );
+
+      await this.elasticsearchService.update({
+        index: ElasticIndexes.CONVERSATIONS,
+        id: message.conversation.id,
+        body: {
+          doc: {
+            messages: updatedMessages,
+          },
+        },
+      });
+
+      return newMessage;
     });
   };
 
@@ -612,11 +604,110 @@ export class MessagesService {
           ),
         );
 
+      const conversation = await this.elasticsearchService.get<Conversation>({
+        index: ElasticIndexes.CONVERSATIONS,
+        id: message.conversation.id,
+      });
+
+      const updatedMessages = conversation._source?.messages.filter(
+        (msg) => msg.id !== messageId,
+      );
+
+      await this.elasticsearchService.update({
+        index: ElasticIndexes.CONVERSATIONS,
+        id: message.conversation.id,
+        body: {
+          doc: {
+            messages: updatedMessages,
+          },
+        },
+      });
+
       await messageRepository.softDelete({ id: messageId });
 
       return {
         success: 'Message deleted successfully!',
       };
     });
+  };
+
+  private handleSyncAllMessagesToElasticsearch = async (
+    conversationRepository: Repository<Conversation>,
+  ) => {
+    const conversations = await conversationRepository.find({
+      relations: [
+        'messages',
+        'messages.sender',
+        'messages.receiver',
+        'messages.sender.role',
+        'messages.receiver.role',
+      ],
+      select: {
+        id: true,
+        conversation_name: true,
+        messages: {
+          id: true,
+          content: true,
+          is_read: true,
+          createdAt: true,
+          updatedAt: true,
+          read_at: true,
+          type: true,
+          attachment_url: true,
+          sender: {
+            id: true,
+            email: true,
+            full_name: true,
+            phone_number: true,
+            role: {
+              name: true,
+            },
+          },
+          receiver: {
+            id: true,
+            email: true,
+            full_name: true,
+            phone_number: true,
+            role: {
+              name: true,
+            },
+          },
+        },
+      },
+    });
+
+    const bulkBody = conversations.flatMap((conversation) => [
+      { index: { _index: ElasticIndexes.CONVERSATIONS, _id: conversation.id } },
+      {
+        id: conversation.id,
+        conversation_name: conversation.conversation_name,
+        messages: conversation.messages.map((message) => ({
+          ...message,
+          sender: this.handleGeneratePickUserInformationDetails(message.sender),
+          receiver: this.handleGeneratePickUserInformationDetails(
+            message.receiver,
+          ),
+        })),
+      },
+    ]);
+
+    if (bulkBody.length > 0) {
+      await this.elasticsearchService.bulk({
+        index: ElasticIndexes.CONVERSATIONS,
+        body: bulkBody,
+      });
+    }
+  };
+
+  private handleGeneratePickUserInformationDetails = (user: User) => {
+    return {
+      id: user.id,
+      full_name: user.full_name,
+      email: user.email,
+      phone_number: user.phone_number,
+      role: {
+        name: user.role.name,
+      },
+    };
   };
 }
