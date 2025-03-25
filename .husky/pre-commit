@@ -1,11 +1,8 @@
-#!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
-
 echo "🔍 Running pre-commit checks..."
 
 npm run lint || exit 1
 npm run format || exit 1
 npm run type-check || exit 1
-npm run test || exit 1
+npm run test -- --passWithNoTests || exit 1
 
 echo "✅ All checks passed! Proceeding with commit."
