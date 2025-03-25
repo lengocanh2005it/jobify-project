@@ -1,0 +1,126 @@
+name: PREPARE PULL REQUEST
+
+env:
+  PORT: ${{secrets.PORT}}
+  NODE_ENV: ${{secrets.NODE_ENV}}
+  DB_HOST: ${{secrets.DB_HOST}}
+  DB_USERNAME: ${{secrets.DB_USERNAME}}
+  DB_PASSWORD: ${{secrets.DB_PASSWORD}}
+  DB_PORT: ${{secrets.DB_PORT}}
+  DB_DATABASE: ${{secrets.DB_DATABASE}}
+  JWT_SECRET_KEY: ${{secrets.JWT_SECRET_KEY}}
+  ACCESS_TOKEN_LIFE: ${{secrets.ACCESS_TOKEN_LIFE}}
+  REFRESH_TOKEN_LIFE: ${{secrets.REFRESH_TOKEN_LIFE}}
+  REDIS_PORT: ${{secrets.REDIS_PORT}}
+  REDIS_HOST: ${{secrets.REDIS_HOST}}
+  REDIS_URL: ${{secrets.REDIS_URL}}
+  EMAIL_PASSWORD: ${{secrets.EMAIL_PASSWORD}}
+  EMAIL_SEND: ${{secrets.EMAIL_SEND}}
+  STRIPE_SECRET_KEY: ${{secrets.STRIPE_SECRET_KEY}}
+  STRIPE_WEBHOOK_SECRET: ${{secrets.STRIPE_WEBHOOK_SECRET}}
+  CLOUDINARY_CLOUD_NAME: ${{secrets.CLOUDINARY_CLOUD_NAME}}
+  CLOUDINARY_API_SECRET: ${{secrets.CLOUDINARY_API_SECRET}}
+  CLOUDINARY_API_KEY: ${{secrets.CLOUDINARY_API_KEY}}
+  DEFAULT_LOGO_USER: ${{secrets.DEFAULT_LOGO_USER}}
+  PAYMENT_IMAGES: ${{secrets.PAYMENT_IMAGES}}
+  PAYMENT_DESCRIPTION: ${{secrets.PAYMENT_DESCRIPTION}}
+  PAYMENT_TITLE: ${{secrets.PAYMENT_TITLE}}
+  PAYMENT_SUCCESS_URL: ${{secrets.PAYMENT_SUCCESS_URL}}
+  PAYMENT_FAILED_URL: ${{secrets.PAYMENT_FAILED_URL}}
+  GOOGLE_CLIENT_ID: ${{secrets.GOOGLE_CLIENT_ID}}
+  GOOGLE_CLIENT_SECRET: ${{secrets.GOOGLE_CLIENT_SECRET}}
+  GOOGLE_CALLBACK_URL: ${{secrets.GOOGLE_CALLBACK_URL}}
+  FACEBOOK_CLIENT_ID: ${{secrets.FACEBOOK_CLIENT_ID}}
+  FACEBOOK_CLIENT_SECRET: ${{secrets.FACEBOOK_CLIENT_SECRET}}
+  FACEBOOK_CALLBACK_URL: ${{secrets.FACEBOOK_CALLBACK_URL}}
+  LINKEDIN_CLIENT_ID: ${{secrets.LINKEDIN_CLIENT_ID}}
+  LINKED_CALLBACK_URL: ${{secrets.LINKEDIN_CALLBACK_URL}}
+  LINKEDIN_CLIENT_SECRET: ${{secrets.LINKEDIN_CLIENT_SECRET}}
+  ELASTICSEARCH_URL: ${{secrets.ELASTICSEARCH_URL}}
+  RABBITMQ_URL: ${{secrets.RABBITMQ_URL}}
+  GOOGLE_RECAPTCHA_SITE_KEY: ${{secrets.GOOGLE_RECAPTCHA_SITE_KEY}}
+  GOOGLE_RECAPTCHA_SECRET_KEY: ${{secrets.GOOGLE_RECAPTCHA_SECRET_KEY}}
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  pre_merge:
+    strategy:
+      matrix:
+        version: [20.11.x]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check code
+        uses: actions/checkout@v4
+
+      - name: Use Nodejs ${{matrix.version}}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{matrix.version}}
+          cache: 'npm'
+
+      - name: Install package use NPM
+        run: |
+          echo "We are using NPM to install package!"
+          npm ci
+
+      - name: Add .env
+        run: |
+          set -e
+          rm -rf .env 
+          touch .env
+          echo "PORT=${{env.PORT}}" >> .env
+          echo "NODE_ENV=${{env.NODE_ENV}}" >> .env
+          echo "DB_HOST=${{env.DB_HOST}}" >> .env
+          echo "DB_USERNAME=${{env.DB_USERNAME}}" >> .env
+          echo "DB_PORT=${{env.DB_PORT}}" >> .env
+          echo "DB_DATABASE=${{env.DB_DATABASE}}" >> .env
+          echo "DB_PASSWORD=${{env.DB_PASSWORD}}" >> .env
+          echo "JWT_SECRET_KEY=${{env.JWT_SECRET_KEY}}" >> .env
+          echo "ACCESS_TOKEN_LIFE=${{env.ACCESS_TOKEN_LIFE}}" >> .env
+          echo "REFRESH_TOKEN_LIFE=${{env.REFRESH_TOKEN_LIFE}}" >> .env
+          echo "REDIS_HOST=${{env.REDIS_HOST}}" >> .env
+          echo "REDIS_PORT=${{env.REDIS_PORT}}" >> .env
+          echo "REDIS_URL=${{env.REDIS_URL}}" >> .env
+          echo "EMAIL_PASSWORD=${{env.EMAIL_PASSWORD}}" >> .env
+          echo "EMAIL_SEND=${{env.EMAIL_SEND}}" >> .env
+          echo "STRIPE_SECRET_KEY=${{env.STRIPE_SECRET_KEY}}" >> .env
+          echo "STRIPE_WEBHOOK_SECRET=${{env.STRIPE_WEBHOOK_SECRET}}" >> .env
+          echo "CLOUDINARY_CLOUD_NAME=${{env.CLOUDINARY_CLOUD_NAME}}" >> .env
+          echo "CLOUDINARY_API_KEY=${{env.CLOUDINARY_API_KEY}}" >> .env
+          echo "CLOUDINARY_API_SECRET=${{env.CLOUDINARY_API_SECRET}}" >> .env
+          echo "DEFAULT_LOGO_USER=${{env.DEFAULT_LOGO_USER}}" >> .env
+          echo "PAYMENT_IMAGES=${{env.PAYMENT_IMAGES}}" >> .env
+          echo "PAYMENT_DESCRIPTION=${{env.PAYMENT_DESCRIPTION}}" >> .env
+          echo "PAYMENT_TITLE=${{env.PAYMENT_TITLE}}" >> .env
+          echo "PAYMENT_SUCCESS_URL=${{env.PAYMENT_SUCCESS_URL}}" >> .env
+          echo "PAYMENT_FAILED_URL=${{env.PAYMENT_FAILED_URL}}" >> .env
+          echo "GOOGLE_CLIENT_ID=${{env.GOOGLE_CLIENT_ID}}" >> .env
+          echo "GOOGLE_CLIENT_SECRET=${{env.GOOGLE_CLIENT_SECRET}}" >> .env
+          echo "GOOGLE_CALLBACK_URL=${{env.GOOGLE_CALLBACK_URL}}" >> .env
+          echo "FACEBOOK_CLIENT_ID=${{env.FACEBOOK_CLIENT_ID}}" >> .env
+          echo "FACEBOOK_CLIENT_SECRET=${{env.FACEBOOK_CLIENT_SECRET}}" >> .env
+          echo "FACEBOOK_CALLBACK_URL=${{env.FACEBOOK_CALLBACK_URL}}" >> .env
+          echo "LINKEDIN_CLIENT_ID=${{env.LINKEDIN_CLIENT_ID}}" >> .env
+          echo "LINKEDIN_CLIENT_SECRET=${{env.LINKEDIN_CLIENT_SECRET}}" >> .env
+          echo "ELASTICSEARCH_URL=${{env.ELASTICSEARCH_URL}}" >> .env
+          echo "RABBITMQ_URL=${{env.RABBITMQ_URL}}" >> .env
+          echo "GOOGLE_RECAPTCHA_SITE_KEY=${{env.GOOGLE_RECAPTCHA_SITE_KEY}}" >> .env
+          echo "GOOGLE_RECAPTCHA_SECRET_KEY=${{env.GOOGLE_RECAPTCHA_SECRET_KEY}}" >> .env
+          cat .env
+
+      - name: Check format
+        run: |
+          npm --version
+          npm run format --if-present
+
+      - name: Check eslint
+        run: |
+          npm run lint --if-present
+
+      - name: Build nestjs
+        run: |
+          npm run start:build:all
