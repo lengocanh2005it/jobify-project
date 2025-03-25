@@ -1,4 +1,3 @@
-import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { HttpStatus, Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
@@ -18,7 +17,6 @@ import {
   UrlResponseType,
 } from 'libs/common/utils';
 import { omit, pick } from 'lodash';
-import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { lastValueFrom } from 'rxjs';
 import { Repository } from 'typeorm';
 
@@ -33,7 +31,7 @@ export class ApplicationsService implements OnModuleInit {
     @Inject('USERS_SERVICE') private readonly rabbitMqUserClient: ClientProxy,
     private readonly transactionsProvider: TransactionsProvider,
     private readonly elasticsearchService: ElasticsearchService,
-    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    @Inject('REDIS_SERVICE') private readonly rabbitMqRedisClient: ClientProxy,
   ) {}
 
   async onModuleInit() {
@@ -186,6 +184,9 @@ export class ApplicationsService implements OnModuleInit {
           },
         },
       });
+
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'applications');
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'admin');
 
       return this.formatApplicationResponse(application);
     });
@@ -354,6 +355,9 @@ export class ApplicationsService implements OnModuleInit {
         id: applicationId,
       });
 
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'applications');
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'admin');
+
       return { success: 'Application deleted successfully!' };
     });
   };
@@ -514,6 +518,8 @@ export class ApplicationsService implements OnModuleInit {
         },
       });
 
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'applications');
+
       return application;
     });
   };
@@ -548,6 +554,9 @@ export class ApplicationsService implements OnModuleInit {
             user,
           );
       }
+
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'applications');
+      this.rabbitMqRedisClient.emit('del-keys-patter', 'admin');
 
       return applications;
     });
@@ -847,6 +856,8 @@ export class ApplicationsService implements OnModuleInit {
         },
         relations: ['job', 'job.recruiter'],
       })) as Application;
+
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'applications');
 
       return newApplication;
     });

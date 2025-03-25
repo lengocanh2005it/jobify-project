@@ -38,6 +38,7 @@ export class JobsService implements OnModuleInit {
     @Inject('USERS_SERVICE') private readonly rabbitMqUserClient: ClientProxy,
     private readonly transactionsProvider: TransactionsProvider,
     private readonly elasticsearchService: ElasticsearchService,
+    @Inject('REDIS_SERVICE') private readonly rabbitMqRedisClient: ClientProxy,
   ) {}
 
   async onModuleInit() {
@@ -278,6 +279,9 @@ export class JobsService implements OnModuleInit {
         },
       });
 
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'jobs');
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'admin');
+
       return {
         ...savedJob,
         ...(user.role.name === 'admin' && {
@@ -494,6 +498,8 @@ export class JobsService implements OnModuleInit {
         });
       }
 
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'jobs');
+
       return { jobs };
     });
   };
@@ -655,6 +661,9 @@ export class JobsService implements OnModuleInit {
       });
 
       await jobRepository.delete({ id: jobId });
+
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'jobs');
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'admin');
 
       return (
         await jobRepository.find({
@@ -851,6 +860,8 @@ export class JobsService implements OnModuleInit {
           requirements: job.requirements.map((r) => r.requirement),
         },
       });
+
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'jobs');
 
       return {
         ...job,

@@ -47,6 +47,7 @@ export class InterviewsService implements OnModuleInit {
     private readonly rabbitMqNotificationClient: ClientProxy,
     private readonly transactionsProvider: TransactionsProvider,
     private readonly elasticsearchService: ElasticsearchService,
+    @Inject('REDIS_SERVICE') private readonly rabbitMqRedisClient: ClientProxy,
   ) {}
 
   async onModuleInit() {
@@ -259,6 +260,8 @@ export class InterviewsService implements OnModuleInit {
           job: pick(interview.job, ['id', 'title', 'description']),
         },
       });
+
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'interviews');
 
       return role.name === 'admin'
         ? omit(interview, ['recruiter.password', 'candidate.password'])
@@ -490,6 +493,8 @@ export class InterviewsService implements OnModuleInit {
         },
       });
 
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'interviews');
+
       return role.name === 'admin'
         ? omit(newInterview, ['recruiter.password', 'candidate.password'])
         : omit(newInterview, ['candidate.password', 'recruiter']);
@@ -553,6 +558,8 @@ export class InterviewsService implements OnModuleInit {
       });
 
       await interviewRepository.delete({ id: interviewId });
+
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'interviews');
 
       return this.handleGetInterviews(user);
     });

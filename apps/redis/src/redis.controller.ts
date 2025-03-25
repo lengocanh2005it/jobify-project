@@ -26,4 +26,9 @@ export class RedisController {
   async delKey(@Payload() key: string) {
     return this.redisService.deleteKey(key);
   }
+
+  @EventPattern('del-keys-pattern')
+  async delKeysByPattern(@Payload() pattern: string) {
+    return this.redisService.deleteKeysByPattern(pattern);
+  }
 }

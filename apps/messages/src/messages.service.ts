@@ -27,6 +27,7 @@ export class MessagesService implements OnModuleInit {
     private readonly rabbitMqNotificationClient: ClientProxy,
     private readonly transactionsProvider: TransactionsProvider,
     private readonly elasticsearchService: ElasticsearchService,
+    @Inject('REDIS_SERVICE') private readonly rabbitMqRedisClient: ClientProxy,
   ) {}
 
   async onModuleInit() {
@@ -246,6 +247,8 @@ export class MessagesService implements OnModuleInit {
         },
       });
 
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'messages');
+
       return this.elasticsearchService.get({
         index: ElasticIndexes.CONVERSATIONS,
         id: newMessage.id,
@@ -438,6 +441,8 @@ export class MessagesService implements OnModuleInit {
 
       await conversationRepository.softDelete({ id: conversationId });
 
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'messages');
+
       return {
         success: 'Conversation deleted successfully!',
       };
@@ -571,6 +576,8 @@ export class MessagesService implements OnModuleInit {
         },
       });
 
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'messages');
+
       return newMessage;
     });
   };
@@ -622,6 +629,8 @@ export class MessagesService implements OnModuleInit {
           },
         },
       });
+
+      this.rabbitMqRedisClient.send('del-keys-pattern', 'messages');
 
       await messageRepository.softDelete({ id: messageId });
 

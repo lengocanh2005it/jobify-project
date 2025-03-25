@@ -49,6 +49,7 @@ export class UsersService implements OnModuleInit {
     private readonly configService: ConfigService,
     private readonly transactionsProvider: TransactionsProvider,
     private readonly elasticsearchService: ElasticsearchService,
+    @Inject('REDIS_SERVICE') private readonly rabbitMqRedisClient: ClientProxy,
   ) {}
 
   async onModuleInit() {
@@ -318,6 +319,9 @@ export class UsersService implements OnModuleInit {
           role: newUser.role.name,
         },
       });
+
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'users');
+      this.rabbitMqRedisClient.emit('del-keys-patter', 'admin');
 
       return omit(newUser, ['password']);
     });
@@ -667,6 +671,8 @@ export class UsersService implements OnModuleInit {
         },
       });
 
+      this.rabbitMqRedisClient.emit('del-keys-patter', 'users');
+
       return {
         ...omit(savedUser, ['password']),
         skills: savedUser.skills.map((skill) => skill.name),
@@ -764,6 +770,9 @@ export class UsersService implements OnModuleInit {
           index: ElasticIndexes.USERS,
           id: userId,
         });
+
+        this.rabbitMqRedisClient.emit('del-keys-pattern', 'users');
+        this.rabbitMqRedisClient.emit('del-keys-pattern', 'admin');
 
         return {
           success: `User with id: '${userId}' deleted successfully.`,
@@ -920,6 +929,8 @@ export class UsersService implements OnModuleInit {
         email: user.email,
         type: EmailType.PAYMENT_SUCCESSFULLY,
       });
+
+      this.rabbitMqRedisClient.emit('del-keys-patter', 'users');
     });
   };
 

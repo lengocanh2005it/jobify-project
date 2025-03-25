@@ -1,14 +1,11 @@
-import KeyvRedis from '@keyv/redis';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Redis } from 'ioredis';
-import Keyv from 'keyv';
 import { DEFAULT_CACHE_TTL } from 'libs/common/constants';
 
 @Injectable()
 export class RedisService {
   private readonly redis: Redis;
-  private readonly keyv: Keyv;
 
   constructor(private readonly configService: ConfigService) {
     const redisUrl = this.configService.get<string>(
@@ -17,14 +14,6 @@ export class RedisService {
     );
 
     this.redis = new Redis(redisUrl);
-
-    const redisStore = new KeyvRedis(redisUrl, { namespace: '' });
-
-    this.keyv = new Keyv({ store: redisStore });
-
-    this.keyv.on('error', (err) =>
-      console.error('Redis connection error:', err),
-    );
   }
 
   async setKey(key: string, value: string, ttl?: number) {
@@ -39,11 +28,9 @@ export class RedisService {
     await this.redis.del(key);
   }
 
-  getKeyvStore(): Keyv {
-    return this.keyv;
-  }
+  async deleteKeysByPattern(pattern: string) {
+    const keys = await this.redis.keys(pattern);
 
-  getRedisStore(): Redis {
-    return this.redis;
+    if (keys.length > 0) await this.redis.del(...keys);
   }
 }
