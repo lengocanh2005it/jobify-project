@@ -23,6 +23,7 @@ export class ReviewsService implements OnModuleInit {
     private readonly rabbitMQNotificationClient: ClientProxy,
     private readonly transactionsProvider: TransactionsProvider,
     private readonly elasticsearchService: ElasticsearchService,
+    @Inject('REDIS_SERVICE') private readonly rabbitMqRedisClient: ClientProxy,
   ) {}
 
   async onModuleInit() {
@@ -100,6 +101,8 @@ export class ReviewsService implements OnModuleInit {
         },
         userIds: company.recruiters.map((re) => re.id),
       });
+
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'reviews');
 
       return reviewRepository.findOne({
         where: { id: newReview.id },
@@ -295,6 +298,8 @@ export class ReviewsService implements OnModuleInit {
         },
       });
 
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'reviews');
+
       return updatedReview;
     });
   };
@@ -343,6 +348,8 @@ export class ReviewsService implements OnModuleInit {
       });
 
       await reviewRepository.delete({ id: reviewId });
+
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'reviews');
 
       return { message: 'Review deleted successfully!' };
     });

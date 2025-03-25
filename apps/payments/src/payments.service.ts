@@ -32,6 +32,7 @@ export class PaymentsService implements OnModuleInit {
     private readonly rabbitMqNotificationClient: ClientProxy,
     private readonly transactionsProvider: TransactionsProvider,
     private readonly elasticsearchService: ElasticsearchService,
+    @Inject('REDIS_SERVICE') private readonly rabbitMqRedisClient: ClientProxy,
   ) {
     this.stripe = new Stripe(
       configService.get<string>('stripe.secret_key') ?? '',
@@ -197,6 +198,10 @@ export class PaymentsService implements OnModuleInit {
         expires_at: Math.floor(Date.now() / 1000) + 2700,
       });
 
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'payments');
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'users');
+      this.rabbitMqRedisClient.emit('del-keys-pattern', 'admin');
+
       return { checkout_session_url: session.url };
     });
   };
@@ -276,6 +281,10 @@ export class PaymentsService implements OnModuleInit {
               },
             },
           });
+
+          this.rabbitMqRedisClient.emit('del-keys-pattern', 'payments');
+          this.rabbitMqRedisClient.emit('del-keys-pattern', 'admin');
+          this.rabbitMqRedisClient.emit('del-keys-pattern', 'users');
         }
       } catch (err) {
         console.error(err);
