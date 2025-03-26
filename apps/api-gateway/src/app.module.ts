@@ -23,6 +23,7 @@ import { LoggerMiddleware, SentryMiddleware } from 'libs/common/middlewares';
 import { CustomValidationPipe } from 'libs/common/pipes';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { HealthModule } from 'apps/api-gateway/src/health/health.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { AppService } from './app.service';
     ReportsModule,
     SearchModule,
     SseModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [
