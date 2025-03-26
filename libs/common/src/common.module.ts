@@ -1,5 +1,5 @@
 import configuration from '@app/common/config/configuration';
-import { RabbitMqModule } from '@app/common/rabbitmq';
+import { RabbitMqModule, SentryModule } from '@app/common/modules';
 import { createKeyv } from '@keyv/redis';
 import { HttpModule } from '@nestjs/axios';
 import { BullModule } from '@nestjs/bullmq';
@@ -13,6 +13,7 @@ import { MulterModule } from '@nestjs/platform-express';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { GoogleRecaptchaModule } from '@nestlab/google-recaptcha';
 import {
   DEFAULT_CACHE_TTL,
   DEFAULT_THROTTLER_LIMIT,
@@ -31,9 +32,8 @@ import {
   TransactionsProvider,
 } from 'libs/common/providers';
 import * as multer from 'multer';
-import { CommonService } from './common.service';
 import { LoggerModule } from 'nestjs-pino';
-import { GoogleRecaptchaModule } from '@nestlab/google-recaptcha';
+import { CommonService } from './common.service';
 
 @Global()
 @Module({
@@ -139,6 +139,7 @@ import { GoogleRecaptchaModule } from '@nestlab/google-recaptcha';
         score: GOOGLE_RECAPTCHA_SCORE,
       }),
     }),
+    SentryModule,
   ],
   providers: [
     CommonService,
@@ -167,6 +168,7 @@ import { GoogleRecaptchaModule } from '@nestlab/google-recaptcha';
     BullModule,
     LoggerModule,
     GoogleRecaptchaModule,
+    SentryModule,
   ],
 })
 export class CommonModule {}

@@ -36,7 +36,7 @@
     "start:prod:all": "node scripts/start-prod-all.js",
     "start:build:all": "node scripts/build-all.js",
     "prepare": "husky",
-     "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@elastic/elasticsearch": "^8.17.1",
@@ -61,6 +61,8 @@
     "@nestlab/google-recaptcha": "^3.9.0",
     "@react-email/components": "^0.0.33",
     "@react-email/render": "^1.0.5",
+    "@sentry/nestjs": "^9.9.0",
+    "@sentry/node": "^9.9.0",
     "amqp-connection-manager": "^4.1.14",
     "amqplib": "^0.10.5",
     "axios": "^1.8.3",

@@ -1,23 +1,25 @@
+import { SentryService } from '@app/common/modules/sentry/sentry.service';
 import {
   ArgumentsHost,
   Catch,
   ExceptionFilter,
   HttpException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { SentryExceptionCaptured } from '@sentry/nestjs';
 import { Request, Response } from 'express';
 import { RpcExceptionType } from 'libs/common/utils';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly sentryService: SentryService) {}
 
+  @SentryExceptionCaptured()
   catch(exception: unknown, host: ArgumentsHost) {
-    console.log(exception);
-
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
+
+    this.sentryService.captureException(exception);
 
     let status = 500;
     let message = 'Internal Server Error';
