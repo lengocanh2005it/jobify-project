@@ -19,7 +19,7 @@ import { NotificationsModule } from 'apps/notifications/src/notifications.module
 import { HttpExceptionFilter } from 'libs/common/filters';
 import { CustomThrottlerGuard } from 'libs/common/guards';
 import { ApiResponseInterceptor } from 'libs/common/interceptors';
-import { LoggerMiddleware } from 'libs/common/middlewares';
+import { LoggerMiddleware, SentryMiddleware } from 'libs/common/middlewares';
 import { CustomValidationPipe } from 'libs/common/pipes';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -66,6 +66,6 @@ import { AppService } from './app.service';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(LoggerMiddleware).forRoutes('*');
+    consumer.apply(SentryMiddleware, LoggerMiddleware).forRoutes('*');
   }
 }

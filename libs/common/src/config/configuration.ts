@@ -61,4 +61,7 @@ export default () => ({
     secret_key: process.env.GOOGLE_RECAPTCHA_SECRET_KEY,
   },
   node_env: process.env.NODE_ENV,
+  sentry: {
+    dsn: process.env.SENTRY_DSN,
+  },
 });
