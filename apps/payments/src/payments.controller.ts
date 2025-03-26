@@ -23,11 +23,9 @@ export class PaymentsController {
   @EventPattern({ cmd: 'stripe-webhooks' })
   async handleStripeWebhooks(
     @Payload('sig') sig: string,
-    @Payload('body') body: string,
+    @Payload('body') body: Buffer,
   ) {
-    const bodyBuffer = Buffer.from(body, 'utf-8');
-
-    return this.paymentsService.handleStripeWebhook(sig, bodyBuffer);
+    return this.paymentsService.handleStripeWebhook(sig, Buffer.from(body));
   }
 
   @MessagePattern({ cmd: 'get-payments' })

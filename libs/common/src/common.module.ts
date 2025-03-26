@@ -1,5 +1,6 @@
 import configuration from '@app/common/config/configuration';
 import { RabbitMqModule, SentryModule } from '@app/common/modules';
+import { StripeModule } from '@golevelup/nestjs-stripe';
 import { createKeyv } from '@keyv/redis';
 import { HttpModule } from '@nestjs/axios';
 import { BullModule } from '@nestjs/bullmq';
@@ -11,7 +12,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { MulterModule } from '@nestjs/platform-express';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { SkipThrottle, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { GoogleRecaptchaModule } from '@nestlab/google-recaptcha';
 import {
@@ -140,6 +141,21 @@ import { CommonService } from './common.service';
       }),
     }),
     SentryModule,
+    StripeModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        apiKey: configService.get<string>('stripe.secret_key', ''),
+        webhookConfig: {
+          stripeSecrets: {
+            account: configService.get<string>('stripe.webhook_secret', ''),
+            accountTest: configService.get<string>('stripe.webhook_secret', ''),
+          },
+          requestBodyProperty: 'rawBody',
+          decorators: [SkipThrottle()],
+        },
+      }),
+    }),
   ],
   providers: [
     CommonService,
@@ -169,6 +185,7 @@ import { CommonService } from './common.service';
     LoggerModule,
     GoogleRecaptchaModule,
     SentryModule,
+    StripeModule,
   ],
 })
 export class CommonModule {}

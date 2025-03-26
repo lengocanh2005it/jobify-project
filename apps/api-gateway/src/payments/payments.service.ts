@@ -17,15 +17,11 @@ export class PaymentsService {
     );
   };
 
-  public handleStripeWebhooks = async (sig: string, body: string) => {
-    const rawBody = Buffer.isBuffer(body)
-      ? body.toString()
-      : JSON.stringify(body);
-
+  public handleStripeWebhooks = async (sig: string, body: Buffer) => {
     await lastValueFrom(
       this.rabbitMqPaymentClient.emit(
         { cmd: 'stripe-webhooks' },
-        { sig, body: rawBody },
+        { sig, body },
       ),
     );
 

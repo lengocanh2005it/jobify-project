@@ -2,21 +2,17 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import * as express from 'express';
+import compression from 'compression';
 import * as path from 'path';
 import { AppModule } from './app.module';
-import compression from 'compression';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+  });
 
   app.setViewEngine('pug');
   app.setBaseViewsDir(path.join(process.cwd(), 'libs', 'common', 'views'));
-
-  app.use(
-    '/payments/stripe/webhooks',
-    express.raw({ type: 'application/json' }),
-  );
 
   const configService = app.get(ConfigService);
 

@@ -15,7 +15,14 @@ export class LoggerMiddleware implements NestMiddleware {
       const contentLength = res.get('content-length');
 
       this.logger.info(
-        { method, url: originalUrl, statusCode, contentLength, userAgent, ip },
+        {
+          method,
+          url: originalUrl,
+          statusCode,
+          contentLength,
+          userAgent,
+          ip,
+        },
         'Incoming request',
       );
     });
