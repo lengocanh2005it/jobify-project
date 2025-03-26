@@ -1,9 +1,12 @@
+import { StripeWebhookHandler } from '@golevelup/nestjs-stripe';
 import { CacheInterceptor } from '@nestjs/cache-manager';
 import {
+  BadRequestException,
   Controller,
   Get,
   Post,
   Query,
+  RawBodyRequest,
   Req,
   UseGuards,
   UseInterceptors,
@@ -21,6 +24,7 @@ import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
 import { SearchTransactionsDto } from 'libs/common/dtos';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
+import Stripe from 'stripe';
 
 @Controller('payments')
 export class PaymentsController {
@@ -64,10 +68,16 @@ export class PaymentsController {
       },
     },
   })
-  async handleStripeWebhook(@Req() req: Request) {
+  async handleStripeWebhook(@Req() req: RawBodyRequest<Request>) {
     const sig = req.headers['stripe-signature'] as string;
 
-    return this.paymentsService.handleStripeWebhooks(sig, req.body as string);
+    if (!req.rawBody)
+      throw new BadRequestException('Missing rawBody in request.');
+
+    return this.paymentsService.handleStripeWebhooks(
+      sig,
+      Buffer.from(req.rawBody),
+    );
   }
 
   @Get()

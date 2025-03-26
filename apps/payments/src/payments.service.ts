@@ -1,3 +1,4 @@
+import { InjectStripeClient } from '@golevelup/nestjs-stripe';
 import {
   HttpStatus,
   Inject,
@@ -22,8 +23,8 @@ import { Between, Repository } from 'typeorm';
 
 @Injectable()
 export class PaymentsService implements OnModuleInit {
-  private readonly stripe: Stripe;
   private readonly logger = new Logger(PaymentsService.name);
+  private readonly stripe: Stripe;
 
   constructor(
     private readonly configService: ConfigService,
@@ -33,13 +34,9 @@ export class PaymentsService implements OnModuleInit {
     private readonly transactionsProvider: TransactionsProvider,
     private readonly elasticsearchService: ElasticsearchService,
     @Inject('REDIS_SERVICE') private readonly rabbitMqRedisClient: ClientProxy,
+    @InjectStripeClient() stripeClient: Stripe,
   ) {
-    this.stripe = new Stripe(
-      configService.get<string>('stripe.secret_key') ?? '',
-      {
-        apiVersion: '2025-02-24.acacia',
-      },
-    );
+    this.stripe = stripeClient;
   }
 
   async onModuleInit() {
@@ -206,14 +203,14 @@ export class PaymentsService implements OnModuleInit {
     });
   };
 
-  public handleStripeWebhook = async (sig: string, body: any) => {
+  public handleStripeWebhook = async (sig: string, body: Buffer) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
       const transactionRepository =
         queryRunner.manager.getRepository(Transaction);
 
       try {
         const event = this.stripe.webhooks.constructEvent(
-          body as string,
+          body,
           sig,
           this.configService.get<string>('stripe.webhook_secret') as string,
         );

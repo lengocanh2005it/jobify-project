@@ -1,4 +1,3 @@
-import { User } from 'apps/users/src/entities';
 import { Provider, Role } from 'libs/common/constants';
 
 export type CreateNotificationDto = {
