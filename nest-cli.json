@@ -64,6 +64,15 @@
         "tsConfigPath": "apps/emails/tsconfig.app.json"
       }
     },
+    "health": {
+      "type": "application",
+      "root": "apps/health",
+      "entryFile": "main",
+      "sourceRoot": "apps/health/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/health/tsconfig.app.json"
+      }
+    },
     "interviews": {
       "type": "application",
       "root": "apps/interviews",
