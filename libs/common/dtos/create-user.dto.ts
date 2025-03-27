@@ -6,6 +6,7 @@ import {
   IsNotEmpty,
   IsNumber,
   IsOptional,
+  IsPhoneNumber,
   IsPositive,
   IsString,
 } from 'class-validator';
@@ -18,7 +19,7 @@ export class CreateUserDto {
   @IsNotEmpty()
   readonly password!: string;
 
-  @IsString()
+  @IsPhoneNumber()
   @IsNotEmpty()
   readonly phone_number!: string;
 

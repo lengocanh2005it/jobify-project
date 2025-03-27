@@ -35,6 +35,7 @@ import {
 import * as multer from 'multer';
 import { LoggerModule } from 'nestjs-pino';
 import { CommonService } from './common.service';
+import { TwilioModule } from 'nestjs-twilio';
 
 @Global()
 @Module({
@@ -156,6 +157,14 @@ import { CommonService } from './common.service';
         },
       }),
     }),
+    TwilioModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        accountSid: configService.get<string>('twilio.account_sid', ''),
+        authToken: configService.get<string>('twilio.auth_token', ''),
+      }),
+    }),
   ],
   providers: [
     CommonService,
@@ -186,6 +195,7 @@ import { CommonService } from './common.service';
     GoogleRecaptchaModule,
     SentryModule,
     StripeModule,
+    TwilioModule,
   ],
 })
 export class CommonModule {}

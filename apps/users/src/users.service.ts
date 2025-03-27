@@ -16,6 +16,8 @@ import {
   RECRUITER_PREMIUM_LIMIT,
   Role as RoleEnum,
   SKILL_KEYWORDS,
+  SMS_PASSWORD_CHANGED,
+  SMS_PAYMENT_SUCCESSFULLY,
 } from 'libs/common/constants';
 import {
   AssignCompanyToRecruitersDto,
@@ -50,6 +52,7 @@ export class UsersService implements OnModuleInit {
     private readonly transactionsProvider: TransactionsProvider,
     private readonly elasticsearchService: ElasticsearchService,
     @Inject('REDIS_SERVICE') private readonly rabbitMqRedisClient: ClientProxy,
+    @Inject('SMS_SERVICE') private readonly rabbitMqSmsClient: ClientProxy,
   ) {}
 
   async onModuleInit() {
@@ -840,6 +843,18 @@ export class UsersService implements OnModuleInit {
         userIds: [userId],
       });
 
+      this.rabbitMqSmsClient.emit('send-sms', {
+        from: this.configService.get<string>('twilio.phone_number', ''),
+        to: user.phone_number,
+        message: SMS_PASSWORD_CHANGED(user.full_name),
+      });
+
+      this.rabbitMqEmailClient.emit('send-email', {
+        email: user.email,
+        type: EmailType.CHANGE_PASSWORD,
+        extraData: user.full_name,
+      });
+
       return {
         message: 'Password updated successfully.',
       };
@@ -928,6 +943,12 @@ export class UsersService implements OnModuleInit {
       this.rabbitMqEmailClient.emit('send-email', {
         email: user.email,
         type: EmailType.PAYMENT_SUCCESSFULLY,
+      });
+
+      this.rabbitMqSmsClient.emit('send-sms', {
+        from: this.configService.get<string>('twilio.phone_number', ''),
+        to: user.phone_number,
+        message: SMS_PAYMENT_SUCCESSFULLY(user.full_name),
       });
 
       this.rabbitMqRedisClient.emit('del-keys-patter', 'users');

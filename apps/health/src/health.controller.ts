@@ -1,8 +1,10 @@
-import { Controller } from '@nestjs/common';
-import { HealthService } from './health.service';
+import { Controller, UseInterceptors } from '@nestjs/common';
 import { MessagePattern } from '@nestjs/microservices';
+import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
+import { HealthService } from './health.service';
 
 @Controller()
+@UseInterceptors(ServicesExceptionInterceptor)
 export class HealthController {
   constructor(private readonly healthService: HealthService) {}
 

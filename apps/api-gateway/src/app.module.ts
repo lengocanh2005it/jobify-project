@@ -24,6 +24,7 @@ import { CustomValidationPipe } from 'libs/common/pipes';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthModule } from 'apps/api-gateway/src/health/health.module';
+import { SmsModule } from 'apps/api-gateway/src/sms/sms.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { HealthModule } from 'apps/api-gateway/src/health/health.module';
     SearchModule,
     SseModule,
     HealthModule,
+    SmsModule,
   ],
   controllers: [AppController],
   providers: [

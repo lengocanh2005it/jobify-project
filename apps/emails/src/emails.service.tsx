@@ -5,6 +5,7 @@ import { render } from '@react-email/render';
 import { EmailType } from 'libs/common/constants';
 import {
   AccountDeleteEmail,
+  ChangePasswordEmail,
   OtpEmail,
   PremiumSubscriptionSuccessEmail,
   SendReportEmail,
@@ -46,6 +47,11 @@ export class EmailsService {
       component: (data) => <SendReportEmail fileUrl={data.fileUrl} />,
       subject: 'SYSTEM REPORT',
       generateData: (fileUrl) => ({ fileUrl }),
+    },
+    [EmailType.CHANGE_PASSWORD]: {
+      component: (data) => <ChangePasswordEmail username={data.full_name} />,
+      subject: 'PASSWORD CHANGE CONFIRMATION',
+      generateData: (full_name) => ({ full_name }),
     },
   };
 

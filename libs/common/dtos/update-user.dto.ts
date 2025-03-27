@@ -4,6 +4,7 @@ import {
   IsEmail,
   IsNotEmpty,
   IsOptional,
+  IsPhoneNumber,
   IsString,
   IsUUID,
 } from 'class-validator';
@@ -23,7 +24,7 @@ export class UpdateUserDto {
     example: '+123456789',
   })
   @IsOptional()
-  @IsString()
+  @IsPhoneNumber()
   @IsNotEmpty()
   readonly phone_number?: string;
 
