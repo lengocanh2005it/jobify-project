@@ -40,6 +40,10 @@ env:
   RABBITMQ_URL: ${{secrets.RABBITMQ_URL}}
   GOOGLE_RECAPTCHA_SITE_KEY: ${{secrets.GOOGLE_RECAPTCHA_SITE_KEY}}
   GOOGLE_RECAPTCHA_SECRET_KEY: ${{secrets.GOOGLE_RECAPTCHA_SECRET_KEY}}
+  SENTRY_DSN: ${{secrets.SENTRY_DSN}}
+  TWILIO_ACCOUNT_SID: ${{secrets.TWILIO_ACCOUNT_SID}}
+  TWILIO_AUTH_TOKEN: ${{secrets.TWILIO_AUTH_TOKEN}}
+  TWILIO_PHONE_NUMBER: ${{secrets.TWILIO_PHONE_NUMBER}}
 
 on:
   pull_request:
@@ -110,6 +114,10 @@ jobs:
           echo "RABBITMQ_URL=${{env.RABBITMQ_URL}}" >> .env
           echo "GOOGLE_RECAPTCHA_SITE_KEY=${{env.GOOGLE_RECAPTCHA_SITE_KEY}}" >> .env
           echo "GOOGLE_RECAPTCHA_SECRET_KEY=${{env.GOOGLE_RECAPTCHA_SECRET_KEY}}" >> .env
+          echo "SENTRY_DSN=${{env.SENTRY_DSN}}" >> .env
+          echo "TWILIO_ACCOUNT_SID=${{env.TWILIO_ACCOUNT_SID}}" >> .env
+          echo "TWILIO_AUTH_TOKEN=${{env.TWILIO_AUTH_TOKEN}}" >> .env
+          echo "TWILIO_PHONE_NUMBER=${{env.TWILIO_PHONE_NUMBER}} >> .env
           cat .env
 
       - name: Check format
