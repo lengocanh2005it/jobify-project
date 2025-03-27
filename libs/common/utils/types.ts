@@ -59,6 +59,12 @@ export type ReportData = {
   totalClosedJobs: string;
 };
 
+export type RequestMetadata = {
+  ip: string;
+  forwardedFor: string;
+  userAgent: string;
+};
+
 declare module 'express' {
   interface Request {
     user?: any;

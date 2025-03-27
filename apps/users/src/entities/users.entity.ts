@@ -1,4 +1,5 @@
 import { Application } from 'apps/applications/src/entities';
+import { Device } from 'apps/auth/src/entities';
 import { Interview } from 'apps/interviews/src/entities';
 import { Company, Job, SavedJob } from 'apps/jobs/src/entities';
 import { Conversation, Message } from 'apps/messages/src/entities';
@@ -148,6 +149,12 @@ export class User {
 
   @ManyToMany(() => Conversation, (conversation) => conversation.participants)
   conversations!: Conversation[];
+
+  @OneToMany(() => Device, (device) => device.user, {
+    orphanedRowAction: 'delete',
+    cascade: true,
+  })
+  devices!: Device[];
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;

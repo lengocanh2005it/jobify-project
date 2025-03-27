@@ -1,15 +1,26 @@
+import { TransactionsProvider } from '@app/common';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
+import { Device } from 'apps/auth/src/entities';
 import { User } from 'apps/users/src/entities';
 import * as bcrypt from 'bcrypt';
 import { EmailType, Provider } from 'libs/common/constants';
-import { LoginDto, UpdatePasswordDto } from 'libs/common/dtos';
+import {
+  CreateDeviceDto,
+  LoginDto,
+  UpdatePasswordDto,
+  VerifyNewDeviceDto,
+} from 'libs/common/dtos';
 import {
   CreateSocialAccount,
+  generateFingerprint,
+  generateOTP,
   generateRpcExceptionResponse,
+  getDeviceType,
   JwtPayload,
+  RequestMetadata,
 } from 'libs/common/utils';
 import { lastValueFrom } from 'rxjs';
 
@@ -21,27 +32,135 @@ export class AuthService {
     @Inject('REDIS_SERVICE') private readonly rabbitMqRedisClient: ClientProxy,
     @Inject('EMAILS_SERVICE') private readonly rabbitMqEmailClient: ClientProxy,
     private readonly configService: ConfigService,
+    private readonly transactionProvider: TransactionsProvider,
+    @Inject('SMS_SERVICE') private readonly rabbitMqSmsClient: ClientProxy,
   ) {}
 
-  public handleLogin = async (loginDto: LoginDto) => {
-    const user = await lastValueFrom<User>(
-      this.rabbitMqUserClient.send({ cmd: 'verify-user' }, loginDto),
-    );
+  public handleLogin = async (
+    loginDto: LoginDto,
+    requestMetadata: RequestMetadata,
+  ) => {
+    return this.transactionProvider.executeTransaction(async (queryRunner) => {
+      const deviceRepository = queryRunner.manager.getRepository(Device);
 
-    const { accessToken, refreshToken } = this.signTokens(
-      user.id,
-      user.role.name,
-    );
+      const user = await lastValueFrom<User>(
+        this.rabbitMqUserClient.send({ cmd: 'verify-user' }, loginDto),
+      );
 
-    const { email } = loginDto;
+      const { forwardedFor, ip, userAgent } = requestMetadata;
 
-    this.rabbitMqRedisClient.emit('set-key', {
-      key: `${email}:refresh-token`,
-      data: refreshToken,
-      ttl: 30 * 60,
+      const ipAddress = forwardedFor || ip || 'Unknown IP address';
+
+      const fingerprint = generateFingerprint(ipAddress, userAgent);
+
+      const existingDevice = await deviceRepository.findOne({
+        where: {
+          user: {
+            id: user.id,
+          },
+          fingerprint,
+        },
+        relations: ['user'],
+      });
+
+      if (!existingDevice || (existingDevice && !existingDevice.is_trusted)) {
+        const lastKnownDevice = (await this.getLastKnownDevices(user.id))[0];
+
+        if (!lastKnownDevice)
+          throw new RpcException(
+            generateRpcExceptionResponse(
+              HttpStatus.NOT_FOUND,
+              'No last known device found for this user.',
+            ),
+          );
+
+        const otp = generateOTP();
+
+        this.rabbitMqRedisClient.emit('set-key', {
+          key: `${user.email}:otp-verify-new-device`,
+          data: otp,
+          ttl: 5 * 60,
+        });
+
+        let isOptSent = false;
+
+        const deviceType = lastKnownDevice.device_type;
+
+        if (deviceType === 'mobile' || deviceType === 'iphone') {
+          if (!lastKnownDevice.phone_number)
+            throw new RpcException(
+              generateRpcExceptionResponse(
+                HttpStatus.BAD_REQUEST,
+                'Cannot send OTP: The last known mobile device does not have a registered phone number.',
+              ),
+            );
+
+          const { phone_number } = lastKnownDevice;
+
+          this.rabbitMqSmsClient.emit('send-sms', {
+            from: this.configService.get<string>('twilio.phone_number', ''),
+            to: phone_number,
+            message: `Hi ${user.full_name}, your verification code is: ${otp}. It expires in 5 minutes. Do not share this code with anyone.`,
+          });
+
+          this.rabbitMqEmailClient.emit('send-email', {
+            email: user.email,
+            type: EmailType.NEW_DEVICE_LOGIN,
+            extraData: {
+              userName: user.full_name,
+              location: 'Ha Noi, Viet Nam',
+              deviceType,
+              time: new Date().toISOString(),
+            },
+          });
+
+          isOptSent = true;
+        } else if (deviceType === 'desktop') {
+          this.rabbitMqEmailClient.emit('send-email', {
+            email: user.email,
+            type: EmailType.VERIFY_OTP,
+          });
+
+          isOptSent = true;
+        }
+
+        if (!isOptSent)
+          throw new RpcException(
+            generateRpcExceptionResponse(
+              HttpStatus.BAD_REQUEST,
+              'Unable to send OTP. No valid method found.',
+            ),
+          );
+
+        throw new RpcException(
+          generateRpcExceptionResponse(HttpStatus.FORBIDDEN, {
+            description: `We detected a login attempt from an unrecognized device. An OTP has been sent to your registered ${deviceType === 'desktop' ? 'email.' : deviceType === 'mobile' || deviceType === 'smartphone' ? 'SMS.' : ''}`,
+            status: 'OTP_SENT',
+            nextStep: 'ENTER_OTP',
+            deviceInfo: {
+              deviceType: deviceType,
+              location: 'Hanoi, Vietnam',
+              loginTime: new Date().toISOString(),
+            },
+          }),
+        );
+      }
+
+      const { accessToken, refreshToken } = this.signTokens(
+        user.id,
+        user.role.name,
+      );
+
+      const { email } = loginDto;
+
+      this.rabbitMqRedisClient.emit('set-key', {
+        key: `${email}:refresh-token`,
+        data: refreshToken,
+        ttl: 30 * 60,
+      });
+
+      return { accessToken, refreshToken };
     });
-
-    return { accessToken, refreshToken };
   };
 
   public handleUpdatePassword = async (
@@ -269,5 +388,98 @@ export class AuthService {
     }
 
     return null;
+  };
+
+  private getLastKnownDevices = async (userId: string) => {
+    return this.transactionProvider.executeTransaction(async (queryRunner) => {
+      const deviceRepository = queryRunner.manager.getRepository(Device);
+
+      return deviceRepository.find({
+        where: {
+          user: {
+            id: userId,
+          },
+          is_trusted: true,
+        },
+        order: {
+          lastLogin: 'DESC',
+        },
+      });
+    });
+  };
+
+  public handleCreateDevice = async (
+    createDeviceDto: CreateDeviceDto,
+    user: User,
+  ) => {
+    return this.transactionProvider.executeTransaction(async (queryRunner) => {
+      const deviceRepository = queryRunner.manager.getRepository(Device);
+
+      const newDevice = deviceRepository.create(createDeviceDto);
+
+      newDevice.user = user;
+
+      await deviceRepository.save(newDevice);
+    });
+  };
+
+  public handleVerifyNewDevice = async (
+    verifyNewDeviceDto: VerifyNewDeviceDto,
+    requestMetaData: RequestMetadata,
+    user: User,
+  ) => {
+    return this.transactionProvider.executeTransaction(async (queryRunner) => {
+      const deviceRepository = queryRunner.manager.getRepository(Device);
+
+      const { otp } = verifyNewDeviceDto;
+
+      const otpInRedisStore = await lastValueFrom(
+        this.rabbitMqRedisClient.send(
+          'get-key',
+          `${user.email}:otp-verify-new-device`,
+        ),
+      );
+
+      if (!otpInRedisStore)
+        throw new RpcException(
+          generateRpcExceptionResponse(
+            HttpStatus.BAD_REQUEST,
+            `Your OTP has expired. Please try again by requesting a new code.`,
+          ),
+        );
+
+      if (otpInRedisStore !== otp)
+        throw new RpcException(
+          generateRpcExceptionResponse(
+            HttpStatus.BAD_REQUEST,
+            `The OTP you entered is incorrect. Please check and try again.`,
+          ),
+        );
+
+      const { ip, forwardedFor, userAgent } = requestMetaData;
+
+      const ipAddress = forwardedFor || ip || 'Unknown IP address.';
+
+      const fingerprint = generateFingerprint(ipAddress, userAgent);
+
+      const deviceType = getDeviceType(userAgent);
+
+      const newDeviceForUser = deviceRepository.create({
+        ipAddress,
+        fingerprint,
+        lastLogin: new Date(),
+        device_type: deviceType,
+        ...(deviceType === 'mobile' && { phone_number: user.phone_number }),
+        is_trusted: true,
+      });
+
+      newDeviceForUser.user = user;
+
+      await deviceRepository.save(newDeviceForUser);
+
+      return {
+        success: 'Your new device has been verified. You are now logged in.',
+      };
+    });
   };
 }

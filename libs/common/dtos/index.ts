@@ -35,3 +35,5 @@ export * from './verify-email.dto';
 export * from './generate-report.dto';
 export * from './search.dto';
 export * from './send-sms.dto';
+export * from './create-device.dto';
+export * from './verify-new-device.dto';

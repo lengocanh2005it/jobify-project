@@ -1,4 +1,5 @@
 import { Application } from 'apps/applications/src/entities';
+import { Device } from 'apps/auth/src/entities';
 import { Interview } from 'apps/interviews/src/entities';
 import { Company, Job, Requirement, SavedJob } from 'apps/jobs/src/entities';
 import { Conversation, Message } from 'apps/messages/src/entities';
@@ -26,4 +27,5 @@ export const entities = [
   Transaction,
   Review,
   Skill,
+  Device,
 ];

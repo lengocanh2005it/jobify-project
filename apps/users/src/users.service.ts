@@ -21,6 +21,7 @@ import {
 } from 'libs/common/constants';
 import {
   AssignCompanyToRecruitersDto,
+  CreateDeviceDto,
   CreateUserDto,
   LoginDto,
   UpdateUserDto,
@@ -28,8 +29,11 @@ import {
 import { TransactionsProvider } from 'libs/common/providers';
 import {
   CreateSocialAccount,
+  generateFingerprint,
   generateRpcExceptionResponse,
+  getDeviceType,
   handleEncodedPassword,
+  RequestMetadata,
   UrlResponseType,
 } from 'libs/common/utils';
 import { omit } from 'lodash';
@@ -53,6 +57,7 @@ export class UsersService implements OnModuleInit {
     private readonly elasticsearchService: ElasticsearchService,
     @Inject('REDIS_SERVICE') private readonly rabbitMqRedisClient: ClientProxy,
     @Inject('SMS_SERVICE') private readonly rabbitMqSmsClient: ClientProxy,
+    @Inject('AUTH_SERVICE') private readonly rabbitMqAuthClient: ClientProxy,
   ) {}
 
   async onModuleInit() {
@@ -147,6 +152,7 @@ export class UsersService implements OnModuleInit {
 
   public createUser = async (
     createUserDto: CreateUserDto,
+    requestMetadata: RequestMetadata,
     files?: Array<Express.Multer.File>,
   ) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
@@ -325,6 +331,32 @@ export class UsersService implements OnModuleInit {
 
       this.rabbitMqRedisClient.emit('del-keys-pattern', 'users');
       this.rabbitMqRedisClient.emit('del-keys-patter', 'admin');
+
+      const { ip, forwardedFor, userAgent } = requestMetadata;
+
+      const ipAddress = forwardedFor || ip || 'Unknown IP address';
+
+      const fingerprint = generateFingerprint(ip, userAgent);
+
+      const deviceType = getDeviceType(userAgent);
+
+      const createDeviceDto: CreateDeviceDto = {
+        ipAddress,
+        fingerprint,
+        userAgent,
+        lastLogin: new Date(),
+        is_trusted: true,
+        device_type: deviceType,
+        ...(deviceType === 'mobile' && { phone_number: newUser.phone_number }),
+      };
+
+      this.rabbitMqAuthClient.emit(
+        { cmd: 'create-new-device' },
+        {
+          createDeviceDto,
+          user: newUser,
+        },
+      );
 
       return omit(newUser, ['password']);
     });

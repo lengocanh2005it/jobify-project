@@ -34,6 +34,7 @@ import {
   RefreshTokenDto,
   UpdatePasswordDto,
   VerifyEmailDto,
+  VerifyNewDeviceDto,
 } from 'libs/common/dtos';
 import {
   CustomGoogleRecaptchaGuard,
@@ -41,7 +42,11 @@ import {
   RoleAuthGuard,
 } from 'libs/common/guards';
 import { FileValidationPipe } from 'libs/common/pipes';
-import { CreateSocialAccount, SocialLogin } from 'libs/common/utils';
+import {
+  CreateSocialAccount,
+  RequestMetadata,
+  SocialLogin,
+} from 'libs/common/utils';
 
 @Controller('auth')
 @ApiTags(API_TAGS.AUTH)
@@ -73,8 +78,14 @@ export class AuthController {
     status: 401,
     description: 'Invalid email or password.',
   })
-  async handleLogin(@Body() loginDto: LoginDto) {
-    return this.authService.handleLogin(loginDto);
+  async handleLogin(@Body() loginDto: LoginDto, @Req() request: Request) {
+    const requestMetadata: RequestMetadata = {
+      ip: request.socket.remoteAddress || '',
+      forwardedFor: request.headers['x-forwarded-for'] as string,
+      userAgent: request.headers['user-agent'] || 'Unknown User-Agent',
+    };
+
+    return this.authService.handleLogin(loginDto, requestMetadata);
   }
 
   @Post('sign-up')
@@ -179,9 +190,16 @@ export class AuthController {
   })
   async handleSignup(
     @Body() createUserDto: CreateUserDto,
-    @UploadedFiles(FileValidationPipe) files: Array<Express.Multer.File>,
+    @Req() request: Request,
+    @UploadedFiles(FileValidationPipe) files?: Array<Express.Multer.File>,
   ) {
-    return this.authService.handleSignup(createUserDto, files);
+    const requestMetadata: RequestMetadata = {
+      ip: request.socket.remoteAddress || '',
+      forwardedFor: request.headers['x-forwarded-for'] as string,
+      userAgent: request.headers['user-agent'] || 'Unknown User-Agent',
+    };
+
+    return this.authService.handleSignup(createUserDto, requestMetadata, files);
   }
 
   @Post('sign-out')
@@ -558,5 +576,45 @@ export class AuthController {
   @ResponseMessage('Social account created successfully.')
   async createSocialAccount(@Body() createSocialAccount: CreateSocialAccount) {
     return this.authService.handleCreateSocialAccount(createSocialAccount);
+  }
+
+  @Post('verify-new-device')
+  @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  @ResponseMessage('Verify new device successfully.')
+  @ApiOperation({
+    summary: 'Verify new device',
+    description: 'Verify new device by entering OTP in SMS/email.',
+  })
+  @ApiBody({
+    type: VerifyEmailDto,
+    description: 'Data need to be used to verify thew new device.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Verify new device successfully',
+    schema: {
+      example: {
+        message: 'Your new device has been verified. You are now logged in.',
+      },
+    },
+  })
+  async handleVerifyNewDevice(
+    @Body() verifyNewDeviceDto: VerifyNewDeviceDto,
+    @Req() request: Request,
+  ) {
+    const requestMetadata: RequestMetadata = {
+      ip: request.socket.remoteAddress || '',
+      forwardedFor: request.headers['x-forwarded-for'] as string,
+      userAgent: request.headers['user-agent'] || 'Unknown User-Agent',
+    };
+
+    const user = request.user as User;
+
+    return this.authService.handleVerifyNewDevice(
+      verifyNewDeviceDto,
+      requestMetadata,
+      user,
+    );
   }
 }
