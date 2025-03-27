@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities';
+import { Request } from 'express';
 import { Provider } from 'libs/common/constants';
 import {
   CreateCompanyDto,
@@ -8,8 +9,9 @@ import {
   ForgetPasswordDto,
   LoginDto,
   UpdatePasswordDto,
+  VerifyNewDeviceDto,
 } from 'libs/common/dtos';
-import { CreateSocialAccount } from 'libs/common/utils';
+import { CreateSocialAccount, RequestMetadata } from 'libs/common/utils';
 import { lastValueFrom } from 'rxjs';
 
 @Injectable()
@@ -20,9 +22,18 @@ export class AuthService {
     @Inject('USERS_SERVICE') private readonly rabbitMqUserClient: ClientProxy,
   ) {}
 
-  public handleLogin = async (loginDto: LoginDto) => {
+  public handleLogin = async (
+    loginDto: LoginDto,
+    requestMetadata: RequestMetadata,
+  ) => {
     return await lastValueFrom(
-      this.rabbitMqAuthClient.send({ cmd: 'login' }, loginDto),
+      this.rabbitMqAuthClient.send(
+        { cmd: 'login' },
+        {
+          loginDto,
+          requestMetadata,
+        },
+      ),
     );
   };
 
@@ -74,6 +85,7 @@ export class AuthService {
 
   public handleSignup = async (
     createUserDto: CreateUserDto,
+    requestMetadata: RequestMetadata,
     files?: Array<Express.Multer.File>,
   ) => {
     return await lastValueFrom(
@@ -81,6 +93,7 @@ export class AuthService {
         { cmd: 'create-user' },
         {
           createUserDto,
+          requestMetadata,
           files,
         },
       ),
@@ -128,6 +141,23 @@ export class AuthService {
           provider,
           provider_id,
           email,
+        },
+      ),
+    );
+  };
+
+  public handleVerifyNewDevice = async (
+    verifyNewDeviceDto: VerifyNewDeviceDto,
+    requestMetadata: RequestMetadata,
+    user: User,
+  ) => {
+    return lastValueFrom(
+      this.rabbitMqAuthClient.send(
+        { cmd: 'verify-new-device' },
+        {
+          verifyNewDeviceDto,
+          requestMetadata,
+          user,
         },
       ),
     );

@@ -6,6 +6,7 @@ import { EmailType } from 'libs/common/constants';
 import {
   AccountDeleteEmail,
   ChangePasswordEmail,
+  NewDeviceEmail,
   OtpEmail,
   PremiumSubscriptionSuccessEmail,
   SendReportEmail,
@@ -52,6 +53,23 @@ export class EmailsService {
       component: (data) => <ChangePasswordEmail username={data.full_name} />,
       subject: 'PASSWORD CHANGE CONFIRMATION',
       generateData: (full_name) => ({ full_name }),
+    },
+    [EmailType.NEW_DEVICE_LOGIN]: {
+      component: (data) => (
+        <NewDeviceEmail
+          userName={data.userName}
+          location={data.location}
+          deviceType={data.deviceType}
+          time={data.time}
+        />
+      ),
+      subject: '⚠️ UNRECOGNIZED DEVICE LOGIN',
+      generateData: ({ userName, location, deviceType, time }) => ({
+        userName,
+        location,
+        deviceType,
+        time,
+      }),
     },
   };
 

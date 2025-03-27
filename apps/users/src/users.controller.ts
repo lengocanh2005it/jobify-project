@@ -9,7 +9,7 @@ import {
   UpdateUserDto,
 } from 'libs/common/dtos';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
-import { CreateSocialAccount } from 'libs/common/utils';
+import { CreateSocialAccount, RequestMetadata } from 'libs/common/utils';
 import { PaginateQuery } from 'nestjs-paginate';
 import { UsersService } from './users.service';
 
@@ -26,9 +26,10 @@ export class UsersController {
   @MessagePattern({ cmd: 'create-user' })
   async createUser(
     @Payload('createUserDto') createUserDto: CreateUserDto,
+    @Payload('requestMetadata') requestMetadata: RequestMetadata,
     @Payload('files') files?: Array<Express.Multer.File>,
   ) {
-    return this.usersService.createUser(createUserDto, files);
+    return this.usersService.createUser(createUserDto, requestMetadata, files);
   }
 
   @MessagePattern({ cmd: 'get-profile' })

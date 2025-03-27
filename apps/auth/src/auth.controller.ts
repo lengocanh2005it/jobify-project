@@ -1,10 +1,15 @@
 import { Controller, UseInterceptors } from '@nestjs/common';
-import { MessagePattern, Payload } from '@nestjs/microservices';
+import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities';
 import { EmailType, Provider } from 'libs/common/constants';
-import { LoginDto, UpdatePasswordDto } from 'libs/common/dtos';
+import {
+  CreateDeviceDto,
+  LoginDto,
+  UpdatePasswordDto,
+  VerifyNewDeviceDto,
+} from 'libs/common/dtos';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
-import { CreateSocialAccount } from 'libs/common/utils';
+import { CreateSocialAccount, RequestMetadata } from 'libs/common/utils';
 import { AuthService } from './auth.service';
 
 @Controller()
@@ -13,8 +18,11 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @MessagePattern({ cmd: 'login' })
-  async handleLogin(@Payload() loginDto: LoginDto) {
-    return this.authService.handleLogin(loginDto);
+  async handleLogin(
+    @Payload('loginDto') loginDto: LoginDto,
+    @Payload('requestMetadata') requestMetadata: RequestMetadata,
+  ) {
+    return this.authService.handleLogin(loginDto, requestMetadata);
   }
 
   @MessagePattern({ cmd: 'update-password' })
@@ -65,6 +73,27 @@ export class AuthController {
       provider,
       provider_id,
       email,
+    );
+  }
+
+  @EventPattern({ cmd: 'create-new-device' })
+  async createNewDeviceOfUser(
+    @Payload('createDeviceDto') createDeviceDto: CreateDeviceDto,
+    @Payload('user') user: User,
+  ) {
+    return this.authService.handleCreateDevice(createDeviceDto, user);
+  }
+
+  @MessagePattern({ cmd: 'verify-new-device' })
+  async handleVerifyNewDevice(
+    @Payload('verifyNewDeviceDto') verifyNewDeviceDto: VerifyNewDeviceDto,
+    @Payload('requestMetadata') requestMetadata: RequestMetadata,
+    @Payload('user') user: User,
+  ) {
+    return this.authService.handleVerifyNewDevice(
+      verifyNewDeviceDto,
+      requestMetadata,
+      user,
     );
   }
 }

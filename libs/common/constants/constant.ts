@@ -41,6 +41,7 @@ export enum EmailType {
   PAYMENT_SUCCESSFULLY = 'payment_successfully',
   REPORT = 'report',
   CHANGE_PASSWORD = 'change_password',
+  NEW_DEVICE_LOGIN = 'new_device_login',
 }
 
 export enum ElasticIndexes {
