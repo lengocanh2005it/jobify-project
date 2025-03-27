@@ -117,7 +117,7 @@ jobs:
           echo "SENTRY_DSN=${{env.SENTRY_DSN}}" >> .env
           echo "TWILIO_ACCOUNT_SID=${{env.TWILIO_ACCOUNT_SID}}" >> .env
           echo "TWILIO_AUTH_TOKEN=${{env.TWILIO_AUTH_TOKEN}}" >> .env
-          echo "TWILIO_PHONE_NUMBER=${{env.TWILIO_PHONE_NUMBER}} >> .env
+          echo "TWILIO_PHONE_NUMBER=${{env.TWILIO_PHONE_NUMBER}}" >> .env
           cat .env
 
       - name: Check format
