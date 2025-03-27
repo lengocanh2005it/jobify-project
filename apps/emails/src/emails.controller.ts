@@ -13,15 +13,8 @@ export class EmailsController {
   async handleSendEmail(
     @Payload('email') email: string,
     @Payload('type') type: EmailType,
+    @Payload('extraData') extraData?: any,
   ) {
-    return this.emailsProducer.sendEmail(email, type);
-  }
-
-  @EventPattern({ cmd: 'send-report-to-email' })
-  async handleSendReportToEmail(
-    @Payload('email') email: string,
-    @Payload('fileUrl') fileUrl: string,
-  ) {
-    return this.emailsProducer.sendEmail(email, EmailType.REPORT, fileUrl);
+    return this.emailsProducer.sendEmail(email, type, extraData);
   }
 }

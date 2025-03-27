@@ -34,3 +34,4 @@ export * from './update-user.dto';
 export * from './verify-email.dto';
 export * from './generate-report.dto';
 export * from './search.dto';
+export * from './send-sms.dto';

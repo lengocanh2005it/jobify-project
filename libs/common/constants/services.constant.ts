@@ -16,4 +16,5 @@ export const SERVICES = [
   { serviceName: 'SEARCH_SERVICE', queueName: 'search_queue' },
   { serviceName: 'SSE_SERVICE', queueName: 'sse_queue' },
   { serviceName: 'HEALTH_SERVICE', queueName: 'health_queue' },
+  { serviceName: 'SMS_SERVICE', queueName: 'sms_queue' },
 ] as Array<{ serviceName: string; queueName: string }>;

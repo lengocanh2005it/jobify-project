@@ -40,6 +40,7 @@ export enum EmailType {
   VERIFY_OTP = 'verify_otp',
   PAYMENT_SUCCESSFULLY = 'payment_successfully',
   REPORT = 'report',
+  CHANGE_PASSWORD = 'change_password',
 }
 
 export enum ElasticIndexes {
