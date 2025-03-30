@@ -4,7 +4,7 @@ import { Queue } from 'bullmq';
 import {
   BULLMQ_RETRY_DELAY,
   BULLMQ_RETRY_LIMIT,
-  EmailType,
+  EmailTemplateNameEnum,
 } from 'libs/common/constants';
 
 @Injectable()
@@ -13,10 +13,14 @@ export class EmailsProducer {
     @InjectQueue('emails-queue') private readonly emailsQueue: Queue,
   ) {}
 
-  async sendEmail(email: string, type: EmailType, extraData?: any) {
+  async sendEmail(
+    email: string,
+    templateName: EmailTemplateNameEnum,
+    context?: Record<string, any>,
+  ) {
     await this.emailsQueue.add(
       'send-email',
-      { email, type, extraData },
+      { email, templateName, context },
       {
         attempts: BULLMQ_RETRY_LIMIT,
         backoff: { type: 'exponential', delay: BULLMQ_RETRY_DELAY },

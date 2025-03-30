@@ -4,7 +4,11 @@ import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { Application } from 'apps/applications/src/entities';
 import { Job } from 'apps/jobs/src/entities';
 import { User } from 'apps/users/src/entities';
-import { ElasticIndexes, NotificationTypes } from 'libs/common/constants';
+import {
+  ElasticIndexes,
+  EmailTemplateNameEnum,
+  NotificationTypes,
+} from 'libs/common/constants';
 import {
   ProcessApplicationsDto,
   SearchApplicationsDto,
@@ -19,6 +23,7 @@ import {
 import { omit, pick } from 'lodash';
 import { lastValueFrom } from 'rxjs';
 import { Repository } from 'typeorm';
+import { format } from 'date-fns';
 
 @Injectable()
 export class ApplicationsService implements OnModuleInit {
@@ -32,6 +37,7 @@ export class ApplicationsService implements OnModuleInit {
     private readonly transactionsProvider: TransactionsProvider,
     private readonly elasticsearchService: ElasticsearchService,
     @Inject('REDIS_SERVICE') private readonly rabbitMqRedisClient: ClientProxy,
+    @Inject('EMAILS_SERVICE') private readonly rabbitMqEmailClient: ClientProxy,
   ) {}
 
   async onModuleInit() {
@@ -729,33 +735,71 @@ export class ApplicationsService implements OnModuleInit {
   public handleDeleteUserFromApplication = async (
     userId: string,
     applicationId: string,
+    recruiter: User,
+    jobId: string,
   ) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
       const applicationRepository =
         queryRunner.manager.getRepository(Application);
 
-      const existingUser = await applicationRepository.find({
-        where: {
-          candidate: {
-            id: userId,
+      const candidate = await lastValueFrom<User | null>(
+        this.rabbitMqUserClient.send(
+          { cmd: 'get-user-by-field' },
+          {
+            field: 'id',
+            value: userId,
           },
-        },
-        relations: ['candidate'],
-      });
+        ),
+      );
 
-      if (!existingUser || !existingUser.length)
+      if (!candidate)
         throw new RpcException(
           generateRpcExceptionResponse(
-            HttpStatus.FORBIDDEN,
-            `The candidate with id '${userId}' has not applied for jobs you posted.`,
+            HttpStatus.NOT_FOUND,
+            `Candidate with id '${userId}' not found.`,
           ),
         );
 
-      await applicationRepository.delete({
-        candidate: {
-          id: userId,
+      const job = await lastValueFrom<Job>(
+        this.rabbitMqJobClient.send(
+          { cmd: 'get-job' },
+          {
+            jobId,
+            user: recruiter,
+          },
+        ),
+      );
+
+      const applicationOfCandidate = await applicationRepository.findOne({
+        where: {
+          id: applicationId,
         },
+        relations: ['job', 'candidate'],
       });
+
+      if (!applicationOfCandidate)
+        throw new RpcException(
+          generateRpcExceptionResponse(
+            HttpStatus.NOT_FOUND,
+            `Application with id '${applicationId}' not found.`,
+          ),
+        );
+
+      if (applicationOfCandidate.candidate.id !== userId)
+        throw new RpcException(
+          generateRpcExceptionResponse(
+            HttpStatus.BAD_REQUEST,
+            `Application with id '${applicationId}' doesn't belong to candidate with id '${userId}'.`,
+          ),
+        );
+
+      if (applicationOfCandidate.job.id !== jobId)
+        throw new RpcException(
+          generateRpcExceptionResponse(
+            HttpStatus.BAD_REQUEST,
+            `The application with id ${applicationId} has not been submitted for the job with the id '${jobId}' you posted.`,
+          ),
+        );
 
       const { title, description, key } = NotificationTypes.CANDIDATE_REMOVED;
 
@@ -778,8 +822,29 @@ export class ApplicationsService implements OnModuleInit {
         },
       });
 
+      await applicationRepository.delete({
+        id: applicationId,
+      });
+
+      this.rabbitMqEmailClient.emit('send-email', {
+        email: candidate.email,
+        templateName:
+          EmailTemplateNameEnum.EMAIL_DELETE_CANDIDATE_FROM_APPLICATION,
+        context: {
+          candidate_full_name: candidate.full_name,
+          recruiter_full_name: recruiter.full_name,
+          company_name: recruiter.company.name,
+          jobTitle: job.title,
+          jobDescription: job.description,
+          jobPostedDate: format(job.posted_at, 'EEEE, yyyy-MM-dd'),
+          recruiter_email: recruiter.email,
+          recruiter_phone: recruiter.phone_number,
+        },
+      });
+
       return {
-        success: `The candidate with id: '${userId}' has been deleted from jobs that you posted.`,
+        success: true,
+        message: `The candidate with id '${userId}' has been deleted from jobs that you posted.`,
       };
     });
   };

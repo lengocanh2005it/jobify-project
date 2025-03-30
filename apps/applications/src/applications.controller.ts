@@ -73,10 +73,14 @@ export class ApplicationsController {
   async handleDeleteUserFromApplication(
     @Payload('userId') userId: string,
     @Payload('applicationId') applicationId: string,
+    @Payload('recruiter') recruiter: User,
+    @Payload('jobId') jobId: string,
   ) {
     return this.applicationsService.handleDeleteUserFromApplication(
       userId,
       applicationId,
+      recruiter,
+      jobId,
     );
   }
 

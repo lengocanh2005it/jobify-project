@@ -75,4 +75,13 @@ export default () => ({
     client_secret: process.env.INFISICAL_CLIENT_SECRET,
     site_url: process.env.INFISICAL_SIDE_URL,
   },
+  mailer: {
+    host: process.env.MAILER_HOST,
+    port: parseInt(process.env.MAILER_PORT ?? '587', 10),
+    user: process.env.MAILER_USER,
+    pass: process.env.MAILER_PASSWORD,
+    defaults_from: process.env.MAILER_DEFAULTS_FROM,
+  },
+  support_email: process.env.SUPPORT_EMAIL,
+  support_phone: process.env.SUPPORT_PHONE,
 });

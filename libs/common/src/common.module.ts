@@ -38,6 +38,9 @@ import * as multer from 'multer';
 import { LoggerModule } from 'nestjs-pino';
 import { TwilioModule } from 'nestjs-twilio';
 import { CommonService } from './common.service';
+import { MailerModule } from '@nestjs-modules/mailer';
+import { join } from 'path';
+import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 
 @Global()
 @Module({
@@ -167,6 +170,31 @@ import { CommonService } from './common.service';
         authToken: configService.get<string>('twilio.auth_token', ''),
       }),
     }),
+    MailerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        transport: {
+          host: configService.get<string>('mailer.host', ''),
+          port: configService.get<number>('mailer.port', 587),
+          secure: false,
+          auth: {
+            user: configService.get<string>('mailer.user', ''),
+            pass: configService.get<string>('mailer.pass', ''),
+          },
+        },
+        defaults: {
+          from: configService.get<string>('mailer.defaults_from', ''),
+        },
+        template: {
+          dir: join(process.cwd(), 'libs', 'common', 'emails', 'templates'),
+          adapter: new HandlebarsAdapter(),
+          options: {
+            strict: true,
+          },
+        },
+      }),
+    }),
   ],
   providers: [
     CommonService,
@@ -202,6 +230,7 @@ import { CommonService } from './common.service';
     TwilioModule,
     InfisicalProvider,
     TwoFactorAuthenticationProvider,
+    MailerModule,
   ],
 })
 export class CommonModule {}

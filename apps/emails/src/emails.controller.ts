@@ -1,7 +1,7 @@
 import { Controller, UseInterceptors } from '@nestjs/common';
 import { EventPattern, Payload } from '@nestjs/microservices';
 import { EmailsProducer } from 'apps/emails/src/producers';
-import { EmailType } from 'libs/common/constants';
+import { EmailTemplateNameEnum } from 'libs/common/constants';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 
 @Controller()
@@ -12,9 +12,9 @@ export class EmailsController {
   @EventPattern('send-email')
   async handleSendEmail(
     @Payload('email') email: string,
-    @Payload('type') type: EmailType,
-    @Payload('extraData') extraData?: any,
+    @Payload('templateName') templateName: EmailTemplateNameEnum,
+    @Payload('context') context?: Record<string, any>,
   ) {
-    return this.emailsProducer.sendEmail(email, type, extraData);
+    return this.emailsProducer.sendEmail(email, templateName, context);
   }
 }

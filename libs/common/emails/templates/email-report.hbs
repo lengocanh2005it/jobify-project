@@ -1,0 +1,79 @@
+<html lang='en'>
+  <head>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>Download Job Report</title>
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f8f9fc;
+        text-align: center;
+        padding: 40px;
+        margin: 0;
+      }
+      .container {
+        background: #ffffff;
+        max-width: 400px;
+        margin: auto;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        text-align: center;
+      }
+      h1 {
+        color: #222;
+        font-size: 22px;
+        margin-bottom: 12px;
+        font-weight: 600;
+      }
+      p {
+        font-size: 15px;
+        color: #555;
+        line-height: 1.6;
+      }
+      .download-btn {
+        display: inline-block;
+        padding: 12px 20px;
+        font-size: 16px;
+        color: #fff;
+        background-color: #007bff;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 600;
+        margin-top: 15px;
+      }
+      .download-btn:hover {
+        background-color: #0056b3;
+      }
+      .note {
+        font-size: 13px;
+        color: #777;
+        margin-top: 15px;
+      }
+      hr {
+        border: 0;
+        height: 1px;
+        background-color: #ddd;
+        margin: 20px 0;
+      }
+      .footer {
+        font-size: 12px;
+        color: #888;
+        margin-top: 18px;
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <div class='container'>
+      <h1>Monthly Job Report</h1>
+      <p>The latest job overview report for all companies registered on our
+        platform is now available.</p>
+      <a href='{{fileUrl}}' class='download-btn' download>Download Report</a>
+      <p class='note'><strong>Note:</strong>
+        This report contains detailed job postings and statistics.</p>
+      <hr />
+      <p class='footer'>This is an automated email. Please do not reply.</p>
+    </div>
+  </body>
+</html>

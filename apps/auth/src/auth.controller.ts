@@ -1,7 +1,7 @@
 import { Controller, UseInterceptors } from '@nestjs/common';
 import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities';
-import { EmailType, Provider } from 'libs/common/constants';
+import { EmailTemplateNameEnum, Provider } from 'libs/common/constants';
 import {
   CreateDeviceDto,
   LoginDto,
@@ -45,9 +45,9 @@ export class AuthController {
   @MessagePattern({ cmd: 'forget-password' })
   handleForgetPassword(
     @Payload('email') email: string,
-    @Payload('type') type: EmailType,
+    @Payload('templateName') templateName: EmailTemplateNameEnum,
   ) {
-    return this.authService.handleForgetPassword(email, type);
+    return this.authService.handleForgetPassword(email, templateName);
   }
 
   @MessagePattern({ cmd: 'refresh-token' })

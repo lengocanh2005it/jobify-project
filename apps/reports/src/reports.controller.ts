@@ -14,6 +14,7 @@ export class ReportsController {
     @Payload('user') user: User,
   ) {
     await this.reportsProducer.createReportFlow(generateReportDto, user);
+
     return { message: 'Please check your email to receive report file.' };
   }
 }

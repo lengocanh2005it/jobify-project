@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities';
-import { Provider } from 'libs/common/constants';
+import { EmailTemplateNameEnum, Provider } from 'libs/common/constants';
 import {
   CreateCompanyDto,
   CreateUserDto,
@@ -71,14 +71,14 @@ export class AuthService {
   public handleForgetPassword = async (
     forgetPasswordDto: ForgetPasswordDto,
   ) => {
-    const { email, type } = forgetPasswordDto;
+    const { email } = forgetPasswordDto;
 
     return await lastValueFrom(
       this.rabbitMqAuthClient.send(
         { cmd: 'forget-password' },
         {
           email,
-          type,
+          templateName: EmailTemplateNameEnum.EMAIL_OTP_VERIFICATION,
         },
       ),
     );

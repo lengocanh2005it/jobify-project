@@ -3,6 +3,7 @@ import {
   TransactionsProvider,
   TwoFactorAuthenticationProvider,
 } from '@app/common';
+import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -10,7 +11,12 @@ import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { Device } from 'apps/auth/src/entities';
 import { User } from 'apps/users/src/entities';
 import * as bcrypt from 'bcrypt';
-import { EmailType, Provider } from 'libs/common/constants';
+import {
+  DEFAULT_TTL_OTP_EXPIRED,
+  EmailTemplateNameEnum,
+  Provider,
+  Role,
+} from 'libs/common/constants';
 import {
   CreateDeviceDto,
   LoginDto,
@@ -41,6 +47,7 @@ export class AuthService {
     @Inject('SMS_SERVICE') private readonly rabbitMqSmsClient: ClientProxy,
     private readonly twoFactorAuthenticationProvider: TwoFactorAuthenticationProvider,
     private readonly infisicalProvider: InfisicalProvider,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
   public handleLogin = async (
@@ -54,103 +61,117 @@ export class AuthService {
         this.rabbitMqUserClient.send({ cmd: 'verify-user' }, loginDto),
       );
 
-      const { forwardedFor, ip, userAgent } = requestMetadata;
+      if (user.role.name !== 'admin') {
+        const { forwardedFor, ip, userAgent } = requestMetadata;
 
-      const ipAddress = forwardedFor || ip || 'Unknown IP address';
+        const ipAddress = forwardedFor || ip || 'Unknown IP address';
 
-      const fingerprint = generateFingerprint(ipAddress, userAgent);
+        const fingerprint = generateFingerprint(ipAddress, userAgent);
 
-      const existingDevice = await deviceRepository.findOne({
-        where: {
-          user: {
-            id: user.id,
+        const existingDevice = await deviceRepository.findOne({
+          where: {
+            user: {
+              id: user.id,
+            },
+            fingerprint,
           },
-          fingerprint,
-        },
-        relations: ['user'],
-      });
-
-      if (!existingDevice || (existingDevice && !existingDevice.is_trusted)) {
-        const lastKnownDevice = (await this.getLastKnownDevices(user.id))[0];
-
-        if (!lastKnownDevice)
-          throw new RpcException(
-            generateRpcExceptionResponse(
-              HttpStatus.NOT_FOUND,
-              'No last known device found for this user.',
-            ),
-          );
-
-        const otp = generateOTP();
-
-        this.rabbitMqRedisClient.emit('set-key', {
-          key: `${user.email}:otp-verify-new-device`,
-          data: otp,
-          ttl: 5 * 60,
+          relations: ['user'],
         });
 
-        let isOptSent = false;
+        if (!existingDevice || (existingDevice && !existingDevice.is_trusted)) {
+          const lastKnownDevice = (await this.getLastKnownDevices(user.id))[0];
 
-        const deviceType = lastKnownDevice.device_type;
-
-        if (deviceType === 'mobile' || deviceType === 'iphone') {
-          if (!lastKnownDevice.phone_number)
+          if (!lastKnownDevice)
             throw new RpcException(
               generateRpcExceptionResponse(
-                HttpStatus.BAD_REQUEST,
-                'Cannot send OTP: The last known mobile device does not have a registered phone number.',
+                HttpStatus.NOT_FOUND,
+                'No last known device found for this user.',
               ),
             );
 
-          const { phone_number } = lastKnownDevice;
+          const otp = generateOTP();
 
-          this.rabbitMqSmsClient.emit('send-sms', {
-            from: this.configService.get<string>('twilio.phone_number', ''),
-            to: phone_number,
-            message: `Hi ${user.full_name}, your verification code is: ${otp}. It expires in 5 minutes. Do not share this code with anyone.`,
-          });
-
-          this.rabbitMqEmailClient.emit('send-email', {
-            email: user.email,
-            type: EmailType.NEW_DEVICE_LOGIN,
-            extraData: {
-              userName: user.full_name,
-              location: 'Ha Noi, Viet Nam',
-              deviceType,
-              time: new Date().toISOString(),
-            },
-          });
-
-          isOptSent = true;
-        } else if (deviceType === 'desktop') {
-          this.rabbitMqEmailClient.emit('send-email', {
-            email: user.email,
-            type: EmailType.VERIFY_OTP,
-          });
-
-          isOptSent = true;
-        }
-
-        if (!isOptSent)
-          throw new RpcException(
-            generateRpcExceptionResponse(
-              HttpStatus.BAD_REQUEST,
-              'Unable to send OTP. No valid method found.',
-            ),
+          await this.cacheManager.set(
+            `${user.email}:otp`,
+            otp,
+            DEFAULT_TTL_OTP_EXPIRED,
           );
 
-        throw new RpcException(
-          generateRpcExceptionResponse(HttpStatus.FORBIDDEN, {
-            description: `We detected a login attempt from an unrecognized device. An OTP has been sent to your registered ${deviceType === 'desktop' ? 'email.' : deviceType === 'mobile' || deviceType === 'smartphone' ? 'SMS.' : ''}`,
-            status: 'OTP_SENT',
-            nextStep: 'ENTER_OTP',
-            deviceInfo: {
-              deviceType: deviceType,
-              location: 'Hanoi, Vietnam',
-              loginTime: new Date().toISOString(),
-            },
-          }),
-        );
+          let isOptSent = false;
+
+          const deviceType = lastKnownDevice.device_type;
+
+          if (deviceType === 'mobile' || deviceType === 'iphone') {
+            if (!lastKnownDevice.phone_number)
+              throw new RpcException(
+                generateRpcExceptionResponse(
+                  HttpStatus.BAD_REQUEST,
+                  'Cannot send OTP: The last known mobile device does not have a registered phone number.',
+                ),
+              );
+
+            const { phone_number } = lastKnownDevice;
+
+            this.rabbitMqSmsClient.emit('send-sms', {
+              from: this.configService.get<string>('twilio.phone_number', ''),
+              to: phone_number,
+              message: `Hi ${user.full_name}, your verification code is: ${otp}. It expires in 5 minutes. Do not share this code with anyone.`,
+            });
+
+            this.rabbitMqEmailClient.emit('send-email', {
+              email: user.email,
+              templateName: EmailTemplateNameEnum.EMAIL_NEW_DEVICE_LOGIN,
+              context: {
+                full_name: user.full_name,
+                location: 'Ha Noi, Viet Nam',
+                device_type: deviceType,
+                time: new Date().toISOString(),
+              },
+            });
+
+            isOptSent = true;
+          } else if (deviceType === 'desktop') {
+            const otp = generateOTP();
+
+            await this.cacheManager.set(
+              `${user.email}:otp`,
+              otp,
+              DEFAULT_TTL_OTP_EXPIRED,
+            );
+
+            this.rabbitMqEmailClient.emit('send-email', {
+              email: user.email,
+              templateName: EmailTemplateNameEnum.EMAIL_OTP_VERIFICATION,
+              context: {
+                full_name: user.full_name,
+                otp,
+              },
+            });
+
+            isOptSent = true;
+          }
+
+          if (!isOptSent)
+            throw new RpcException(
+              generateRpcExceptionResponse(
+                HttpStatus.BAD_REQUEST,
+                'Unable to send OTP. No valid method found.',
+              ),
+            );
+
+          throw new RpcException(
+            generateRpcExceptionResponse(HttpStatus.FORBIDDEN, {
+              description: `We detected a login attempt from an unrecognized device. An OTP has been sent to your registered ${deviceType === 'desktop' ? 'email.' : deviceType === 'mobile' || deviceType === 'smartphone' ? 'SMS.' : ''}`,
+              status: 'OTP_SENT',
+              nextStep: 'ENTER_OTP',
+              deviceInfo: {
+                deviceType: deviceType,
+                location: 'Hanoi, Vietnam',
+                loginTime: new Date().toISOString(),
+              },
+            }),
+          );
+        }
       }
 
       if (user.is_two_factor_enabled)
@@ -228,11 +249,46 @@ export class AuthService {
     );
   };
 
-  public handleForgetPassword = (email: string, type: EmailType) => {
-    this.rabbitMqEmailClient.emit('send-email', { email, type });
+  public handleForgetPassword = async (
+    email: string,
+    templateName: EmailTemplateNameEnum,
+  ) => {
+    const user = await lastValueFrom<User | null>(
+      this.rabbitMqUserClient.send(
+        { cmd: 'get-user-by-field' },
+        {
+          field: 'email',
+          value: email,
+        },
+      ),
+    );
+
+    if (!user)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `User with email '${email}' not found.`,
+        ),
+      );
+
+    const { full_name } = user;
+
+    const otp = generateOTP();
+
+    await this.cacheManager.set(`${email}:otp`, otp, DEFAULT_TTL_OTP_EXPIRED);
+
+    this.rabbitMqEmailClient.emit('send-email', {
+      email,
+      templateName,
+      context: {
+        otp,
+        full_name,
+      },
+    });
 
     return {
-      message: `OTP has been sent to email: "${email}"`,
+      success: true,
+      message: `Password reset email sent successfully.`,
     };
   };
 
@@ -300,9 +356,21 @@ export class AuthService {
         ),
       );
 
+    const otp = generateOTP();
+
+    await this.cacheManager.set(
+      `${user.email}:otp`,
+      otp,
+      DEFAULT_TTL_OTP_EXPIRED,
+    );
+
     this.rabbitMqEmailClient.emit('send-email', {
       email,
-      type: EmailType.VERIFY_EMAIL,
+      templateName: EmailTemplateNameEnum.EMAIL_OTP_VERIFICATION,
+      context: {
+        full_name: user.full_name,
+        otp,
+      },
     });
 
     return {
@@ -325,12 +393,13 @@ export class AuthService {
 
     const { email } = user;
 
-    this.rabbitMqRedisClient.emit('del-key', `${email}:refresh-token`);
+    await this.cacheManager.del(`${email}:refresh-token`);
 
-    this.rabbitMqRedisClient.emit('del-key', `${email}:otp`);
+    await this.cacheManager.del(`${email}:otp`);
 
     return {
-      success: 'Signed out successfully.',
+      success: true,
+      message: 'Signed out successfully.',
     };
   };
 
@@ -449,12 +518,7 @@ export class AuthService {
 
       const { otp } = verifyNewDeviceDto;
 
-      const otpInRedisStore = await lastValueFrom(
-        this.rabbitMqRedisClient.send(
-          'get-key',
-          `${user.email}:otp-verify-new-device`,
-        ),
-      );
+      const otpInRedisStore = await this.cacheManager.get(`${user.email}:otp`);
 
       if (!otpInRedisStore)
         throw new RpcException(
