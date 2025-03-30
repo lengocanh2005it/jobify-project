@@ -184,7 +184,7 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
           },
         },
         defaults: {
-          from: configService.get<string>('mailer.defaults_from', ''),
+          from: 'Jobify Support <jobifysupport@gmail.com>',
         },
         template: {
           dir: join(process.cwd(), 'libs', 'common', 'emails', 'templates'),

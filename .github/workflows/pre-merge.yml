@@ -50,7 +50,6 @@ env:
   MAILER_PORT: ${{secrets.MAILER_PORT}}
   MAILER_USER: ${{secrets.MAILER_USER}}
   MAILER_PASSWORD: ${{secrets.MAILER_PASSWORD}}
-  MAILER_DEFAULTS_FROM: ${{secrets.MAILER_DEFAULTS_FROM}}
   SUPPORT_EMAIL: ${{secrets.SUPPORT_EMAIL}}
   SUPPORT_PHONE: ${{secrets.SUPPORT_PHONE}}
 
@@ -133,7 +132,6 @@ jobs:
           echo "MAILER_PORT=${{env.MAILER_PORT}}" >> .env
           echo "MAILER_USER=${{env.MAILER_USER}}" >> .env
           echo "MAILER_PASSWORD=${{env.MAILER_PASSWORD}}" >> .env
-          echo "MAILER_DEFAULTS_FROM=${{env.MAILER_DEFAULTS_FROM}}" >> .env
           echo "SUPPORT_EMAIL=${{env.SUPPORT_EMAIL}}" >> .env
           echo "SUPPORT_PHONE=${{env.SUPPORT_PHONE}}" >> .env
           cat .env
