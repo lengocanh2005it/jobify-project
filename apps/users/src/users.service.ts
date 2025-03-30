@@ -1082,7 +1082,11 @@ export class UsersService implements OnModuleInit {
           full_name: true,
           phone_number: true,
           address: true,
+          role: {
+            name: true,
+          },
         },
+        relations: ['role'],
       });
 
       return user;
@@ -1341,6 +1345,46 @@ export class UsersService implements OnModuleInit {
       const userRepository = queryRunner.manager.getRepository(User);
 
       return userRepository.count();
+    });
+  };
+
+  public handleEnable2Fa = async (userId: string) => {
+    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
+      const userRepository = queryRunner.manager.getRepository(User);
+
+      const user = await userRepository.findOneBy({ id: userId });
+
+      if (!user)
+        throw new RpcException(
+          generateRpcExceptionResponse(
+            HttpStatus.NOT_FOUND,
+            `User with id: '${userId}' not found.`,
+          ),
+        );
+
+      user.is_two_factor_enabled = true;
+
+      await userRepository.save(user);
+    });
+  };
+
+  public handleDisable2Fa = async (userId: string) => {
+    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
+      const userRepository = queryRunner.manager.getRepository(User);
+
+      const user = await userRepository.findOneBy({ id: userId });
+
+      if (!user)
+        throw new RpcException(
+          generateRpcExceptionResponse(
+            HttpStatus.NOT_FOUND,
+            `User with id: '${userId}' not found.`,
+          ),
+        );
+
+      user.is_two_factor_enabled = false;
+
+      await userRepository.save(user);
     });
   };
 }

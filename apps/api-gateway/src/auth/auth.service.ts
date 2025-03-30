@@ -1,14 +1,15 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities';
-import { Request } from 'express';
 import { Provider } from 'libs/common/constants';
 import {
   CreateCompanyDto,
   CreateUserDto,
   ForgetPasswordDto,
+  Login2FaDto,
   LoginDto,
   UpdatePasswordDto,
+  Verify2FaDto,
   VerifyNewDeviceDto,
 } from 'libs/common/dtos';
 import { CreateSocialAccount, RequestMetadata } from 'libs/common/utils';
@@ -158,6 +159,39 @@ export class AuthService {
           verifyNewDeviceDto,
           requestMetadata,
           user,
+        },
+      ),
+    );
+  };
+
+  public handleGenerate2FA = async (userId: string) => {
+    return lastValueFrom(
+      this.rabbitMqAuthClient.send({ cmd: 'generate-2fa' }, userId),
+    );
+  };
+
+  public handleVerify2FA = async (
+    verify2FADto: Verify2FaDto,
+    userId: string,
+  ) => {
+    return lastValueFrom(
+      this.rabbitMqAuthClient.send(
+        { cmd: 'verify-2fa' },
+        {
+          verify2FADto,
+          userId,
+        },
+      ),
+    );
+  };
+
+  public handleLogin2Fa = async (login2FaDto: Login2FaDto) => {
+    return lastValueFrom(
+      this.rabbitMqAuthClient.send(
+        { cmd: 'login-2fa' },
+        {
+          email: login2FaDto.email,
+          otp: login2FaDto.otp,
         },
       ),
     );

@@ -87,6 +87,9 @@ export class User {
   @Column({ nullable: true, type: 'text' })
   provider_id?: string;
 
+  @Column({ type: 'boolean', default: false })
+  is_two_factor_enabled!: boolean;
+
   @OneToMany(() => Transaction, (transaction) => transaction.user, {
     cascade: true,
   })

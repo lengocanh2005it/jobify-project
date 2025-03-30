@@ -44,6 +44,10 @@ env:
   TWILIO_ACCOUNT_SID: ${{secrets.TWILIO_ACCOUNT_SID}}
   TWILIO_AUTH_TOKEN: ${{secrets.TWILIO_AUTH_TOKEN}}
   TWILIO_PHONE_NUMBER: ${{secrets.TWILIO_PHONE_NUMBER}}
+  INFISICAL_PROJECT_ID: ${{secrets.INFISICAL_PROJECT_ID}}
+  INFISICAL_CLIENT_ID: ${{secrets.INFISICAL_CLIENT_ID}}
+  INFISICAL_CLIENT_SECRET: ${{secrets.INFISICAL_CLIENT_SECRET}}
+  INFISICAL_SIDE_URL: ${{secrets.INFISICAL_SIDE_URL}}
 
 on:
   pull_request:
@@ -118,6 +122,10 @@ jobs:
           echo "TWILIO_ACCOUNT_SID=${{env.TWILIO_ACCOUNT_SID}}" >> .env
           echo "TWILIO_AUTH_TOKEN=${{env.TWILIO_AUTH_TOKEN}}" >> .env
           echo "TWILIO_PHONE_NUMBER=${{env.TWILIO_PHONE_NUMBER}}" >> .env
+          echo "INFISICAL_CLIENT_SECRET=${{env.INFISICAL_CLIENT_SECRET}}" >> .env
+          echo "INFISICAL_SIDE_URL=${{env.INFISICAL_SIDE_URL}}" >> .env
+          echo "INFISICAL_PROJECT_ID=${{env.INFISICAL_PROJECT_ID}}" >> .env
+          echo "INFISICAL_CLIENT_ID=${{env.INFISICAL_CLIENT_ID}}" >> .env
           cat .env
 
       - name: Check format

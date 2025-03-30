@@ -69,4 +69,10 @@ export default () => ({
     auth_token: process.env.TWILIO_AUTH_TOKEN,
     phone_number: process.env.TWILIO_PHONE_NUMBER,
   },
+  infisical: {
+    project_id: process.env.INFISICAL_PROJECT_ID,
+    client_id: process.env.INFISICAL_CLIENT_ID,
+    client_secret: process.env.INFISICAL_CLIENT_SECRET,
+    site_url: process.env.INFISICAL_SIDE_URL,
+  },
 });
