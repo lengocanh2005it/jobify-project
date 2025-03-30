@@ -15,10 +15,6 @@ export default () => ({
     host: process.env.REDIS_HOST || 'localhost',
     url: process.env.REDIS_URL || 'redis://localhost:6379',
   },
-  nodemailer: {
-    email_password: process.env.EMAIL_PASSWORD,
-    email_send: process.env.EMAIL_SEND,
-  },
   stripe: {
     secret_key: process.env.STRIPE_SECRET_KEY,
     webhook_secret: process.env.STRIPE_WEBHOOK_SECRET,

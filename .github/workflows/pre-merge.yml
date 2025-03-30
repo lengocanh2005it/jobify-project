@@ -14,8 +14,6 @@ env:
   REDIS_PORT: ${{secrets.REDIS_PORT}}
   REDIS_HOST: ${{secrets.REDIS_HOST}}
   REDIS_URL: ${{secrets.REDIS_URL}}
-  EMAIL_PASSWORD: ${{secrets.EMAIL_PASSWORD}}
-  EMAIL_SEND: ${{secrets.EMAIL_SEND}}
   STRIPE_SECRET_KEY: ${{secrets.STRIPE_SECRET_KEY}}
   STRIPE_WEBHOOK_SECRET: ${{secrets.STRIPE_WEBHOOK_SECRET}}
   CLOUDINARY_CLOUD_NAME: ${{secrets.CLOUDINARY_CLOUD_NAME}}
@@ -48,6 +46,13 @@ env:
   INFISICAL_CLIENT_ID: ${{secrets.INFISICAL_CLIENT_ID}}
   INFISICAL_CLIENT_SECRET: ${{secrets.INFISICAL_CLIENT_SECRET}}
   INFISICAL_SIDE_URL: ${{secrets.INFISICAL_SIDE_URL}}
+  MAILER_HOST: ${{secrets.MAILER_HOST}}
+  MAILER_PORT: ${{secrets.MAILER_PORT}}
+  MAILER_USER: ${{secrets.MAILER_USER}}
+  MAILER_PASSWORD: ${{secrets.MAILER_PASSWORD}}
+  MAILER_DEFAULTS_FROM: ${{secrets.MAILER_DEFAULTS_FROM}}
+  SUPPORT_EMAIL: ${{secrets.SUPPORT_EMAIL}}
+  SUPPORT_PHONE: ${{secrets.SUPPORT_PHONE}}
 
 on:
   pull_request:
@@ -93,8 +98,6 @@ jobs:
           echo "REDIS_HOST=${{env.REDIS_HOST}}" >> .env
           echo "REDIS_PORT=${{env.REDIS_PORT}}" >> .env
           echo "REDIS_URL=${{env.REDIS_URL}}" >> .env
-          echo "EMAIL_PASSWORD=${{env.EMAIL_PASSWORD}}" >> .env
-          echo "EMAIL_SEND=${{env.EMAIL_SEND}}" >> .env
           echo "STRIPE_SECRET_KEY=${{env.STRIPE_SECRET_KEY}}" >> .env
           echo "STRIPE_WEBHOOK_SECRET=${{env.STRIPE_WEBHOOK_SECRET}}" >> .env
           echo "CLOUDINARY_CLOUD_NAME=${{env.CLOUDINARY_CLOUD_NAME}}" >> .env
@@ -126,6 +129,13 @@ jobs:
           echo "INFISICAL_SIDE_URL=${{env.INFISICAL_SIDE_URL}}" >> .env
           echo "INFISICAL_PROJECT_ID=${{env.INFISICAL_PROJECT_ID}}" >> .env
           echo "INFISICAL_CLIENT_ID=${{env.INFISICAL_CLIENT_ID}}" >> .env
+          echo "MAILER_HOST=${{env.MAILER_HOST}}" >> .env
+          echo "MAILER_PORT=${{env.MAILER_PORT}}" >> .env
+          echo "MAILER_USER=${{env.MAILER_USER}}" >> .env
+          echo "MAILER_PASSWORD=${{env.MAILER_PASSWORD}}" >> .env
+          echo "MAILER_DEFAULTS_FROM=${{env.MAILER_DEFAULTS_FROM}}" >> .env
+          echo "SUPPORT_EMAIL=${{env.SUPPORT_EMAIL}}" >> .env
+          echo "SUPPORT_PHONE=${{env.SUPPORT_PHONE}}" >> .env
           cat .env
 
       - name: Check format
