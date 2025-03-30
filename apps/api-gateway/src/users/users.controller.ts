@@ -456,10 +456,16 @@ export class UsersController {
     @Param('id', ParseUUIDPipe) userId: string,
     @Req() request: Request,
     @Query('applicationId') applicationId?: string,
+    @Query('jobId') jobId?: string,
   ) {
     const user = request.user as User;
 
-    return this.usersService.handleDeleteUser(userId, user, applicationId);
+    return this.usersService.handleDeleteUser(
+      userId,
+      user,
+      applicationId,
+      jobId,
+    );
   }
 
   @Patch('company/assign')

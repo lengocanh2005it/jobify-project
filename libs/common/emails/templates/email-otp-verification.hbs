@@ -1,0 +1,80 @@
+<html lang='en'>
+  <head>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>Confirm Your Email with OTP</title>
+    <style
+    >
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f8f9fc;
+        text-align: center;
+        padding: 40px;
+        margin: 0;
+      }
+      .container {
+        background: #ffffff;
+        max-width: 400px;
+        margin: auto;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        text-align: center;
+      }
+      h1 {
+        color: #222;
+        font-size: 24px;
+        margin-bottom: 12px;
+        font-weight: 600;
+      }
+      p {
+        font-size: 15px;
+        color: #555;
+        line-height: 1.6;
+      }
+      .otp {
+        font-size: 20px;
+        font-weight: bold;
+        color: #4a90e2;
+        background: #eaf3ff;
+        padding: 10px 22px;
+        border-radius: 6px;
+        border: 1px solid #4a90e2;
+        letter-spacing: 2px;
+        display: inline-block;
+        margin: 12px 0;
+      }
+      .note {
+        font-size: 13px;
+        color: #777;
+        margin-top: 15px;
+      }
+      hr {
+        border: 0;
+        height: 1px;
+        background-color: #ddd;
+        margin: 20px 0;
+      }
+      .footer {
+        font-size: 12px;
+        color: #888;
+        margin-top: 18px;
+        font-style: italic;
+        text-align: : center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class='container'>
+      <h1>Verify Your Email</h1>
+      <p>Hello, <strong>{{full_name}}</strong>!</p>
+      <p>Your OTP code is:</p>
+      <div class='otp'>{{otp}}</div>
+      <p>Please enter this code in the verification field.</p>
+      <p class='note'><strong>Note:</strong>
+        Your OTP is valid for 10 minutes.</p>
+      <hr />
+      <p class='footer'>This is an automated email. Please do not reply.</p>
+    </div>
+  </body>
+</html>

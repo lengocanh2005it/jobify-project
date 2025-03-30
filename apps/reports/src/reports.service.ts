@@ -1,7 +1,7 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { ReportTypesContext } from 'apps/reports/src/contexts';
-import { EmailType } from 'libs/common/constants';
+import { EmailTemplateNameEnum } from 'libs/common/constants';
 import { generateRpcExceptionResponse, ReportData } from 'libs/common/utils';
 import { lastValueFrom } from 'rxjs';
 
@@ -43,14 +43,13 @@ export class ReportsService {
   };
 
   public sendEmail = (email: string, fileUrl: string) => {
-    this.rabbitMqEmailClient.emit(
-      { cmd: 'send-email' },
-      {
-        email,
-        type: EmailType.REPORT,
-        extraData: fileUrl,
+    this.rabbitMqEmailClient.emit('send-email', {
+      email,
+      templateName: EmailTemplateNameEnum.EMAIL_REPORT,
+      context: {
+        fileUrl,
       },
-    );
+    });
 
     return {
       success: true,

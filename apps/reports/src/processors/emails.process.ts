@@ -12,7 +12,9 @@ export class EmailProcessor extends WorkerHost {
   }
 
   async process(job: Job<{ email: string }>) {
-    const childrenValues = Object.values<string>(await job.getChildrenValues());
+    const values = await job.getChildrenValues();
+
+    const childrenValues = Object.values<string>(values);
 
     if (!childrenValues.length)
       throw new RpcException(

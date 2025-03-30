@@ -1,0 +1,78 @@
+<html lang='en'>
+  <head>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>Application Status Update</title>
+    <style>
+      body {
+        font-family: 'Arial', sans-serif;
+        background-color: #f4f4f4;
+        text-align: center;
+        padding: 40px;
+        margin: 0;
+      }
+      .container {
+        background: #ffffff;
+        max-width: 500px;
+        margin: auto;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        text-align: left;
+      }
+      h1 {
+        color: #d9534f;
+        font-size: 24px;
+        margin-bottom: 20px;
+        text-align: center;
+      }
+      p {
+        font-size: 16px;
+        color: #555;
+        line-height: 1.5;
+      }
+      .note {
+        font-size: 14px;
+        color: #888;
+        margin-top: 15px;
+      }
+      hr {
+        border: 0;
+        height: 1px;
+        background-color: #f0f0f0;
+        margin: 20px 0;
+      }
+      .footer {
+        font-size: 12px;
+        color: #888;
+        margin-top: 20px;
+        font-style: italic;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class='container'>
+      <h1>Application Status Update</h1>
+      <p>Hello, <strong>{{candidate_full_name}}</strong>!</p>
+      <p>We regret to inform you that recruiter's name
+        <strong>{{recruiter_full_name}}</strong>
+        from
+        <strong>{{company_name}}</strong>
+        has removed your application from the job listing:</p>
+      <p><strong>Job Title:</strong> {{jobTitle}}</p>
+      <p><strong>Job Description:</strong> {{jobDescription}}</p>
+      <p><strong>Posted Date:</strong> {{jobPostedDate}}</p>
+      <p>If you believe this action was taken in error, or if you have any
+        questions, you may contact
+        <strong>recruiter {{recruiter_full_name}}</strong>
+        for further clarification.</p>
+      <p><strong>Recruiter's email:</strong> {{recruiter_email}}</p>
+      <p><strong>Recruiter's phone:</strong> {{recruiter_phone}}</p>
+      <hr />
+      <p class='footer'>
+        This is an automated email. Please do not reply.
+      </p>
+    </div>
+  </body>
+</html>

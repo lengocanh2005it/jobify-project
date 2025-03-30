@@ -2,7 +2,7 @@ import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { EmailsService } from 'apps/emails/src/emails.service';
 import { Job } from 'bullmq';
-import { EmailType } from 'libs/common/constants';
+import { EmailTemplateNameEnum } from 'libs/common/constants';
 
 @Processor('emails-queue')
 export class EmailProcessor extends WorkerHost {
@@ -13,23 +13,19 @@ export class EmailProcessor extends WorkerHost {
   }
 
   async process(
-    job: Job<{ email: string; type: EmailType; extraData?: any }>,
-    token?: string,
+    job: Job<{
+      email: string;
+      templateName: EmailTemplateNameEnum;
+      context: Record<string, any>;
+    }>,
   ): Promise<any> {
     console.log(
       `Processing job '${job.name}': Sending email to '${job.data.email}'...`,
     );
 
-    if (!job.data.type) {
-      console.error('There is an error from the system.');
-      return;
-    }
+    const { email, templateName, context } = job.data;
 
-    return this.emailsService.handleSendEmail(
-      job.data.email,
-      job.data.type,
-      job.data?.extraData,
-    );
+    return this.emailsService.handleSendEmail(email, templateName, context);
   }
 
   @OnWorkerEvent('completed')
@@ -44,8 +40,10 @@ export class EmailProcessor extends WorkerHost {
 
   @OnWorkerEvent('active')
   onActive(job: Job) {
-    console.error(
-      `Retrying job '${job.name}', attempt: ${job.attemptsMade + 1}`,
-    );
+    if (job.attemptsMade > 0) {
+      console.error(
+        `Retrying job '${job.name}', attempt: ${job.attemptsMade + 1}`,
+      );
+    }
   }
 }

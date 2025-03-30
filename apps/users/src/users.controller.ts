@@ -65,8 +65,14 @@ export class UsersController {
     @Payload('userId') userId: string,
     @Payload('user') user: User,
     @Payload('applicationId') applicationId?: string,
+    @Payload('jobId') jobId?: string,
   ) {
-    return this.usersService.handleDeleteUser(userId, user, applicationId);
+    return this.usersService.handleDeleteUser(
+      userId,
+      user,
+      applicationId,
+      jobId,
+    );
   }
 
   @MessagePattern({ cmd: 'get-password' })

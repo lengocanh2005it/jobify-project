@@ -34,16 +34,6 @@ export enum Provider {
   LOCAL = 'local',
 }
 
-export enum EmailType {
-  VERIFY_EMAIL = 'verify_email',
-  ACCOUNT_DELETE = 'account_delete',
-  VERIFY_OTP = 'verify_otp',
-  PAYMENT_SUCCESSFULLY = 'payment_successfully',
-  REPORT = 'report',
-  CHANGE_PASSWORD = 'change_password',
-  NEW_DEVICE_LOGIN = 'new_device_login',
-}
-
 export enum ElasticIndexes {
   USERS = 'users',
   JOBS = 'jobs',
@@ -75,6 +65,29 @@ export enum JobType {
   FREELANCE = 'freelance',
 }
 
+export enum EmailTemplateNameEnum {
+  EMAIL_OTP_VERIFICATION = 'email-otp-verification',
+  EMAIL_REPORT = 'email-report',
+  EMAIL_ACCOUNT_DELETE_SUCCESS = 'email-account-delete-success',
+  EMAIL_NEW_DEVICE_LOGIN = 'email-new-device-login',
+  EMAIL_PAYMENT_SUCCESS = 'email-payment-success',
+  EMAIL_UPDATE_PASSWORD_SUCCESS = 'email-update-password-success',
+  EMAIL_REGISTER_ACCOUNT_SUCCESS = 'email-register-account-success',
+  EMAIL_DELETE_CANDIDATE_FROM_APPLICATION = 'email-delete-candidate-from-application',
+}
+
+export const SUBJECT_EMAIL_MAP = {
+  'email-otp-verification': 'Verify Your Email Address',
+  'email-reset-password': 'Reset Your Password',
+  'email-update-password-success': 'Your Password Has Been Updated',
+  'email-register-account-success': 'Welcome! Your Account Has Been Created',
+  'email-account-delete-success': 'Your Account Has Been Deleted',
+  'email-report': 'Your Requested Report Is Ready',
+  'email-new-device-login': 'New Login Detected on Your Account',
+  'email-delete-candidate-from-application':
+    'Your Job Application Has Been Removed',
+};
+
 export const PREMIUM_PRICE = 1200;
 export const RECRUITER_JOB_LIMIT = 10;
 export const CANDIDATE_APPLICATION_LIMIT = 5;
@@ -89,3 +102,4 @@ export const HTTP_MODULE_MAX_REDIRECT = 5;
 export const DEFAULT_CACHE_TTL = 300000;
 export const GOOGLE_RECAPTCHA_SCORE = 0.8;
 export const SENTRY_TRACES_RATE = 1.0;
+export const DEFAULT_TTL_OTP_EXPIRED = 600000;

@@ -71,6 +71,7 @@ export class UsersService {
     userId: string,
     user: User,
     applicationId?: string,
+    jobId?: string,
   ) => {
     return await lastValueFrom(
       this.rabbitMqUsersClient.send(
@@ -79,6 +80,7 @@ export class UsersService {
           userId,
           user,
           applicationId,
+          jobId,
         },
       ),
     );

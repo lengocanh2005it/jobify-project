@@ -9,7 +9,7 @@ import {
   CANDIDATE_APPLICATION_LIMIT,
   CANDIDATE_PREMIUM_LIMIT,
   ElasticIndexes,
-  EmailType,
+  EmailTemplateNameEnum,
   NotificationTypes,
   Provider,
   RECRUITER_JOB_LIMIT,
@@ -357,6 +357,16 @@ export class UsersService implements OnModuleInit {
           user: newUser,
         },
       );
+
+      this.rabbitMqEmailClient.emit('send-email', {
+        email: newUser.email,
+        templateName: EmailTemplateNameEnum.EMAIL_REGISTER_ACCOUNT_SUCCESS,
+        context: {
+          full_name: newUser.full_name,
+          support_email: this.configService.get<string>('support_email', ''),
+          support_phone: this.configService.get<string>('support_phone', ''),
+        },
+      });
 
       return omit(newUser, ['password']);
     });
@@ -720,6 +730,7 @@ export class UsersService implements OnModuleInit {
     userId: string,
     user: User,
     applicationId?: string,
+    jobId?: string,
   ) => {
     return this.transactionsProvider.executeTransaction(async (queryRunner) => {
       const userRepository = queryRunner.manager.getRepository(User);
@@ -770,18 +781,33 @@ export class UsersService implements OnModuleInit {
         );
       }
 
+      if (role.name === 'recruiter' && !jobId) {
+        throw new RpcException(
+          generateRpcExceptionResponse(
+            HttpStatus.BAD_REQUEST,
+            `Please provide the jobId you posted.`,
+          ),
+        );
+      }
+
       if (role.name === 'recruiter') {
         const result = await lastValueFrom(
           this.rabbitMqApplicationClient.send(
             { cmd: 'delete-user-from-application' },
-            { userId, applicationId },
+            { userId, applicationId, recruiter: user, jobId },
           ),
         );
+
         return result;
       } else {
         this.rabbitMqEmailClient.emit('send-email', {
           email: findUser.email,
-          type: EmailType.ACCOUNT_DELETE,
+          templateName: EmailTemplateNameEnum.EMAIL_ACCOUNT_DELETE_SUCCESS,
+          context: {
+            full_name: findUser.full_name,
+            support_email: this.configService.get<string>('support_email', ''),
+            support_phone: this.configService.get<string>('support_phone', ''),
+          },
         });
 
         findUser = (await userRepository.findOne({
@@ -810,7 +836,8 @@ export class UsersService implements OnModuleInit {
         this.rabbitMqRedisClient.emit('del-keys-pattern', 'admin');
 
         return {
-          success: `User with id: '${userId}' deleted successfully.`,
+          success: true,
+          message: `User with id '${userId}' deleted successfully.`,
         };
       }
     });
@@ -883,8 +910,12 @@ export class UsersService implements OnModuleInit {
 
       this.rabbitMqEmailClient.emit('send-email', {
         email: user.email,
-        type: EmailType.CHANGE_PASSWORD,
-        extraData: user.full_name,
+        templateName: EmailTemplateNameEnum.EMAIL_UPDATE_PASSWORD_SUCCESS,
+        context: {
+          full_name: user.full_name,
+          support_email: this.configService.get<string>('support_email', ''),
+          support_phone: this.configService.get<string>('support_phone', ''),
+        },
       });
 
       return {
@@ -974,7 +1005,10 @@ export class UsersService implements OnModuleInit {
 
       this.rabbitMqEmailClient.emit('send-email', {
         email: user.email,
-        type: EmailType.PAYMENT_SUCCESSFULLY,
+        templateName: EmailTemplateNameEnum.EMAIL_PAYMENT_SUCCESS,
+        context: {
+          full_name: user.full_name,
+        },
       });
 
       this.rabbitMqSmsClient.emit('send-sms', {
