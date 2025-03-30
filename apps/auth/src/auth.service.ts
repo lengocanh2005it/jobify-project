@@ -1,4 +1,8 @@
-import { TransactionsProvider } from '@app/common';
+import {
+  InfisicalProvider,
+  TransactionsProvider,
+  TwoFactorAuthenticationProvider,
+} from '@app/common';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -11,6 +15,7 @@ import {
   CreateDeviceDto,
   LoginDto,
   UpdatePasswordDto,
+  Verify2FaDto,
   VerifyNewDeviceDto,
 } from 'libs/common/dtos';
 import {
@@ -34,6 +39,8 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly transactionProvider: TransactionsProvider,
     @Inject('SMS_SERVICE') private readonly rabbitMqSmsClient: ClientProxy,
+    private readonly twoFactorAuthenticationProvider: TwoFactorAuthenticationProvider,
+    private readonly infisicalProvider: InfisicalProvider,
   ) {}
 
   public handleLogin = async (
@@ -145,6 +152,15 @@ export class AuthService {
           }),
         );
       }
+
+      if (user.is_two_factor_enabled)
+        throw new RpcException(
+          generateRpcExceptionResponse(HttpStatus.FORBIDDEN, {
+            description:
+              'Two-factor authentication is enabled. Please enter the OTP code from your authenticator app to proceed.',
+            requires2FA: true,
+          }),
+        );
 
       const { accessToken, refreshToken } = this.signTokens(
         user.id,
@@ -481,5 +497,118 @@ export class AuthService {
         success: 'Your new device has been verified. You are now logged in.',
       };
     });
+  };
+
+  public handleGenerate2Fa = async (userId: string) => {
+    const { otpAuthUrl } =
+      await this.twoFactorAuthenticationProvider.generateSecret(userId);
+
+    const qrCodeDataUrl =
+      await this.twoFactorAuthenticationProvider.generateQrCode(otpAuthUrl);
+
+    return {
+      otpAuthUrl,
+      qrCodeDataUrl,
+    };
+  };
+
+  public handleVerify2Fa = async (
+    verify2FaDto: Verify2FaDto,
+    userId: string,
+  ) => {
+    const { otp, type } = verify2FaDto;
+
+    const secret = await this.infisicalProvider.getSecret(
+      `TOTP_SECRET_${userId}`,
+    );
+
+    if (!secret)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Secret for user with id '${userId}' not found.`,
+        ),
+      );
+
+    const isValid = this.twoFactorAuthenticationProvider.verifyOtp(otp, secret);
+
+    if (!isValid)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          'OTP is not correct. Please enter again.',
+        ),
+      );
+
+    if (type === 'enable') {
+      this.rabbitMqUserClient.emit('enable-2fa', userId);
+
+      return {
+        message:
+          'Congratulations! You have successfully enabled two-factor authentication. Your account is now more secure.',
+      };
+    } else {
+      this.rabbitMqUserClient.emit('disable-2fa', userId);
+
+      return {
+        message:
+          'Two-factor authentication has been disabled. Your account is now less secure.',
+      };
+    }
+  };
+
+  public handleLogin2Fa = async (email: string, otp: string) => {
+    const user = await lastValueFrom<User | null>(
+      this.rabbitMqUserClient.send(
+        { cmd: 'get-user-by-field' },
+        {
+          field: 'email',
+          value: email,
+        },
+      ),
+    );
+
+    if (!user)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `User with email '${email}' not found.`,
+        ),
+      );
+
+    const secret = await this.infisicalProvider.getSecret(
+      `TOTP_SECRET_${user.id}`,
+    );
+
+    if (!secret)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Secret for user with id '${user.id}' not found.`,
+        ),
+      );
+
+    const isValid = this.twoFactorAuthenticationProvider.verifyOtp(otp, secret);
+
+    if (!isValid)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          'OTP is not correct. Please enter again.',
+        ),
+      );
+
+    const { accessToken, refreshToken } = this.signTokens(
+      user.id,
+      user.role.name,
+    );
+
+    this.rabbitMqRedisClient.emit('set-key', {
+      key: `${email}:refresh-token`,
+      data: refreshToken,
+      ttl: 30 * 60,
+    });
+
+    return { accessToken, refreshToken };
   };
 }

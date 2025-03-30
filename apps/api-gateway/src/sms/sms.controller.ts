@@ -6,6 +6,13 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { SmsService } from 'apps/api-gateway/src/sms/sms.service';
 import { User } from 'apps/users/src/entities';
 import { Request } from 'express';
@@ -17,10 +24,47 @@ import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 @Controller('sms')
 @UseGuards(JwtAuthGuard, RoleAuthGuard)
 @Roles(Role.ADMIN)
+@ApiBearerAuth()
 export class SmsController {
   constructor(private readonly smsService: SmsService) {}
 
   @Post()
+  @ApiOperation({
+    summary: 'Send SMS',
+    description:
+      'This endpoint sends an SMS message to a specified phone number. The user must have a registered phone number.',
+  })
+  @ApiBody({
+    description: 'SMS sending data',
+    type: SendSmsDto,
+    examples: {
+      example1: {
+        summary: 'Send a sample SMS',
+        value: { to: '+1234567890', message: 'Hello, this is a test message!' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Sent message to phone number successfully.',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'object',
+          properties: {
+            success: {
+              type: 'string',
+              example:
+                "Message 'Hello, this is a test message!' has been sent to phone number '+1234567890'.",
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'User phone number not found or invalid request format.',
+  })
   @ResponseMessage('Sent message to phone number successfully.')
   async sendSms(@Body() { to, message }: SendSmsDto, @Req() request: Request) {
     const user = request.user as User;

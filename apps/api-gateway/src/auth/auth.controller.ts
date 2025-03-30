@@ -14,12 +14,15 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
+  ApiForbiddenResponse,
   ApiOperation,
   ApiResponse,
   ApiTags,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { AuthService } from 'apps/api-gateway/src/auth/auth.service';
 import { User } from 'apps/users/src/entities';
@@ -30,9 +33,11 @@ import {
   CreateCompanyDto,
   CreateUserDto,
   ForgetPasswordDto,
+  Login2FaDto,
   LoginDto,
   RefreshTokenDto,
   UpdatePasswordDto,
+  Verify2FaDto,
   VerifyEmailDto,
   VerifyNewDeviceDto,
 } from 'libs/common/dtos';
@@ -616,5 +621,118 @@ export class AuthController {
       requestMetadata,
       user,
     );
+  }
+
+  @Post('2fa/generate')
+  @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Generate 2FA QR Code',
+    description:
+      'This endpoint generates a QR code and OTP authentication URL for enabling two-factor authentication (2FA). The user must be authenticated.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Successfully generated 2FA QR Code and OTP URL',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'object',
+          properties: {
+            otpAuthUrl: {
+              type: 'string',
+              example: 'otpauth://totp/MyApp:user@example.com?...',
+              description: 'OTP authentication URL used to set up 2FA.',
+            },
+            qrCodeDataUrl: {
+              type: 'string',
+              example: 'data:image/png;base64,...',
+              description: 'Base64 encoded image of the QR code.',
+            },
+          },
+        },
+      },
+    },
+  })
+  @ResponseMessage('Generated 2FA secret successfully.')
+  async generate2FA(@Req() request: Request) {
+    const userId = (request.user as User).id;
+
+    return this.authService.handleGenerate2FA(userId);
+  }
+
+  @Post('2fa/verify')
+  @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  @ApiBearerAuth()
+  @ResponseMessage('2FA verified successfully.')
+  @ApiOperation({
+    summary: 'Verify 2FA OTP',
+    description:
+      'This endpoint verifies the OTP code entered by the user. It can be used to enable or disable two-factor authentication (2FA).',
+  })
+  @ApiBody({
+    description: 'OTP verification data',
+    type: Verify2FaDto,
+    examples: {
+      enable2FA: {
+        summary: 'Enable 2FA',
+        value: { otp: '123456', type: 'enable' },
+      },
+      disable2FA: {
+        summary: 'Disable 2FA',
+        value: { otp: '654321', type: 'disable' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: '2FA verified successfully.',
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid OTP format or incorrect OTP.',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'User is not authenticated.',
+  })
+  @ApiForbiddenResponse({
+    description: 'User does not have the required role.',
+  })
+  async verify2FA(@Body() verify2FaDto: Verify2FaDto, @Req() request: Request) {
+    const userId = (request.user as User).id;
+
+    return this.authService.handleVerify2FA(verify2FaDto, userId);
+  }
+
+  @Post('sign-in-2fa')
+  @ResponseMessage('Logged in via 2Fa successfully.')
+  @ApiOperation({
+    summary: '2FA Sign-In',
+    description:
+      'This endpoint allows users to log in using a one-time password (OTP) as part of two-factor authentication (2FA).',
+  })
+  @ApiBody({
+    description: 'Login credentials for 2FA',
+    type: Login2FaDto,
+    examples: {
+      loginWith2FA: {
+        summary: 'Example request',
+        value: { otp: '123456', email: 'user@example.com' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Logged in via 2FA successfully.',
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid OTP or email format.',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Invalid credentials or 2FA verification failed.',
+  })
+  async handleLogin2Fa(@Body() login2FaDto: Login2FaDto) {
+    return this.authService.handleLogin2Fa(login2FaDto);
   }
 }

@@ -28,14 +28,16 @@ import { CustomValidationPipe } from 'libs/common/pipes';
 import {
   FacebookProvider,
   GoogleProvider,
+  InfisicalProvider,
   JwtProvider,
   LinkedInProvider,
   TransactionsProvider,
+  TwoFactorAuthenticationProvider,
 } from 'libs/common/providers';
 import * as multer from 'multer';
 import { LoggerModule } from 'nestjs-pino';
-import { CommonService } from './common.service';
 import { TwilioModule } from 'nestjs-twilio';
+import { CommonService } from './common.service';
 
 @Global()
 @Module({
@@ -174,6 +176,8 @@ import { TwilioModule } from 'nestjs-twilio';
     LinkedInProvider,
     FacebookProvider,
     TransactionsProvider,
+    InfisicalProvider,
+    TwoFactorAuthenticationProvider,
   ],
   exports: [
     JwtModule,
@@ -196,6 +200,8 @@ import { TwilioModule } from 'nestjs-twilio';
     SentryModule,
     StripeModule,
     TwilioModule,
+    InfisicalProvider,
+    TwoFactorAuthenticationProvider,
   ],
 })
 export class CommonModule {}

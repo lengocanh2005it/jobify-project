@@ -159,4 +159,14 @@ export class UsersController {
   async handleGetStatisticsOfUser() {
     return this.usersService.handleCalculateStatisticsOfUsers();
   }
+
+  @EventPattern('enable-2fa')
+  async handleEnable2Fa(@Payload() userId: string) {
+    return this.usersService.handleEnable2Fa(userId);
+  }
+
+  @EventPattern('disable-2fa')
+  async handleDisable2Fa(@Payload() userId: string) {
+    return this.usersService.handleDisable2Fa(userId);
+  }
 }

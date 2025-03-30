@@ -6,6 +6,7 @@ import {
   CreateDeviceDto,
   LoginDto,
   UpdatePasswordDto,
+  Verify2FaDto,
   VerifyNewDeviceDto,
 } from 'libs/common/dtos';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
@@ -23,6 +24,14 @@ export class AuthController {
     @Payload('requestMetadata') requestMetadata: RequestMetadata,
   ) {
     return this.authService.handleLogin(loginDto, requestMetadata);
+  }
+
+  @MessagePattern({ cmd: 'login-2fa' })
+  async handleLogin2Fa(
+    @Payload('otp') otp: string,
+    @Payload('email') email: string,
+  ) {
+    return this.authService.handleLogin2Fa(email, otp);
   }
 
   @MessagePattern({ cmd: 'update-password' })
@@ -95,5 +104,18 @@ export class AuthController {
       requestMetadata,
       user,
     );
+  }
+
+  @MessagePattern({ cmd: 'generate-2fa' })
+  async generate2Fa(@Payload() userId: string) {
+    return this.authService.handleGenerate2Fa(userId);
+  }
+
+  @MessagePattern({ cmd: 'verify-2fa' })
+  async verify2Fa(
+    @Payload('verify2FADto') verify2FaDto: Verify2FaDto,
+    @Payload('userId') userId: string,
+  ) {
+    return this.authService.handleVerify2Fa(verify2FaDto, userId);
   }
 }
