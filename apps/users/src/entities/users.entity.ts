@@ -90,6 +90,9 @@ export class User {
   @Column({ type: 'boolean', default: false })
   is_two_factor_enabled!: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  is_email_verified!: boolean;
+
   @OneToMany(() => Transaction, (transaction) => transaction.user, {
     cascade: true,
   })

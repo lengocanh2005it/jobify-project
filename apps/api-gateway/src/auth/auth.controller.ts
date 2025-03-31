@@ -1,5 +1,6 @@
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -23,6 +24,7 @@ import {
   ApiResponse,
   ApiTags,
   ApiUnauthorizedResponse,
+  getSchemaPath,
 } from '@nestjs/swagger';
 import { AuthService } from 'apps/api-gateway/src/auth/auth.service';
 import { User } from 'apps/users/src/entities';
@@ -40,6 +42,7 @@ import {
   Verify2FaDto,
   VerifyEmailDto,
   VerifyNewDeviceDto,
+  VerifyOtpDto,
 } from 'libs/common/dtos';
 import {
   CustomGoogleRecaptchaGuard,
@@ -96,7 +99,7 @@ export class AuthController {
   @Post('sign-up')
   @UseGuards(CustomGoogleRecaptchaGuard)
   @UseInterceptors(AnyFilesInterceptor())
-  @ResponseMessage('Signed up successfully.')
+  @ResponseMessage('Otp has been sent to the email successfully.')
   @ApiOperation({
     summary: 'User sign-up',
     description: 'Registers a new user and uploads any necessary files.',
@@ -108,7 +111,7 @@ export class AuthController {
       properties: {
         email: {
           type: 'string',
-          example: 'user@example.com',
+          example: 'lengocanhpyne363@gmail.com',
           description: 'User email',
         },
         password: {
@@ -118,24 +121,24 @@ export class AuthController {
         },
         phone_number: {
           type: 'string',
-          example: '+1234567890',
+          example: '+84393873630',
           description: 'User phone number',
         },
         address: {
           type: 'string',
-          example: '123 Main St',
+          example: '123 Main Street, London, England',
           description: 'User address',
         },
         bio: {
           type: 'string',
-          example: 'Software Engineer',
+          example: '3+ Years Experiences with NestJS',
           nullable: true,
           description: 'User bio',
         },
         type: {
           type: 'string',
           enum: ['candidate', 'recruiter'],
-          example: 'candidate',
+          example: 'recruiter',
           description: 'Role of user',
         },
         full_name: {
@@ -145,37 +148,61 @@ export class AuthController {
         },
         expected_salary: {
           type: 'number',
-          example: 50000,
+          example: 1200,
           nullable: true,
-          description: 'User expected salary',
+          description: 'User expected salary ($)',
         },
         skills: {
-          type: 'string',
-          example: 'Java, React',
+          type: 'array',
+          items: {
+            type: 'string',
+          },
+          example: ['Java', 'React', 'Next.js'],
           nullable: true,
           description: 'User skills',
         },
         certifications: {
-          type: 'string',
-          example: "['AWS Certified', 'Google Developer Certified']",
+          type: 'array',
+          items: {
+            type: 'string',
+          },
+          example: ['AWS Certified', 'Google Developer Certified'],
           nullable: true,
           description: 'User certifications',
         },
         createCompanyDto: {
-          type: 'string',
-          example: {
-            name: 'FPT Software',
-            bio: 'A company specialize in software.',
-            address: 'Ha Noi',
-            website: 'https://fpt.software.com.vn',
-          },
+          type: 'object',
           nullable: true,
-          description: 'Data need to be create company.',
+          description: 'Data needed to create a company',
+          properties: {
+            name: {
+              type: 'string',
+              example: 'FPT Software',
+              description: 'Name of the company',
+            },
+            bio: {
+              type: 'string',
+              example: 'A company specializing in software.',
+              nullable: true,
+              description: 'Bio of the company',
+            },
+            address: {
+              type: 'string',
+              example: 'Ha Noi',
+              description: 'Address of the company',
+            },
+            website: {
+              type: 'string',
+              example: 'https://fpt.software.com.vn',
+              nullable: true,
+              description: 'Website URL of the company',
+            },
+          },
         },
         resume: {
           type: 'string',
           format: 'binary',
-          description: 'Resume (CV) file (required)',
+          description: 'Resume (CV) file (optional)',
         },
         cover_letter: {
           type: 'string',
@@ -187,7 +214,18 @@ export class AuthController {
   })
   @ApiResponse({
     status: 201,
-    description: 'User successfully signed up.',
+    description: 'OTP has been sent to the email.',
+    schema: {
+      example: {
+        statusCode: 201,
+        message: 'Otp has been sent to the email successfully.',
+        data: {
+          success: true,
+          message:
+            'Please check your email for the OTP to complete verification.',
+        },
+      },
+    },
   })
   @ApiResponse({
     status: 400,
@@ -734,5 +772,31 @@ export class AuthController {
   })
   async handleLogin2Fa(@Body() login2FaDto: Login2FaDto) {
     return this.authService.handleLogin2Fa(login2FaDto);
+  }
+
+  @Post('verify-otp')
+  @ResponseMessage('Email verified successfully.')
+  @ApiOperation({
+    summary: 'Verify OTP for email confirmation',
+    description: `This endpoint verifies the OTP sent to the user's email for account activation.`,
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Email verified successfully.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid OTP or OTP has expired.',
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Too many incorrect attempts. Please request a new OTP.',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Internal server error.',
+  })
+  async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
+    return this.authService.handleVerifyOtp(verifyOtpDto);
   }
 }

@@ -11,7 +11,9 @@ import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { Device } from 'apps/auth/src/entities';
 import { User } from 'apps/users/src/entities';
 import * as bcrypt from 'bcrypt';
+import { format } from 'date-fns';
 import {
+  DEFAULT_MAX_ATTEMPTS,
   DEFAULT_TTL_OTP_EXPIRED,
   EmailTemplateNameEnum,
   Provider,
@@ -23,6 +25,7 @@ import {
   UpdatePasswordDto,
   Verify2FaDto,
   VerifyNewDeviceDto,
+  VerifyOtpDto,
 } from 'libs/common/dtos';
 import {
   CreateSocialAccount,
@@ -60,6 +63,31 @@ export class AuthService {
       const user = await lastValueFrom<User>(
         this.rabbitMqUserClient.send({ cmd: 'verify-user' }, loginDto),
       );
+
+      if (!user.is_email_verified) {
+        const otp = generateOTP();
+
+        await this.cacheManager.set(
+          `${loginDto.email}:otp`,
+          otp,
+          DEFAULT_TTL_OTP_EXPIRED,
+        );
+
+        this.rabbitMqEmailClient.emit('send-email', {
+          email: loginDto.email,
+          templateName: EmailTemplateNameEnum.EMAIL_OTP_VERIFICATION,
+          context: {
+            otp,
+            full_name: user.full_name,
+          },
+        });
+
+        return {
+          success: true,
+          message:
+            'Please check your email for the OTP to complete verification.',
+        };
+      }
 
       if (user.role.name !== 'admin') {
         const { forwardedFor, ip, userAgent } = requestMetadata;
@@ -118,17 +146,6 @@ export class AuthService {
               message: `Hi ${user.full_name}, your verification code is: ${otp}. It expires in 5 minutes. Do not share this code with anyone.`,
             });
 
-            this.rabbitMqEmailClient.emit('send-email', {
-              email: user.email,
-              templateName: EmailTemplateNameEnum.EMAIL_NEW_DEVICE_LOGIN,
-              context: {
-                full_name: user.full_name,
-                location: 'Ha Noi, Viet Nam',
-                device_type: deviceType,
-                time: new Date().toISOString(),
-              },
-            });
-
             isOptSent = true;
           } else if (deviceType === 'desktop') {
             const otp = generateOTP();
@@ -159,24 +176,43 @@ export class AuthService {
               ),
             );
 
+          this.rabbitMqEmailClient.emit('send-email', {
+            email: user.email,
+            templateName: EmailTemplateNameEnum.EMAIL_NEW_DEVICE_LOGIN,
+            context: {
+              full_name: user.full_name,
+              location: 'Ha Noi, Viet Nam',
+              device_type: deviceType,
+              time: format(new Date(), 'EEEE, yyyy-MM-dd HH:mm:ss'),
+              support_email: this.configService.get<string>(
+                'support_email',
+                '',
+              ),
+              support_phone: this.configService.get<string>(
+                'support_phone',
+                '',
+              ),
+            },
+          });
+
           throw new RpcException(
             generateRpcExceptionResponse(HttpStatus.FORBIDDEN, {
               description: `We detected a login attempt from an unrecognized device. An OTP has been sent to your registered ${deviceType === 'desktop' ? 'email.' : deviceType === 'mobile' || deviceType === 'smartphone' ? 'SMS.' : ''}`,
-              status: 'OTP_SENT',
-              nextStep: 'ENTER_OTP',
-              deviceInfo: {
+              next_step: 'ENTER_OTP',
+              details: {
                 deviceType: deviceType,
-                location: 'Hanoi, Vietnam',
-                loginTime: new Date().toISOString(),
+                location: 'Ha Noi, Viet Nam',
+                loginTime: format(new Date(), 'EEEE, yyyy-MM-dd HH:mm:ss'),
               },
             }),
           );
         }
       }
 
-      if (user.is_two_factor_enabled)
+      if (user.is_two_factor_enabled && user.role.name !== 'admin')
         throw new RpcException(
           generateRpcExceptionResponse(HttpStatus.FORBIDDEN, {
+            next_step: 'ENTER_OTP',
             description:
               'Two-factor authentication is enabled. Please enter the OTP code from your authenticator app to proceed.',
             requires2FA: true,
@@ -674,5 +710,85 @@ export class AuthService {
     });
 
     return { accessToken, refreshToken };
+  };
+
+  public handleVerifyOtp = async (verifyOtpDto: VerifyOtpDto) => {
+    const { otp, email } = verifyOtpDto;
+
+    const user = await lastValueFrom<User | null>(
+      this.rabbitMqUserClient.send(
+        { cmd: 'get-user-by-field' },
+        {
+          field: 'email',
+          value: email,
+        },
+      ),
+    );
+
+    if (!user)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `User with email '${email}' not found.`,
+        ),
+      );
+
+    const cachedOtp = await this.cacheManager.get(`${email}:otp`);
+
+    if (!cachedOtp) {
+      const newOtp = generateOTP();
+
+      await this.cacheManager.set(
+        `${email}:otp`,
+        newOtp,
+        DEFAULT_TTL_OTP_EXPIRED,
+      );
+
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `The OTP has expired. Please check email '${email}' for a new OTP.`,
+        ),
+      );
+    }
+
+    const attempts =
+      Number(
+        (await this.cacheManager.get(`${email}:otp-attempts`)) as string,
+      ) || 0;
+
+    if (attempts >= DEFAULT_MAX_ATTEMPTS)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          `You have entered the wrong OTP more than ${DEFAULT_MAX_ATTEMPTS} times. Please request a new OTP.`,
+        ),
+      );
+
+    if (otp !== cachedOtp) {
+      await this.cacheManager.set(
+        `${email}:otp-attempts`,
+        attempts + 1,
+        DEFAULT_TTL_OTP_EXPIRED,
+      );
+
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `Invalid OTP. You have ${DEFAULT_MAX_ATTEMPTS - (attempts + 1)} attempts remaining.`,
+        ),
+      );
+    }
+
+    await this.cacheManager.del(`${email}:otp`);
+
+    await this.cacheManager.del(`${email}:otp-attempts`);
+
+    this.rabbitMqUserClient.emit('update-verified-email', email);
+
+    return {
+      success: true,
+      message: 'Verified email successfully. You can now log in.',
+    };
   };
 }

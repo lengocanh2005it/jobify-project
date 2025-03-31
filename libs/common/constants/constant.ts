@@ -103,3 +103,4 @@ export const DEFAULT_CACHE_TTL = 300000;
 export const GOOGLE_RECAPTCHA_SCORE = 0.8;
 export const SENTRY_TRACES_RATE = 1.0;
 export const DEFAULT_TTL_OTP_EXPIRED = 600000;
+export const DEFAULT_MAX_ATTEMPTS = 5;

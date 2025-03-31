@@ -11,6 +11,7 @@ import {
   UpdatePasswordDto,
   Verify2FaDto,
   VerifyNewDeviceDto,
+  VerifyOtpDto,
 } from 'libs/common/dtos';
 import { CreateSocialAccount, RequestMetadata } from 'libs/common/utils';
 import { lastValueFrom } from 'rxjs';
@@ -194,6 +195,12 @@ export class AuthService {
           otp: login2FaDto.otp,
         },
       ),
+    );
+  };
+
+  public handleVerifyOtp = async (verifyOtpDto: VerifyOtpDto) => {
+    return lastValueFrom(
+      this.rabbitMqAuthClient.send({ cmd: 'verify-otp' }, verifyOtpDto),
     );
   };
 }

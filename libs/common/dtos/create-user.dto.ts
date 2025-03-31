@@ -1,6 +1,8 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { plainToInstance, Transform, Type } from 'class-transformer';
 import {
+  ArrayNotEmpty,
+  IsArray,
   IsEmail,
   IsIn,
   IsNotEmpty,
@@ -9,7 +11,9 @@ import {
   IsPhoneNumber,
   IsPositive,
   IsString,
+  ValidateNested,
 } from 'class-validator';
+import { CreateCompanyDto } from 'libs/common/dtos/create-company.dto';
 
 export class CreateUserDto {
   @IsEmail()
@@ -28,6 +32,7 @@ export class CreateUserDto {
   readonly address!: string;
 
   @IsOptional()
+  @IsString()
   readonly bio?: string;
 
   @IsString()
@@ -39,23 +44,46 @@ export class CreateUserDto {
   readonly full_name!: string;
 
   @IsOptional()
-  @Transform(({ value }) => parseFloat(value as string))
+  @Transform(({ value }) =>
+    value !== null && value !== undefined ? parseFloat(value as string) : value,
+  )
   @IsNumber()
   @IsPositive()
-  readonly expected_salary!: number;
+  readonly expected_salary?: number;
+
+  @ApiPropertyOptional({ type: [String], example: ['Java', 'React'] })
+  @IsOptional()
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.split(',') : value,
+  )
+  readonly skills?: string[];
 
   @IsOptional()
-  @IsString()
-  @IsNotEmpty()
-  readonly skills?: string;
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.split(',') : value,
+  )
+  readonly certifications?: string[];
 
   @IsOptional()
-  @IsString()
-  @IsNotEmpty()
-  readonly certifications?: string;
-
-  @IsOptional()
-  @IsString()
-  @IsNotEmpty()
-  readonly createCompanyDto?: string;
+  @ValidateNested()
+  @Type(() => CreateCompanyDto)
+  @Transform(({ value }) => {
+    if (!value) return undefined;
+    if (typeof value === 'object')
+      return plainToInstance(CreateCompanyDto, value);
+    try {
+      return plainToInstance(CreateCompanyDto, JSON.parse(value as string));
+    } catch {
+      throw new Error('Invalid JSON format for createCompanyDto');
+    }
+  })
+  readonly createCompanyDto?: CreateCompanyDto;
 }

@@ -175,4 +175,9 @@ export class UsersController {
   async handleDisable2Fa(@Payload() userId: string) {
     return this.usersService.handleDisable2Fa(userId);
   }
+
+  @EventPattern('update-verified-email')
+  async handleUpdateEmailVerified(@Payload() email: string) {
+    return this.usersService.handleUpdateEmailVerified(email);
+  }
 }

@@ -8,6 +8,7 @@ import {
   UpdatePasswordDto,
   Verify2FaDto,
   VerifyNewDeviceDto,
+  VerifyOtpDto,
 } from 'libs/common/dtos';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 import { CreateSocialAccount, RequestMetadata } from 'libs/common/utils';
@@ -117,5 +118,10 @@ export class AuthController {
     @Payload('userId') userId: string,
   ) {
     return this.authService.handleVerify2Fa(verify2FaDto, userId);
+  }
+
+  @MessagePattern({ cmd: 'verify-otp' })
+  async verifyOtp(@Payload() verifyOtpDto: VerifyOtpDto) {
+    return this.authService.handleVerifyOtp(verifyOtpDto);
   }
 }
