@@ -19,7 +19,7 @@ import { JobsService } from './jobs.service';
 export class JobsController {
   constructor(private readonly jobsService: JobsService) {}
 
-  @MessagePattern({ cmd: 'create-company' })
+  @EventPattern({ cmd: 'create-company' })
   async handleCreateCompany(
     @Payload('createCompanyDto') createCompanyDto: CreateCompanyDto,
     @Payload('userId') userId: string,

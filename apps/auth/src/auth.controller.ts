@@ -56,11 +56,6 @@ export class AuthController {
     return this.authService.handleRefreshToken(email);
   }
 
-  @MessagePattern({ cmd: 'verify-email' })
-  async handleVerifyEmail(@Payload() email: string) {
-    return this.authService.handleVerifyEmail(email);
-  }
-
   @MessagePattern({ cmd: 'sign-out' })
   async handleSignout(@Payload() user: User) {
     return this.authService.handleSignout(user);
@@ -98,12 +93,10 @@ export class AuthController {
   async handleVerifyNewDevice(
     @Payload('verifyNewDeviceDto') verifyNewDeviceDto: VerifyNewDeviceDto,
     @Payload('requestMetadata') requestMetadata: RequestMetadata,
-    @Payload('user') user: User,
   ) {
     return this.authService.handleVerifyNewDevice(
       verifyNewDeviceDto,
       requestMetadata,
-      user,
     );
   }
 

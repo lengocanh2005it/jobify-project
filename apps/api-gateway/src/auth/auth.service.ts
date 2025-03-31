@@ -108,12 +108,6 @@ export class AuthService {
     );
   };
 
-  public handleVerifyEmail = async (email: string) => {
-    return await lastValueFrom(
-      this.rabbitMqAuthClient.send({ cmd: 'verify-email' }, email),
-    );
-  };
-
   public handleSignout = async (user: User) => {
     return await lastValueFrom(
       this.rabbitMqAuthClient.send({ cmd: 'sign-out' }, user),
@@ -151,7 +145,6 @@ export class AuthService {
   public handleVerifyNewDevice = async (
     verifyNewDeviceDto: VerifyNewDeviceDto,
     requestMetadata: RequestMetadata,
-    user: User,
   ) => {
     return lastValueFrom(
       this.rabbitMqAuthClient.send(
@@ -159,7 +152,6 @@ export class AuthService {
         {
           verifyNewDeviceDto,
           requestMetadata,
-          user,
         },
       ),
     );
