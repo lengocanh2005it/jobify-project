@@ -39,3 +39,4 @@ export * from './create-device.dto';
 export * from './verify-new-device.dto';
 export * from './verify-2fa.dto';
 export * from './login-2fa.dto';
+export * from './verify-otp.dto';

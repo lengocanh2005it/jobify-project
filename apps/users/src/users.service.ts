@@ -1,3 +1,4 @@
+import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import { HttpStatus, Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
@@ -8,6 +9,7 @@ import * as bcrypt from 'bcrypt';
 import {
   CANDIDATE_APPLICATION_LIMIT,
   CANDIDATE_PREMIUM_LIMIT,
+  DEFAULT_TTL_OTP_EXPIRED,
   ElasticIndexes,
   EmailTemplateNameEnum,
   NotificationTypes,
@@ -30,6 +32,7 @@ import { TransactionsProvider } from 'libs/common/providers';
 import {
   CreateSocialAccount,
   generateFingerprint,
+  generateOTP,
   generateRpcExceptionResponse,
   getDeviceType,
   handleEncodedPassword,
@@ -58,6 +61,7 @@ export class UsersService implements OnModuleInit {
     @Inject('REDIS_SERVICE') private readonly rabbitMqRedisClient: ClientProxy,
     @Inject('SMS_SERVICE') private readonly rabbitMqSmsClient: ClientProxy,
     @Inject('AUTH_SERVICE') private readonly rabbitMqAuthClient: ClientProxy,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
   async onModuleInit() {
@@ -243,7 +247,7 @@ export class UsersService implements OnModuleInit {
       let newUser = userRepository.create({
         ...createUserData,
         ...(certifications && {
-          certifications: JSON.parse(certifications) as string[],
+          certifications,
         }),
         password: handleEncodedPassword(password),
         avatar_url: avatarFileUrl
@@ -264,7 +268,7 @@ export class UsersService implements OnModuleInit {
           this.rabbitMqJobClient.send(
             { cmd: 'create-company' },
             {
-              createCompanyDto: JSON.parse(createCompanyDto),
+              createCompanyDto,
               userId: newUser.id,
             },
           ),
@@ -279,7 +283,7 @@ export class UsersService implements OnModuleInit {
           );
       }
 
-      if (skills && (JSON.parse(skills) as string[]).length) {
+      if (skills?.length) {
         for (const skill of skills) {
           let findSkill = await skillRepository.findOneBy({ name: skill });
 
@@ -300,18 +304,6 @@ export class UsersService implements OnModuleInit {
       newUser.role = role;
 
       await userRepository.save(newUser);
-
-      const { title, description, key } =
-        NotificationTypes.ACCOUNT_REGISTRATION;
-
-      this.rabbitMqNotificationClient.emit('create-notification', {
-        data: {
-          title,
-          message: description,
-          type: key,
-        },
-        userIds: [newUser.id],
-      });
 
       newUser = (await userRepository.findOne({
         where: {
@@ -358,17 +350,25 @@ export class UsersService implements OnModuleInit {
         },
       );
 
+      const otp = generateOTP();
+
+      await this.cacheManager.set(`${email}:otp`, otp, DEFAULT_TTL_OTP_EXPIRED);
+
       this.rabbitMqEmailClient.emit('send-email', {
-        email: newUser.email,
-        templateName: EmailTemplateNameEnum.EMAIL_REGISTER_ACCOUNT_SUCCESS,
+        email,
+        templateName: EmailTemplateNameEnum.EMAIL_OTP_VERIFICATION,
         context: {
-          full_name: newUser.full_name,
-          support_email: this.configService.get<string>('support_email', ''),
-          support_phone: this.configService.get<string>('support_phone', ''),
+          otp,
+          full_name: createUserDto.full_name,
         },
       });
 
-      return omit(newUser, ['password']);
+      return {
+        success: true,
+        next_step: 'ENTER_OTP',
+        message:
+          'Please check your email for the OTP to complete verification.',
+      };
     });
   };
 
@@ -1419,6 +1419,52 @@ export class UsersService implements OnModuleInit {
       user.is_two_factor_enabled = false;
 
       await userRepository.save(user);
+    });
+  };
+
+  public handleUpdateEmailVerified = async (email: string) => {
+    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
+      const userRepository = queryRunner.manager.getRepository(User);
+
+      const user = await userRepository.findOne({
+        where: {
+          email,
+        },
+      });
+
+      if (!user)
+        throw new RpcException(
+          generateRpcExceptionResponse(
+            HttpStatus.NOT_FOUND,
+            `User with email '${email}' not found.`,
+          ),
+        );
+
+      user.is_email_verified = true;
+
+      await userRepository.save(user);
+
+      const { title, description, key } =
+        NotificationTypes.ACCOUNT_REGISTRATION;
+
+      this.rabbitMqNotificationClient.emit('create-notification', {
+        data: {
+          title,
+          message: description,
+          type: key,
+        },
+        userIds: [user.id],
+      });
+
+      this.rabbitMqEmailClient.emit('send-email', {
+        email,
+        templateName: EmailTemplateNameEnum.EMAIL_REGISTER_ACCOUNT_SUCCESS,
+        context: {
+          full_name: user.full_name,
+          support_email: this.configService.get<string>('support_email', ''),
+          support_phone: this.configService.get<string>('support_phone', ''),
+        },
+      });
     });
   };
 }
