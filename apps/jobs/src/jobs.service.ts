@@ -120,18 +120,6 @@ export class JobsService implements OnModuleInit {
         .relation(Company, 'recruiters')
         .of(company.id)
         .add(userId);
-
-      const { recruiters, ...res } = (await companyRepository.findOne({
-        where: { id: company.id },
-        relations: ['recruiters'],
-      })) as Company;
-
-      return {
-        ...res,
-        recruiters: recruiters.map((recruiter) =>
-          omit(recruiter, ['password']),
-        ),
-      };
     });
   };
 

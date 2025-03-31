@@ -1,6 +1,5 @@
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
@@ -24,7 +23,6 @@ import {
   ApiResponse,
   ApiTags,
   ApiUnauthorizedResponse,
-  getSchemaPath,
 } from '@nestjs/swagger';
 import { AuthService } from 'apps/api-gateway/src/auth/auth.service';
 import { User } from 'apps/users/src/entities';
@@ -40,7 +38,6 @@ import {
   RefreshTokenDto,
   UpdatePasswordDto,
   Verify2FaDto,
-  VerifyEmailDto,
   VerifyNewDeviceDto,
   VerifyOtpDto,
 } from 'libs/common/dtos';
@@ -55,6 +52,7 @@ import {
   RequestMetadata,
   SocialLogin,
 } from 'libs/common/utils';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller('auth')
 @ApiTags(API_TAGS.AUTH)
@@ -418,29 +416,6 @@ export class AuthController {
     return this.authService.handleRefreshToken(email);
   }
 
-  @Post('verify-email')
-  @ResponseMessage('OTP has been sent to email.')
-  @ApiOperation({
-    summary: 'Verify email of user',
-    description: 'Verify email of user',
-  })
-  @ApiBody({
-    type: VerifyEmailDto,
-    description: 'Data has been used for verify email of user.',
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'Email verified successfully.',
-    schema: {
-      example: {
-        message: 'Email verified successfully.',
-      },
-    },
-  })
-  async verifyEmail(@Body() { email }: VerifyEmailDto) {
-    return this.authService.handleVerifyEmail(email);
-  }
-
   @Get('google')
   @ApiOperation({
     summary: 'Google Authentication',
@@ -622,15 +597,13 @@ export class AuthController {
   }
 
   @Post('verify-new-device')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
-  @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
   @ResponseMessage('Verify new device successfully.')
   @ApiOperation({
     summary: 'Verify new device',
     description: 'Verify new device by entering OTP in SMS/email.',
   })
   @ApiBody({
-    type: VerifyEmailDto,
+    type: VerifyNewDeviceDto,
     description: 'Data need to be used to verify thew new device.',
   })
   @ApiResponse({
@@ -638,7 +611,12 @@ export class AuthController {
     description: 'Verify new device successfully',
     schema: {
       example: {
-        message: 'Your new device has been verified. You are now logged in.',
+        statusCode: 201,
+        message: 'Verify new device successfully.',
+        data: {
+          success: true,
+          message: 'Your new device has been verified. You are now logged in.',
+        },
       },
     },
   })
@@ -652,12 +630,9 @@ export class AuthController {
       userAgent: request.headers['user-agent'] || 'Unknown User-Agent',
     };
 
-    const user = request.user as User;
-
     return this.authService.handleVerifyNewDevice(
       verifyNewDeviceDto,
       requestMetadata,
-      user,
     );
   }
 

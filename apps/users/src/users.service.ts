@@ -264,23 +264,13 @@ export class UsersService implements OnModuleInit {
       await userRepository.save(newUser);
 
       if (createCompanyDto && type === 'recruiter') {
-        const data = await lastValueFrom<Company>(
-          this.rabbitMqJobClient.send(
-            { cmd: 'create-company' },
-            {
-              createCompanyDto,
-              userId: newUser.id,
-            },
-          ),
+        this.rabbitMqJobClient.emit(
+          { cmd: 'create-company' },
+          {
+            createCompanyDto,
+            userId: newUser.id,
+          },
         );
-
-        if (!data)
-          throw new RpcException(
-            generateRpcExceptionResponse(
-              HttpStatus.INTERNAL_SERVER_ERROR,
-              'Failed when creating new company.',
-            ),
-          );
       }
 
       if (skills?.length) {

@@ -373,47 +373,6 @@ export class AuthService {
     };
   };
 
-  public handleVerifyEmail = async (email: string) => {
-    const user = await lastValueFrom<User | null>(
-      this.rabbitMqUserClient.send(
-        { cmd: 'get-user-by-field' },
-        {
-          field: 'email',
-          value: email,
-        },
-      ),
-    );
-
-    if (!user)
-      throw new RpcException(
-        generateRpcExceptionResponse(
-          HttpStatus.NOT_FOUND,
-          `User with email: '${email}' not found.`,
-        ),
-      );
-
-    const otp = generateOTP();
-
-    await this.cacheManager.set(
-      `${user.email}:otp`,
-      otp,
-      DEFAULT_TTL_OTP_EXPIRED,
-    );
-
-    this.rabbitMqEmailClient.emit('send-email', {
-      email,
-      templateName: EmailTemplateNameEnum.EMAIL_OTP_VERIFICATION,
-      context: {
-        full_name: user.full_name,
-        otp,
-      },
-    });
-
-    return {
-      success: `OTP has been sent to email: '${email}'.`,
-    };
-  };
-
   public handleSignout = async (user: User) => {
     const findUser = await lastValueFrom<User | null>(
       this.rabbitMqUserClient.send({ cmd: 'get-user-jwt' }, user.id),
@@ -547,30 +506,31 @@ export class AuthService {
   public handleVerifyNewDevice = async (
     verifyNewDeviceDto: VerifyNewDeviceDto,
     requestMetaData: RequestMetadata,
-    user: User,
   ) => {
     return this.transactionProvider.executeTransaction(async (queryRunner) => {
       const deviceRepository = queryRunner.manager.getRepository(Device);
 
-      const { otp } = verifyNewDeviceDto;
+      const { otp, email } = verifyNewDeviceDto;
 
-      const otpInRedisStore = await this.cacheManager.get(`${user.email}:otp`);
+      const user = await lastValueFrom<User | null>(
+        this.rabbitMqUserClient.send(
+          { cmd: 'get-user-by-field' },
+          {
+            field: 'email',
+            value: email,
+          },
+        ),
+      );
 
-      if (!otpInRedisStore)
+      if (!user)
         throw new RpcException(
           generateRpcExceptionResponse(
-            HttpStatus.BAD_REQUEST,
-            `Your OTP has expired. Please try again by requesting a new code.`,
+            HttpStatus.NOT_FOUND,
+            `User with email '${email}' not found.`,
           ),
         );
 
-      if (otpInRedisStore !== otp)
-        throw new RpcException(
-          generateRpcExceptionResponse(
-            HttpStatus.BAD_REQUEST,
-            `The OTP you entered is incorrect. Please check and try again.`,
-          ),
-        );
+      await this.verifyOtp(email, otp, user);
 
       const { ip, forwardedFor, userAgent } = requestMetaData;
 
@@ -587,6 +547,7 @@ export class AuthService {
         device_type: deviceType,
         ...(deviceType === 'mobile' && { phone_number: user.phone_number }),
         is_trusted: true,
+        userAgent,
       });
 
       newDeviceForUser.user = user;
@@ -594,7 +555,8 @@ export class AuthService {
       await deviceRepository.save(newDeviceForUser);
 
       return {
-        success: 'Your new device has been verified. You are now logged in.',
+        success: true,
+        message: 'Your new device has been verified. You are now logged in.',
       };
     });
   };
@@ -733,52 +695,7 @@ export class AuthService {
         ),
       );
 
-    const cachedOtp = await this.cacheManager.get(`${email}:otp`);
-
-    if (!cachedOtp) {
-      const newOtp = generateOTP();
-
-      await this.cacheManager.set(
-        `${email}:otp`,
-        newOtp,
-        DEFAULT_TTL_OTP_EXPIRED,
-      );
-
-      throw new RpcException(
-        generateRpcExceptionResponse(
-          HttpStatus.BAD_REQUEST,
-          `The OTP has expired. Please check email '${email}' for a new OTP.`,
-        ),
-      );
-    }
-
-    const attempts =
-      Number(
-        (await this.cacheManager.get(`${email}:otp-attempts`)) as string,
-      ) || 0;
-
-    if (attempts >= DEFAULT_MAX_ATTEMPTS)
-      throw new RpcException(
-        generateRpcExceptionResponse(
-          HttpStatus.FORBIDDEN,
-          `You have entered the wrong OTP more than ${DEFAULT_MAX_ATTEMPTS} times. Please request a new OTP.`,
-        ),
-      );
-
-    if (otp !== cachedOtp) {
-      await this.cacheManager.set(
-        `${email}:otp-attempts`,
-        attempts + 1,
-        DEFAULT_TTL_OTP_EXPIRED,
-      );
-
-      throw new RpcException(
-        generateRpcExceptionResponse(
-          HttpStatus.BAD_REQUEST,
-          `Invalid OTP. You have ${DEFAULT_MAX_ATTEMPTS - (attempts + 1)} attempts remaining.`,
-        ),
-      );
-    }
+    await this.verifyOtp(email, otp, user);
 
     await this.cacheManager.del(`${email}:otp`);
 
@@ -791,4 +708,88 @@ export class AuthService {
       message: 'Verified email successfully. You can now log in.',
     };
   };
+
+  private verifyOtp = async (email: string, otp: string, user: User) => {
+    const cachedOtp = await this.cacheManager.get(`${email}:otp`);
+
+    if (!cachedOtp) {
+      await this.sendNewOtp(email, user);
+
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `The OTP has expired. Please check email '${email}' for a new OTP.`,
+        ),
+      );
+    }
+
+    const attempts =
+      Number(await this.cacheManager.get(`${email}:otp-attempts`)) || 1;
+
+    if (attempts >= DEFAULT_MAX_ATTEMPTS) {
+      await this.sendNewOtp(email, user);
+
+      await this.cacheManager.del(`${email}:otp-attempts`);
+
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          `You have entered the wrong OTP more than ${DEFAULT_MAX_ATTEMPTS} times. Please enter the new code that has been sent to your email.`,
+        ),
+      );
+    }
+
+    if (otp !== cachedOtp) {
+      const remainingAttempts = DEFAULT_MAX_ATTEMPTS - attempts;
+
+      await this.cacheManager.set(
+        `${email}:otp-attempts`,
+        attempts + 1,
+        DEFAULT_TTL_OTP_EXPIRED,
+      );
+
+      if (remainingAttempts > 0) {
+        throw new RpcException(
+          generateRpcExceptionResponse(
+            HttpStatus.BAD_REQUEST,
+            `Invalid OTP. You have ${remainingAttempts} attempt(s) remaining.`,
+          ),
+        );
+      }
+
+      await this.sendNewOtp(email, user);
+
+      await this.cacheManager.del(`${email}:otp-attempts`);
+
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          `You have entered the wrong OTP more than ${DEFAULT_MAX_ATTEMPTS} times. Please enter the new code that has been sent to your email.`,
+        ),
+      );
+    }
+
+    await this.cacheManager.del(`${email}:otp`);
+
+    await this.cacheManager.del(`${email}:otp-attempts`);
+  };
+
+  private async sendNewOtp(email: string, user: User) {
+    const newOtp = generateOTP();
+
+    await this.cacheManager.set(
+      `${email}:otp`,
+      newOtp,
+      DEFAULT_TTL_OTP_EXPIRED,
+    );
+
+    this.rabbitMqEmailClient.emit('send-email', {
+      email,
+      templateName: EmailTemplateNameEnum.EMAIL_OTP_VERIFICATION,
+      context: {
+        otp: newOtp,
+        full_name: user.full_name,
+      },
+    });
+  }
 }

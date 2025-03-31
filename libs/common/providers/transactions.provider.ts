@@ -8,25 +8,39 @@ export class TransactionsProvider {
 
   async executeTransaction<T>(
     operation: (queryRunner: QueryRunner) => Promise<T>,
+    maxRetries = 3,
   ): Promise<T> {
-    const queryRunner = this.dataSource.createQueryRunner();
+    let attempt = 0;
 
-    await queryRunner.connect();
+    while (attempt < maxRetries) {
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
 
-    await queryRunner.startTransaction();
+      try {
+        const result = await operation(queryRunner);
+        await queryRunner.commitTransaction();
+        return result;
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
 
-    try {
-      const result = await operation(queryRunner);
-
-      await queryRunner.commitTransaction();
-
-      return result;
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-
-      throw error;
-    } finally {
-      await queryRunner.release();
+        if (this.isRetryableError(error) && attempt < maxRetries - 1) {
+          attempt++;
+          console.warn(`Transaction failed (attempt ${attempt}). Retrying...`);
+        } else {
+          throw error;
+        }
+      } finally {
+        await queryRunner.release();
+      }
     }
+
+    throw new Error('Transaction failed after maximum retries.');
+  }
+
+  private isRetryableError(error: unknown): boolean {
+    const retryableErrors = ['ER_LOCK_DEADLOCK', 'ER_LOCK_WAIT_TIMEOUT'];
+
+    return retryableErrors.includes((error as { code?: string }).code || '');
   }
 }
