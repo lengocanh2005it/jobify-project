@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class UpdatePasswordDto {
   @ApiProperty({
@@ -20,12 +20,13 @@ export class UpdatePasswordDto {
   @IsNotEmpty()
   readonly newPassword!: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     name: 'otp',
     description: 'OTP has been used for updating password',
     example: '434563',
   })
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  readonly otp!: string;
+  readonly otp?: string;
 }

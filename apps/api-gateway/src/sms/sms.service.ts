@@ -10,14 +10,11 @@ export class SmsService {
 
   public sendSms = async (from: string, to: string, message: string) => {
     return lastValueFrom<void>(
-      this.rabbitMqSmsClient.emit(
-        { cmd: 'send-sms' },
-        {
-          from,
-          to,
-          message,
-        },
-      ),
+      this.rabbitMqSmsClient.emit('send-sms', {
+        from,
+        to,
+        message,
+      }),
     );
   };
 }
