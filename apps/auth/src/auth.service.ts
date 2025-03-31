@@ -117,6 +117,21 @@ export class AuthService {
               ),
             );
 
+          const deviceType = lastKnownDevice.device_type;
+
+          if (user.is_two_factor_enabled)
+            throw new RpcException(
+              generateRpcExceptionResponse(HttpStatus.FORBIDDEN, {
+                description: `We detected a login attempt from an unrecognized device, and this account has 2FA enabled. Please retrieve the OTP from the Google Authenticator app linked to this account and enter it in the OTP verification field.`,
+                next_step: 'ENTER_OTP',
+                details: {
+                  deviceType: deviceType,
+                  location: 'Ha Noi, Viet Nam',
+                  loginTime: format(new Date(), 'EEEE, yyyy-MM-dd HH:mm:ss'),
+                },
+              }),
+            );
+
           const otp = generateOTP();
 
           await this.cacheManager.set(
@@ -126,8 +141,6 @@ export class AuthService {
           );
 
           let isOptSent = false;
-
-          const deviceType = lastKnownDevice.device_type;
 
           if (deviceType === 'mobile' || deviceType === 'iphone') {
             if (!lastKnownDevice.phone_number)
@@ -143,7 +156,7 @@ export class AuthService {
             this.rabbitMqSmsClient.emit('send-sms', {
               from: this.configService.get<string>('twilio.phone_number', ''),
               to: phone_number,
-              message: `Hi ${user.full_name}, your verification code is: ${otp}. It expires in 5 minutes. Do not share this code with anyone.`,
+              message: `Hi ${user.full_name}, your verification code is: ${otp}. It expires in 10 minutes. Do not share this code with anyone.`,
             });
 
             isOptSent = true;
@@ -209,16 +222,6 @@ export class AuthService {
         }
       }
 
-      if (user.is_two_factor_enabled && user.role.name !== 'admin')
-        throw new RpcException(
-          generateRpcExceptionResponse(HttpStatus.FORBIDDEN, {
-            next_step: 'ENTER_OTP',
-            description:
-              'Two-factor authentication is enabled. Please enter the OTP code from your authenticator app to proceed.',
-            requires2FA: true,
-          }),
-        );
-
       const { accessToken, refreshToken } = this.signTokens(
         user.id,
         user.role.name,
@@ -254,9 +257,47 @@ export class AuthService {
         ),
       );
 
+    if (!user.is_two_factor_enabled)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.FORBIDDEN,
+          'Please enable 2FA to be able to change the password.',
+        ),
+      );
+
+    if (!otp)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          `Please include the OTP received from the Google Authenticator app.`,
+        ),
+      );
+
+    const secret = await this.infisicalProvider.getSecret(
+      `TOTP_SECRET_${user.id}`,
+    );
+
+    if (!secret)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.NOT_FOUND,
+          `Secret for user with id '${userId}' not found.`,
+        ),
+      );
+
+    const isValid = this.twoFactorAuthenticationProvider.verifyOtp(otp, secret);
+
+    if (!isValid)
+      throw new RpcException(
+        generateRpcExceptionResponse(
+          HttpStatus.BAD_REQUEST,
+          'OTP is not correct. Please enter again.',
+        ),
+      );
+
     const isMatchPassword = await bcrypt.compare(
-      user.password ? user.password : '',
       password,
+      user.password ? user.password : '',
     );
 
     if (!isMatchPassword)
@@ -264,18 +305,6 @@ export class AuthService {
         generateRpcExceptionResponse(
           HttpStatus.BAD_REQUEST,
           `Current password isn't correct.`,
-        ),
-      );
-
-    const otpInRedis = await lastValueFrom<string | null>(
-      this.rabbitMqRedisClient.send({ cmd: 'get-key' }, `${user.email}:otp`),
-    );
-
-    if (otp !== otpInRedis)
-      throw new RpcException(
-        generateRpcExceptionResponse(
-          HttpStatus.BAD_REQUEST,
-          `OTP isn't correct.`,
         ),
       );
 

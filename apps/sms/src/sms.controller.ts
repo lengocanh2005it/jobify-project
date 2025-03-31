@@ -8,7 +8,7 @@ import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
 export class SmsController {
   constructor(private readonly smsProducer: SmsProducer) {}
 
-  @EventPattern({ cmd: 'send-sms' })
+  @EventPattern('send-sms')
   async handleSendSms(
     @Payload('from') from: string,
     @Payload('to') to: string,

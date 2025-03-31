@@ -843,6 +843,8 @@ export class UsersService implements OnModuleInit {
           id: true,
           password: true,
           email: true,
+          is_email_verified: true,
+          is_two_factor_enabled: true,
         },
       });
 
@@ -909,6 +911,7 @@ export class UsersService implements OnModuleInit {
       });
 
       return {
+        success: true,
         message: 'Password updated successfully.',
       };
     });

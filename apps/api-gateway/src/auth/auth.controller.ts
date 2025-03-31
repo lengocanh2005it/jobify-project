@@ -355,7 +355,12 @@ export class AuthController {
     description: 'Password updated successfully.',
     schema: {
       example: {
+        statusCode: 201,
         message: 'Password updated successfully.',
+        data: {
+          success: true,
+          message: 'Password updated successfully.',
+        },
       },
     },
   })
@@ -752,7 +757,7 @@ export class AuthController {
   @Post('verify-otp')
   @ResponseMessage('Email verified successfully.')
   @ApiOperation({
-    summary: 'Verify OTP for email confirmation',
+    summary: 'Verify OTP',
     description: `This endpoint verifies the OTP sent to the user's email for account activation.`,
   })
   @ApiResponse({
