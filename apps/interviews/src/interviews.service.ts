@@ -920,12 +920,7 @@ export class InterviewsService implements OnModuleInit {
       },
     ]);
 
-    if (!bulkBody.length) {
-      console.warn(
-        '⚠️ Bulk request body is empty, skipping Elasticsearch sync.',
-      );
-      return;
-    }
+    if (!bulkBody.length) return;
 
     await this.elasticsearchService.bulk({
       index: ElasticIndexes.INTERVIEWS,

@@ -18,15 +18,17 @@ import { Request } from 'express';
 import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
 import { JwtAuthGuard, RoleAuthGuard, PremiumGuard } from 'libs/common/guards';
+import { RBAcGuard, RBAcPermissions } from 'nestjs-rbac';
 
 @Controller('conversations')
-@UseGuards(JwtAuthGuard, RoleAuthGuard, PremiumGuard)
+@UseGuards(JwtAuthGuard, RoleAuthGuard, PremiumGuard, RBAcGuard)
 @Roles(Role.CANDIDATE, Role.RECRUITER)
 @ApiBearerAuth()
 export class ConversationsController {
   constructor(private readonly conversationsService: ConversationsService) {}
 
   @Delete(':id')
+  @RBAcPermissions('message@delete')
   @ResponseMessage('Conversation deleted successfully!')
   @ApiOperation({
     summary: 'Delete conversation',

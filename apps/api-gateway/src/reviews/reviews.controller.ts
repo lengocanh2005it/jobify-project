@@ -35,9 +35,10 @@ import {
   UpdateReviewDto,
 } from 'libs/common/dtos';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
+import { RBAcGuard, RBAcPermissions } from 'nestjs-rbac';
 
 @Controller('reviews')
-@UseGuards(JwtAuthGuard, RoleAuthGuard)
+@UseGuards(JwtAuthGuard, RoleAuthGuard, RBAcGuard)
 @ApiBearerAuth()
 @ApiTags(API_TAGS.REVIEWS)
 export class ReviewsController {
@@ -48,13 +49,11 @@ export class ReviewsController {
 
   @Post()
   @Roles(Role.CANDIDATE)
+  @RBAcPermissions('review@create')
   @ResponseMessage('New review created successfully!')
   @ApiOperation({
     summary: 'Create a new review',
     description: 'Create a new review with some given data.',
-  })
-  @ApiForbiddenResponse({
-    description: 'Only CANDIDATE can have permission to create a new review.',
   })
   @ApiResponse({
     status: 201,
@@ -95,6 +94,7 @@ export class ReviewsController {
 
   @Get()
   @Roles(Role.ADMIN, Role.RECRUITER, Role.CANDIDATE)
+  @RBAcPermissions('review@read')
   @ResponseMessage('Reviews fetched successfully!')
   @UseInterceptors(CacheInterceptor)
   @ApiOperation({
@@ -165,10 +165,6 @@ export class ReviewsController {
       ],
     },
   })
-  @ApiForbiddenResponse({
-    description:
-      'Only ADMINS, RECRUITERS and CANDIDATES can have permission to get all reviews.',
-  })
   async getReviews(
     @Req() request: Request,
     @Query() searchReviewsDto?: SearchReviewsDto,
@@ -180,6 +176,7 @@ export class ReviewsController {
 
   @Patch(':id')
   @Roles(Role.ADMIN, Role.CANDIDATE)
+  @RBAcPermissions('review@update')
   @ResponseMessage('Review updated successfully!')
   @ApiOperation({
     summary: 'Update review',
@@ -235,6 +232,7 @@ export class ReviewsController {
   @Delete(':id')
   @ResponseMessage('Review deleted successfully!')
   @Roles(Role.ADMIN, Role.CANDIDATE)
+  @RBAcPermissions('review@delete')
   @ApiOperation({
     summary: 'Delete a review',
     description: 'Delete an existing review by review id.',
@@ -243,9 +241,6 @@ export class ReviewsController {
     name: 'id',
     description: 'The interview id',
     example: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
-  })
-  @ApiNotFoundResponse({
-    description: 'Review not found.',
   })
   @ApiResponse({
     status: 200,
@@ -264,6 +259,7 @@ export class ReviewsController {
 
   @Get(':id')
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  @RBAcPermissions('review:read')
   @ResponseMessage('Review fetched successfully!')
   @ApiOperation({
     summary: 'Get review',
@@ -273,13 +269,6 @@ export class ReviewsController {
     name: 'id',
     description: 'The id of review',
     example: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
-  })
-  @ApiNotFoundResponse({
-    description: 'Review not found.',
-  })
-  @ApiForbiddenResponse({
-    description:
-      'Only ADMINS, RECRUITERS and CANDIDATES can have permission to delete review.',
   })
   @ApiResponse({
     status: 200,

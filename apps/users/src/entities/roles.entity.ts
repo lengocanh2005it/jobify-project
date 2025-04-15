@@ -1,8 +1,9 @@
-import { User } from 'apps/users/src/entities';
+import { Permission, User } from 'apps/users/src/entities';
 import {
   Column,
   CreateDateColumn,
   Entity,
+  ManyToMany,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -13,7 +14,7 @@ export class Role {
   @PrimaryGeneratedColumn('uuid')
   readonly id!: string;
 
-  @Column()
+  @Column({ unique: true })
   name!: string;
 
   @Column({ nullable: true })
@@ -21,6 +22,9 @@ export class Role {
 
   @OneToMany(() => User, (user) => user.role, { cascade: true })
   users!: User[];
+
+  @ManyToMany(() => Permission, (permission) => permission.roles)
+  permissions!: Permission[];
 
   @CreateDateColumn({ type: 'timestamp' })
   readonly createdAt!: Date;

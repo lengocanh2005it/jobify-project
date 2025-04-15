@@ -19,10 +19,12 @@ import { AdminService } from 'apps/api-gateway/src/admin/admin.service';
 import { API_TAGS, Role } from 'libs/common/constants';
 import { Roles } from 'libs/common/decorators';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
+import { RBAcGuard, RBAcPermissions } from 'nestjs-rbac';
 
 @Controller('admin')
-@UseGuards(JwtAuthGuard, RoleAuthGuard)
-@Roles(Role.ADMIN)
+@UseGuards(JwtAuthGuard, RoleAuthGuard, RBAcGuard)
+@RBAcPermissions('admin@view_reports')
+@Roles(Role.ADMIN, Role.SUPERADMIN)
 @ApiBearerAuth()
 @ApiForbiddenResponse({
   description: 'Only admin can have permission to access this route.',
@@ -48,9 +50,6 @@ export class AdminController {
         admins: 1,
       },
     },
-  })
-  @ApiForbiddenResponse({
-    description: 'Only admin can have permission to access this route.',
   })
   @UseInterceptors(CacheInterceptor)
   async handleGetStatisticsOfUsers() {

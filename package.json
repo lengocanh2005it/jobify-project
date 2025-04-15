@@ -23,7 +23,8 @@
     "start:prod:all": "node scripts/start-prod-all.js",
     "start:build:all": "node scripts/build-all.js",
     "prepare": "husky",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "seed": "ts-node -r tsconfig-paths/register scripts/seed.ts"
   },
   "dependencies": {
     "@elastic/elasticsearch": "^8.17.1",
@@ -74,6 +75,7 @@
     "mysql2": "^3.13.0",
     "nestjs-paginate": "^11.1.0",
     "nestjs-pino": "^4.4.0",
+    "nestjs-rbac": "^2025.1.1",
     "nestjs-twilio": "^4.4.0",
     "nodemailer": "^6.10.0",
     "otplib": "^12.0.1",

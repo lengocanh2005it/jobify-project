@@ -1,4 +1,3 @@
-import { StripeWebhookHandler } from '@golevelup/nestjs-stripe';
 import { CacheInterceptor } from '@nestjs/cache-manager';
 import {
   BadRequestException,
@@ -24,7 +23,7 @@ import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
 import { SearchTransactionsDto } from 'libs/common/dtos';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
-import Stripe from 'stripe';
+import { RBAcGuard, RBAcPermissions } from 'nestjs-rbac';
 
 @Controller('payments')
 export class PaymentsController {
@@ -32,9 +31,10 @@ export class PaymentsController {
 
   @Post()
   @ResponseMessage('Checkout session created successfully.')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleAuthGuard, RBAcGuard)
   @ApiBearerAuth()
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  @RBAcPermissions('payment@create')
   @ApiOperation({
     summary: 'Create checkout session',
     description:
@@ -84,6 +84,7 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @ResponseMessage('Get all payments successfully!')
   @Roles(Role.ADMIN)
+  @RBAcPermissions('payment@read')
   @ApiBearerAuth()
   @UseInterceptors(CacheInterceptor)
   @ApiOperation({
@@ -128,9 +129,6 @@ export class PaymentsController {
         },
       ],
     },
-  })
-  @ApiForbiddenResponse({
-    description: 'Only ADMIN can have permission to get all payments.',
   })
   async getPayments(@Query() searchTransactionsDto?: SearchTransactionsDto) {
     return this.paymentsService.handleGetPayments(searchTransactionsDto);

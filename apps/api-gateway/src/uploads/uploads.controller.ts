@@ -11,17 +11,18 @@ import {
   ApiBody,
   ApiConsumes,
   ApiOperation,
-  ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { UploadsService } from 'apps/api-gateway/src/uploads/uploads.service';
 import { API_TAGS, Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
+import { RBAcGuard, RBAcPermissions } from 'nestjs-rbac';
 
 @Controller('uploads')
-@UseGuards(JwtAuthGuard, RoleAuthGuard)
+@UseGuards(JwtAuthGuard, RoleAuthGuard, RBAcGuard)
 @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+@RBAcPermissions('upload@create')
 @ApiBearerAuth()
 @ApiTags(API_TAGS.UPLOADS)
 export class UploadsController {
@@ -50,8 +51,6 @@ export class UploadsController {
       },
     },
   })
-  @ApiResponse({ status: 201, description: 'Files uploaded successfully.' })
-  @ApiResponse({ status: 400, description: 'Invalid file format or size.' })
   async uploadsFile(@UploadedFiles() files: Array<Express.Multer.File>) {
     return this.uploadsService.handleUploadsFile(files);
   }

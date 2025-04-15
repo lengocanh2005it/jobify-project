@@ -9,7 +9,7 @@ import {
 } from 'apps/notifications/src/entities';
 import { Transaction } from 'apps/payments/src/entities';
 import { Review } from 'apps/reviews/src/entities';
-import { Role, Skill, User } from 'apps/users/src/entities';
+import { Permission, Role, Skill, User } from 'apps/users/src/entities';
 
 export const entities = [
   User,
@@ -28,4 +28,5 @@ export const entities = [
   Review,
   Skill,
   Device,
+  Permission,
 ];

@@ -1,19 +1,16 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiResponse,
-  ApiServiceUnavailableResponse,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { HealthCheck } from '@nestjs/terminus';
 import { HealthService } from 'apps/api-gateway/src/health/health.service';
 import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
+import { RBAcGuard, RBAcPermissions } from 'nestjs-rbac';
 
 @Controller('health')
-@UseGuards(JwtAuthGuard, RoleAuthGuard)
+@UseGuards(JwtAuthGuard, RoleAuthGuard, RBAcGuard)
 @Roles(Role.ADMIN)
+@RBAcPermissions('admin@check_health')
 @ApiBearerAuth()
 export class HealthController {
   constructor(private readonly healthService: HealthService) {}
@@ -52,9 +49,6 @@ export class HealthController {
         },
       },
     },
-  })
-  @ApiServiceUnavailableResponse({
-    description: 'Service is unhealthy.',
   })
   @HealthCheck({ noCache: true, swaggerDocumentation: true })
   @ResponseMessage('Health check completed successfully.')

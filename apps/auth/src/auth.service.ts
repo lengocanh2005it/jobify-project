@@ -20,6 +20,7 @@ import {
   Role,
 } from 'libs/common/constants';
 import {
+  AssignRolesDto,
   CreateDeviceDto,
   LoginDto,
   UpdatePasswordDto,

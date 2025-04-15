@@ -8,11 +8,13 @@ import { API_TAGS, Role } from 'libs/common/constants';
 import { Roles } from 'libs/common/decorators';
 import { GenerateReportDto } from 'libs/common/dtos';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
+import { RBAcGuard, RBAcPermissions } from 'nestjs-rbac';
 
 @Controller('reports')
-@UseGuards(JwtAuthGuard, RoleAuthGuard)
+@UseGuards(JwtAuthGuard, RoleAuthGuard, RBAcGuard)
 @Roles(Role.ADMIN)
 @ApiBearerAuth()
+@RBAcPermissions('admin@view_reports')
 @ApiTags(API_TAGS.REPORTS)
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
