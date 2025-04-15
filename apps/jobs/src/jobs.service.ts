@@ -1177,6 +1177,8 @@ export class JobsService implements OnModuleInit {
       },
     ]);
 
+    if (!bulkBody.length) return;
+
     await this.elasticsearchService.bulk({
       index: ElasticIndexes.JOBS,
       body: bulkBody,

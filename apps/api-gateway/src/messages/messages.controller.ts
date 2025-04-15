@@ -35,15 +35,17 @@ import {
   UpdateMessageDto,
 } from 'libs/common/dtos';
 import { JwtAuthGuard, RoleAuthGuard, PremiumGuard } from 'libs/common/guards';
+import { RBAcGuard, RBAcPermissions } from 'nestjs-rbac';
 
 @Controller('messages')
-@UseGuards(JwtAuthGuard, RoleAuthGuard, PremiumGuard)
+@UseGuards(JwtAuthGuard, RoleAuthGuard, PremiumGuard, RBAcGuard)
 @Roles(Role.CANDIDATE, Role.RECRUITER)
 @ApiBearerAuth()
 export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
 
   @Post()
+  @RBAcPermissions('message@create')
   @ResponseMessage('New message created successfully!')
   @ApiOperation({
     summary: 'Create new message',
@@ -192,6 +194,7 @@ export class MessagesController {
     summary: 'Get all messages from all conversations.',
     description: 'All messages retrieved successfully.',
   })
+  @RBAcPermissions('message@read')
   @ApiResponse({
     status: 200,
     schema: {
@@ -235,6 +238,7 @@ export class MessagesController {
   }
 
   @Get('/users/:otherUserId')
+  @RBAcPermissions('message@read')
   @ResponseMessage(
     'Messages in the conversation with the user have been retrieved successfully!',
   )
@@ -313,6 +317,7 @@ export class MessagesController {
   }
 
   @Patch(':id/conversations/:conversationId')
+  @RBAcPermissions('message@update')
   @ApiOperation({
     summary: 'Update message',
     description: 'Update an existing message with some given data.',
@@ -334,9 +339,55 @@ export class MessagesController {
   @ApiResponse({
     status: 200,
     description: 'Data of the message after updating.',
-  })
-  @ApiBadRequestResponse({
-    description: 'You can only update the message text.',
+    schema: {
+      example: {
+        id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+        content: 'Hello World!',
+        is_read: false,
+        read_at: null,
+        type: 'text',
+        attachment_url: null,
+        repliedMessage: null,
+        receiver: {
+          id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+          email: 'john01@gmail.com',
+          full_name: 'John Doe',
+          phone_number: '+424244234234',
+          roe: {
+            name: 'candidate',
+          },
+        },
+        conversation: {
+          id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+          conversation_name: null,
+          participants: [
+            {
+              id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+              full_name: 'John Doe',
+              email: 'john01@gmail.com',
+            },
+            {
+              id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+              full_name: 'Luke Coleman',
+              email: 'john01@gmail.com',
+            },
+          ],
+          sender: {
+            id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+            email: 'john01@gmail.com',
+            full_name: 'John Doe',
+            phone_number: '+424244234234',
+            roe: {
+              name: 'recruiter',
+            },
+          },
+          conversation: {
+            id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+            conversation_name: null,
+          },
+        },
+      },
+    },
   })
   @ResponseMessage('Message updated successfully!')
   async updateMessage(
@@ -357,6 +408,7 @@ export class MessagesController {
 
   @Delete(':id')
   @ResponseMessage('Message deleted successfully!')
+  @RBAcPermissions('message@delete')
   @ApiOperation({
     summary: 'Delete message',
     description: 'Delete an existing message by id.',

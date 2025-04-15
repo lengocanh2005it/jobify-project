@@ -40,9 +40,10 @@ import {
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
 import { FileValidationPipe } from 'libs/common/pipes';
 import { Paginate, PaginateQuery } from 'nestjs-paginate';
+import { RBAcGuard, RBAcPermissions } from 'nestjs-rbac';
 
 @Controller('users')
-@UseGuards(JwtAuthGuard, RoleAuthGuard)
+@UseGuards(JwtAuthGuard, RoleAuthGuard, RBAcGuard)
 @ApiTags(API_TAGS.USERS)
 @ApiBearerAuth()
 export class UsersController {
@@ -54,13 +55,11 @@ export class UsersController {
   @Get()
   @ResponseMessage('All users fetched successfully.')
   @Roles(Role.ADMIN)
+  @RBAcPermissions('admin@manage_users')
   @UseInterceptors(CacheInterceptor)
   @ApiOperation({
     summary: 'Get all users',
     description: 'All users retrieved successfully.',
-  })
-  @ApiForbiddenResponse({
-    description: 'Only ADMINS can have permission to get all users.',
   })
   @ApiResponse({
     status: 200,
@@ -125,6 +124,7 @@ export class UsersController {
   @Get(':id')
   @ResponseMessage('Get user successfully.')
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  @RBAcPermissions('user@read', 'user@create', 'user@update', 'user@delete')
   @ApiOperation({
     summary: 'Get user details',
     description: 'Get user details with user id',
@@ -178,13 +178,11 @@ export class UsersController {
   @Post()
   @UseInterceptors(AnyFilesInterceptor())
   @Roles(Role.ADMIN)
+  @RBAcPermissions('user@create')
   @ResponseMessage('User created successfully.')
   @ApiOperation({
     summary: 'Create a new user',
     description: 'Create a new user with some given data.',
-  })
-  @ApiForbiddenResponse({
-    description: 'Only ADMINS can have permission to create user.',
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -301,6 +299,7 @@ export class UsersController {
 
   @Patch(':id')
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  @RBAcPermissions('user@update')
   @ResponseMessage('Profile of user updated successfully!')
   @UseInterceptors(AnyFilesInterceptor())
   @ApiOperation({
@@ -426,6 +425,7 @@ export class UsersController {
 
   @Delete(':id')
   @Roles(Role.ADMIN, Role.RECRUITER)
+  @RBAcPermissions('user@delete')
   @ResponseMessage('User deleted successfully.')
   @ApiOperation({
     summary: 'Delete user',
@@ -443,10 +443,6 @@ export class UsersController {
       'The application id that recruiter want to remove candidate from their jobs.',
     nullable: true,
     required: false,
-  })
-  @ApiForbiddenResponse({
-    description:
-      'Only ADMINS and RECRUITER can have permission to delete user.',
   })
   @ApiResponse({
     status: 200,
@@ -470,6 +466,7 @@ export class UsersController {
 
   @Patch('company/assign')
   @Roles(Role.ADMIN, Role.RECRUITER)
+  @RBAcPermissions('company@create')
   @ResponseMessage('Assigned company to recruiters successfully.')
   @ApiOperation({
     summary: 'Assign company to recruiters',

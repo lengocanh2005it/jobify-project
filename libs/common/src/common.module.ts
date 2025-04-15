@@ -2,6 +2,8 @@ import configuration from '@app/common/config/configuration';
 import { RabbitMqModule, SentryModule } from '@app/common/modules';
 import { StripeModule } from '@golevelup/nestjs-stripe';
 import { createKeyv } from '@keyv/redis';
+import { MailerModule } from '@nestjs-modules/mailer';
+import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 import { HttpModule } from '@nestjs/axios';
 import { BullModule } from '@nestjs/bullmq';
 import { CacheModule } from '@nestjs/cache-manager';
@@ -31,16 +33,16 @@ import {
   InfisicalProvider,
   JwtProvider,
   LinkedInProvider,
+  RbacStorageProvider,
   TransactionsProvider,
   TwoFactorAuthenticationProvider,
 } from 'libs/common/providers';
 import * as multer from 'multer';
 import { LoggerModule } from 'nestjs-pino';
 import { TwilioModule } from 'nestjs-twilio';
-import { CommonService } from './common.service';
-import { MailerModule } from '@nestjs-modules/mailer';
 import { join } from 'path';
-import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
+import { CommonService } from './common.service';
+import { RBAcModule } from 'nestjs-rbac';
 
 @Global()
 @Module({
@@ -122,8 +124,7 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         connection: {
-          host: configService.get<string>('redis.host', 'localhost'),
-          port: configService.get<number>('redis.port', 6379),
+          url: configService.get<string>('redis.url', 'redis://localhost:6379'),
         },
       }),
     }),
@@ -195,6 +196,7 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
         },
       }),
     }),
+    RBAcModule.forDynamic(RbacStorageProvider),
   ],
   providers: [
     CommonService,
@@ -206,6 +208,7 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
     TransactionsProvider,
     InfisicalProvider,
     TwoFactorAuthenticationProvider,
+    RbacStorageProvider,
   ],
   exports: [
     JwtModule,
@@ -231,6 +234,7 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
     InfisicalProvider,
     TwoFactorAuthenticationProvider,
     MailerModule,
+    RBAcModule,
   ],
 })
 export class CommonModule {}

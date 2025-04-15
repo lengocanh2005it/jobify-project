@@ -4,8 +4,10 @@ import { User } from 'apps/users/src/entities';
 import { Provider } from 'libs/common/constants';
 import {
   AssignCompanyToRecruitersDto,
+  AssignRolesDto,
   CreateUserDto,
   LoginDto,
+  RevokeRolesDto,
   UpdateUserDto,
 } from 'libs/common/dtos';
 import { ServicesExceptionInterceptor } from 'libs/common/interceptors';
@@ -179,5 +181,15 @@ export class UsersController {
   @EventPattern('update-verified-email')
   async handleUpdateEmailVerified(@Payload() email: string) {
     return this.usersService.handleUpdateEmailVerified(email);
+  }
+
+  @MessagePattern({ cmd: 'assign-roles' })
+  async assignRolesToUser(@Payload() assignRolesDto: AssignRolesDto) {
+    return this.usersService.handleAssignRolesToUser(assignRolesDto);
+  }
+
+  @MessagePattern({ cmd: 'revoke-roles' })
+  async revokeRoleOfUsers(@Payload() revokeRolesDto: RevokeRolesDto) {
+    return this.usersService.handleRevokeRoleOfUsers(revokeRolesDto);
   }
 }

@@ -36,9 +36,10 @@ import {
   UpdateInterviewDto,
 } from 'libs/common/dtos';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
+import { RBAcAnyPermissions, RBAcGuard, RBAcPermissions } from 'nestjs-rbac';
 
 @Controller('interviews')
-@UseGuards(JwtAuthGuard, RoleAuthGuard)
+@UseGuards(JwtAuthGuard, RoleAuthGuard, RBAcGuard)
 @ApiBearerAuth()
 @ApiTags(API_TAGS.INTERVIEWS)
 export class InterviewsController {
@@ -50,6 +51,7 @@ export class InterviewsController {
   @Get()
   @ResponseMessage('Interviews fetch successfully!')
   @Roles(Role.ADMIN, Role.RECRUITER, Role.CANDIDATE)
+  @RBAcPermissions('interview@read')
   @UseInterceptors(CacheInterceptor)
   @ApiOperation({
     summary: 'Get interviews',
@@ -99,10 +101,6 @@ export class InterviewsController {
       ],
     },
   })
-  @ApiForbiddenResponse({
-    description:
-      'Only ADMIN, RECRUITER and CANDIDATE can have permission to access this route.',
-  })
   async getInterviews(
     @Req() request: Request,
     @Query() searchInterviewsDto?: SearchInterviewsDto,
@@ -117,6 +115,7 @@ export class InterviewsController {
 
   @Get(':id')
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  @RBAcPermissions('interview@read')
   @ResponseMessage('Interviews fetched successfully!')
   @ApiOperation({
     summary: 'Get details information of interview',
@@ -192,6 +191,7 @@ export class InterviewsController {
   @Post()
   @ResponseMessage('New interview created successfully!')
   @Roles(Role.ADMIN, Role.RECRUITER)
+  @RBAcPermissions('interview@create')
   @ApiOperation({
     summary: 'Create new interview',
     description: 'New interview created successfully.',
@@ -241,10 +241,6 @@ export class InterviewsController {
       },
     },
   })
-  @ApiForbiddenResponse({
-    description:
-      'Only ADMINS and RECRUITERS can have permission to create interview.',
-  })
   async createInterview(
     @Body() createInterviewDto: CreateInterviewDto,
     @Req() request: Request,
@@ -260,6 +256,7 @@ export class InterviewsController {
   @Patch('admin/process')
   @ResponseMessage('Processed interviews successfully!')
   @Roles(Role.ADMIN)
+  @RBAcPermissions('interview@accept', 'interview@reject')
   @ApiOperation({
     summary: 'Process interviews by admin',
     description: 'Admin can have permission to process the interviews.',
@@ -268,16 +265,94 @@ export class InterviewsController {
     type: ProcessInterviewsDto,
     description: 'Data has been used for admin to process the interviews.',
   })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      example: {
+        approvedInterviews: [
+          {
+            id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+            title: 'Interview for Fullstack Developer',
+            description:
+              'This is an interview has been used for Fullstack Developer.',
+            interview_type: 'online',
+            interview_link: 'https://...',
+            interview_address: 'Ha Noi',
+            cancel_reason: null,
+            cancelled_by: null,
+            interview_date: '2025-03-20Z12:34:12T',
+            status: 'scheduled',
+            note: null,
+            approval_status: 'pending',
+            result: 'pending',
+            result_note: null,
+            score: null,
+            candidate: {
+              id: '550e8400-e29b-41d4-a716-446655440000',
+              email: 'john.doe@example.com',
+              full_name: 'John Doe',
+              address: '123 Main St, City, Country',
+            },
+            recruiter: {
+              id: '550e8400-e29b-41d4-a716-446655440000',
+              email: 'john.doe@example.com',
+              full_name: 'John Doe',
+              address: '123 Main St, City, Country',
+            },
+            job: {
+              id: '550e8400-e29b-41d4-a716-446655440000',
+              title: 'Fullstack Developer',
+              description: 'We are looking for passion fullstack developer.',
+            },
+          },
+        ],
+        rejectedInterviews: [
+          {
+            id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+            title: 'Interview for Fullstack Developer',
+            description:
+              'This is an interview has been used for Fullstack Developer.',
+            interview_type: 'online',
+            interview_link: 'https://...',
+            interview_address: 'Ha Noi',
+            cancel_reason: null,
+            cancelled_by: null,
+            interview_date: '2025-03-20Z12:34:12T',
+            status: 'scheduled',
+            note: null,
+            approval_status: 'pending',
+            result: 'pending',
+            result_note: null,
+            score: null,
+            candidate: {
+              id: '550e8400-e29b-41d4-a716-446655440000',
+              email: 'john.doe@example.com',
+              full_name: 'John Doe',
+              address: '123 Main St, City, Country',
+            },
+            recruiter: {
+              id: '550e8400-e29b-41d4-a716-446655440000',
+              email: 'john.doe@example.com',
+              full_name: 'John Doe',
+              address: '123 Main St, City, Country',
+            },
+            job: {
+              id: '550e8400-e29b-41d4-a716-446655440000',
+              title: 'Fullstack Developer',
+              description: 'We are looking for passion fullstack developer.',
+            },
+          },
+        ],
+      },
+    },
+  })
   async processInterviews(@Body() processInterviewDto: ProcessInterviewsDto) {
     return this.interviewsService.handleProcessInterviews(processInterviewDto);
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN, Role.RECRUITER)
-  @ApiForbiddenResponse({
-    description:
-      'Only ADMINS and RECRUITERS can have permission to update the interview.',
-  })
+  @Roles(Role.ADMIN, Role.RECRUITER, Role.SUPERADMIN)
+  @RBAcPermissions('interview@update')
   @ResponseMessage('Interview updated successfully!')
   @ApiOperation({
     summary: 'Update Interview',
@@ -349,6 +424,7 @@ export class InterviewsController {
 
   @Delete(':id')
   @Roles(Role.ADMIN, Role.RECRUITER)
+  @RBAcPermissions('interview@delete')
   @ResponseMessage('Interview deleted successfully.')
   @ApiOperation({
     summary: 'Delete Interview',
@@ -359,6 +435,49 @@ export class InterviewsController {
     type: String,
     required: true,
     description: 'The id of interview',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'A list of interviews retrieved successfully.',
+    schema: {
+      example: [
+        {
+          id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+          title: 'Interview for Fullstack Developer',
+          description:
+            'This is an interview has been used for Fullstack Developer.',
+          interview_type: 'online',
+          interview_link: 'https://...',
+          interview_address: 'Ha Noi',
+          cancel_reason: null,
+          cancelled_by: null,
+          interview_date: '2025-03-20Z12:34:12T',
+          status: 'scheduled',
+          note: null,
+          approval_status: 'pending',
+          result: 'pending',
+          result_note: null,
+          score: null,
+          candidate: {
+            id: '550e8400-e29b-41d4-a716-446655440000',
+            email: 'john.doe@example.com',
+            full_name: 'John Doe',
+            address: '123 Main St, City, Country',
+          },
+          recruiter: {
+            id: '550e8400-e29b-41d4-a716-446655440000',
+            email: 'john.doe@example.com',
+            full_name: 'John Doe',
+            address: '123 Main St, City, Country',
+          },
+          job: {
+            id: '550e8400-e29b-41d4-a716-446655440000',
+            title: 'Fullstack Developer',
+            description: 'We are looking for passion fullstack developer.',
+          },
+        },
+      ],
+    },
   })
   async deleteInterview(
     @Param('id', ParseUUIDPipe) id: string,
@@ -371,6 +490,7 @@ export class InterviewsController {
 
   @Patch('candidates/process')
   @Roles(Role.ADMIN, Role.CANDIDATE)
+  @RBAcPermissions('interview@accept', 'interview@reject')
   @ResponseMessage('Processed interviews successfully.')
   @ApiOperation({
     summary: 'Process interviews of candidates',

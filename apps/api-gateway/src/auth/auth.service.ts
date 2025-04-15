@@ -3,11 +3,13 @@ import { ClientProxy } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities';
 import { EmailTemplateNameEnum, Provider } from 'libs/common/constants';
 import {
+  AssignRolesDto,
   CreateCompanyDto,
   CreateUserDto,
   ForgetPasswordDto,
   Login2FaDto,
   LoginDto,
+  RevokeRolesDto,
   UpdatePasswordDto,
   Verify2FaDto,
   VerifyNewDeviceDto,
@@ -193,6 +195,18 @@ export class AuthService {
   public handleVerifyOtp = async (verifyOtpDto: VerifyOtpDto) => {
     return lastValueFrom(
       this.rabbitMqAuthClient.send({ cmd: 'verify-otp' }, verifyOtpDto),
+    );
+  };
+
+  public handleAssignRolesToUser = async (assignRolesDto: AssignRolesDto) => {
+    return lastValueFrom(
+      this.rabbitMqUserClient.send({ cmd: 'assign-roles' }, assignRolesDto),
+    );
+  };
+
+  public handleRevokeRoleOfUsers = async (revokeRolesDto: RevokeRolesDto) => {
+    return lastValueFrom(
+      this.rabbitMqUserClient.send({ cmd: 'revoke-roles' }, revokeRolesDto),
     );
   };
 }

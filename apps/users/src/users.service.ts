@@ -23,9 +23,11 @@ import {
 } from 'libs/common/constants';
 import {
   AssignCompanyToRecruitersDto,
+  AssignRolesDto,
   CreateDeviceDto,
   CreateUserDto,
   LoginDto,
+  RevokeRolesDto,
   UpdateUserDto,
 } from 'libs/common/dtos';
 import { TransactionsProvider } from 'libs/common/providers';
@@ -1325,12 +1327,7 @@ export class UsersService implements OnModuleInit {
       },
     ]);
 
-    if (!bulkBody.length) {
-      console.warn(
-        '⚠️ Bulk request body is empty, skipping Elasticsearch sync.',
-      );
-      return;
-    }
+    if (!bulkBody.length) return;
 
     const chunkSize = 1000;
 
@@ -1458,6 +1455,132 @@ export class UsersService implements OnModuleInit {
           support_phone: this.configService.get<string>('support_phone', ''),
         },
       });
+    });
+  };
+
+  public handleAssignRolesToUser = async (assignRolesDto: AssignRolesDto) => {
+    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
+      const userRepository = queryRunner.manager.getRepository(User);
+
+      const roleRepository = queryRunner.manager.getRepository(Role);
+
+      const { userIds } = assignRolesDto;
+
+      const adminRole = await roleRepository.findOne({
+        where: {
+          name: 'admin',
+        },
+      });
+
+      if (!adminRole)
+        throw new RpcException(
+          generateRpcExceptionResponse(
+            HttpStatus.NOT_FOUND,
+            `Role admin not found.`,
+          ),
+        );
+
+      await Promise.all(
+        userIds.map(async (userId) => {
+          const user = await userRepository.findOne({
+            where: {
+              id: userId,
+            },
+            relations: {
+              role: true,
+            },
+          });
+
+          if (!user)
+            throw new RpcException(
+              generateRpcExceptionResponse(
+                HttpStatus.NOT_FOUND,
+                `User with id '${userId}' not found.`,
+              ),
+            );
+
+          if (user.role.name === 'admin' || user.role.name === 'superadmin')
+            throw new RpcException(
+              generateRpcExceptionResponse(
+                HttpStatus.BAD_REQUEST,
+                `You are not allowed to assign the role of admin or superadmin.`,
+              ),
+            );
+
+          user.role = adminRole;
+
+          await userRepository.save(user);
+        }),
+      );
+
+      return {
+        success: true,
+        message: 'Assign role to users successfully.',
+      };
+    });
+  };
+
+  public handleRevokeRoleOfUsers = async (revokeRolesDto: RevokeRolesDto) => {
+    return this.transactionsProvider.executeTransaction(async (queryRunner) => {
+      const userRepository = queryRunner.manager.getRepository(User);
+
+      const roleRepository = queryRunner.manager.getRepository(Role);
+
+      const { userIds } = revokeRolesDto;
+
+      const userRole = await roleRepository.findOne({
+        where: {
+          name: 'user',
+        },
+      });
+
+      if (!userRole)
+        throw new RpcException(
+          generateRpcExceptionResponse(
+            HttpStatus.NOT_FOUND,
+            `Role user not found.`,
+          ),
+        );
+
+      await Promise.all(
+        userIds.map(async (userId) => {
+          const user = await userRepository.findOne({
+            where: {
+              id: userId,
+            },
+            relations: {
+              role: true,
+            },
+          });
+
+          if (!user)
+            throw new RpcException(
+              generateRpcExceptionResponse(
+                HttpStatus.NOT_FOUND,
+                `User with id '${userId}' not found.`,
+              ),
+            );
+
+          if (user.role.name === 'user')
+            throw new RpcException(
+              generateRpcExceptionResponse(
+                HttpStatus.BAD_REQUEST,
+                `You are not allowed to revoke the role of user.`,
+              ),
+            );
+
+          if (user.role.name !== 'superadmin') {
+            user.role = userRole;
+
+            await userRepository.save(user);
+          }
+        }),
+      );
+
+      return {
+        success: true,
+        message: 'Revok role of users successfully.',
+      };
     });
   };
 }

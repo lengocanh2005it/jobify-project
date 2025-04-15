@@ -58,7 +58,7 @@ export class User {
     type: 'boolean',
     default: false,
   })
-  is_premium?: boolean;
+  is_premium!: boolean;
 
   @Column({
     type: 'timestamp',

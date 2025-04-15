@@ -3,6 +3,7 @@ import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
 import { User } from 'apps/users/src/entities';
 import { EmailTemplateNameEnum, Provider } from 'libs/common/constants';
 import {
+  AssignRolesDto,
   CreateDeviceDto,
   LoginDto,
   UpdatePasswordDto,

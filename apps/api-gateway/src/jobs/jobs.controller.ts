@@ -16,7 +16,6 @@ import {
 import {
   ApiBearerAuth,
   ApiBody,
-  ApiForbiddenResponse,
   ApiOperation,
   ApiParam,
   ApiResponse,
@@ -37,9 +36,10 @@ import {
   UpdateJobDto,
 } from 'libs/common/dtos';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
+import { RBAcGuard, RBAcPermissions } from 'nestjs-rbac';
 
 @Controller('jobs')
-@UseGuards(JwtAuthGuard, RoleAuthGuard)
+@UseGuards(JwtAuthGuard, RoleAuthGuard, RBAcGuard)
 @ApiTags(API_TAGS.JOBS)
 @ApiBearerAuth()
 export class JobsController {
@@ -51,13 +51,10 @@ export class JobsController {
   @Post()
   @ResponseMessage('New job created successfully.')
   @Roles(Role.RECRUITER, Role.ADMIN)
+  @RBAcPermissions('job@create')
   @ApiOperation({
     summary: 'Create a new job',
     description: 'Create a new job with some given data.',
-  })
-  @ApiForbiddenResponse({
-    description:
-      'Only ADMINS and RECRUITERS can have permission to create a new job.',
   })
   @ApiBody({
     type: CreateJobDto,
@@ -101,6 +98,7 @@ export class JobsController {
   @Patch('process')
   @ResponseMessage('Jobs has been processed successfully.')
   @Roles(Role.ADMIN)
+  @RBAcPermissions('job@approve', 'job@rejected')
   @ApiOperation({
     summary: 'Admin process jobs',
     description: 'Admin can have permission to process jobs.',
@@ -108,9 +106,6 @@ export class JobsController {
   @ApiBody({
     type: ProcessJobsDto,
     description: 'Data for admin to process jobs.',
-  })
-  @ApiForbiddenResponse({
-    description: 'Only ADMINS can have permissions to process jobs.',
   })
   @ApiResponse({
     status: 200,
@@ -180,15 +175,12 @@ export class JobsController {
 
   @Get()
   @Roles(Role.ADMIN, Role.RECRUITER, Role.CANDIDATE)
+  @RBAcPermissions('job@read')
   @ResponseMessage('Job fetched successfully.')
   @UseInterceptors(CacheInterceptor)
   @ApiOperation({
     summary: 'Get jobs',
     description: 'List of jobs has retrieved successfully.',
-  })
-  @ApiForbiddenResponse({
-    description:
-      'Only ADMINS, RECRUITERS and CANDIDATES can have permissions to get jobs.',
   })
   @ApiResponse({
     status: 200,
@@ -255,6 +247,7 @@ export class JobsController {
   @Delete(':id')
   @ResponseMessage('Job deleted successfully.')
   @Roles(Role.ADMIN, Role.RECRUITER)
+  @RBAcPermissions('job@delete')
   @ApiOperation({
     summary: 'Delete job',
     description: 'Delete job by id',
@@ -285,6 +278,7 @@ export class JobsController {
   @Patch(':id')
   @ResponseMessage('Job updated successfully.')
   @Roles(Role.ADMIN, Role.RECRUITER)
+  @RBAcPermissions('job@update')
   @ApiOperation({
     summary: 'Update job',
     description: 'Update existing job with some provided data.',
@@ -341,6 +335,7 @@ export class JobsController {
   @Get(':id')
   @ResponseMessage('Job fetched successfully.')
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  @RBAcPermissions('job@read')
   @ApiOperation({
     summary: 'Get job details',
     description: 'Get job details by job id',
@@ -399,6 +394,7 @@ export class JobsController {
   @Post('saved')
   @ResponseMessage('Job has been saved successfully.')
   @Roles(Role.CANDIDATE, Role.ADMIN)
+  @RBAcPermissions('job@save_job')
   @ApiOperation({
     summary: 'Saved job favorites',
     description: 'Saved job favorites of candidates.',
@@ -423,6 +419,63 @@ export class JobsController {
       },
     },
   })
+  @ApiResponse({
+    status: 201,
+    schema: {
+      example: {
+        saveJobs: [
+          {
+            id: '17118ca1-a8a7-4fd3-9d3d-08f23cf1cf55',
+            title: 'Software Engineer Intern',
+            description: 'This job suitable for SE intern.',
+            address: 'Ha Noi',
+            job_type: 'full_time',
+            salary_min: 1200,
+            salary_max: 2000,
+            posted_at: '2025-03-20T12:12:12Z',
+            expire_at: '2025-03-30T12:12:12Z',
+            recruiter: {
+              id: '17118ca1-a8a7-4fd3-9d3d-08f23cf1cf55',
+              full_name: 'John Doe',
+              email: 'john01@gmail.com',
+              phone_number: '+123435464',
+              company: 'FPT Software',
+            },
+            requirements: [
+              'Familiarity with Docker and containerized applications',
+              'Proficiency in React.js, Vue.js, or Angular',
+              'Strong understanding of state management (Redux, Zustand, or Vuex)',
+            ],
+            is_approved: true,
+          },
+          {
+            id: '17118ca1-a8a7-4fd3-9d3d-08f23cf1cf55',
+            title: 'Software Engineer Intern',
+            description: 'This job suitable for SE intern.',
+            address: 'Ha Noi',
+            job_type: 'full_time',
+            salary_min: 1200,
+            salary_max: 2000,
+            posted_at: '2025-03-20T12:12:12Z',
+            expire_at: '2025-03-30T12:12:12Z',
+            recruiter: {
+              id: '17118ca1-a8a7-4fd3-9d3d-08f23cf1cf55',
+              full_name: 'John Doe',
+              email: 'john01@gmail.com',
+              phone_number: '+123435464',
+              company: 'FPT Software',
+            },
+            requirements: [
+              'Familiarity with Docker and containerized applications',
+              'Proficiency in React.js, Vue.js, or Angular',
+              'Strong understanding of state management (Redux, Zustand, or Vuex)',
+            ],
+            is_approved: true,
+          },
+        ],
+      },
+    },
+  })
   async savedJobs(@Body() savedJobDtos: SavedJobsDto, @Req() request: Request) {
     const user = request.user as User;
 
@@ -432,6 +485,7 @@ export class JobsController {
   @Delete('candidates/saved')
   @ResponseMessage('Saved jobs removed successfully.')
   @Roles(Role.ADMIN, Role.CANDIDATE)
+  @RBAcPermissions('job@remove_saved_jobs')
   @ApiOperation({
     summary: 'Remove job favorites',
     description: 'Remove job favorites by id',

@@ -30,12 +30,14 @@ import { Request, Response } from 'express';
 import { API_TAGS, Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
 import {
+  AssignRolesDto,
   CreateCompanyDto,
   CreateUserDto,
   ForgetPasswordDto,
   Login2FaDto,
   LoginDto,
   RefreshTokenDto,
+  RevokeRolesDto,
   UpdatePasswordDto,
   Verify2FaDto,
   VerifyNewDeviceDto,
@@ -52,7 +54,7 @@ import {
   RequestMetadata,
   SocialLogin,
 } from 'libs/common/utils';
-import { Throttle } from '@nestjs/throttler';
+import { RBAcAnyPermissions, RBAcGuard, RBAcPermissions } from 'nestjs-rbac';
 
 @Controller('auth')
 @ApiTags(API_TAGS.AUTH)
@@ -286,8 +288,14 @@ export class AuthController {
   }
 
   @Get('profile')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleAuthGuard, RBAcGuard)
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  @RBAcAnyPermissions(
+    ['user@read'],
+    ['user@create'],
+    ['user@update'],
+    ['user@delete'],
+  )
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get profile of user',
@@ -339,9 +347,10 @@ export class AuthController {
 
   @Post('update-password')
   @ResponseMessage('Password updated successfully.')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard, CustomGoogleRecaptchaGuard)
+  @UseGuards(JwtAuthGuard, RoleAuthGuard, CustomGoogleRecaptchaGuard, RBAcGuard)
   @ApiBearerAuth()
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  @RBAcPermissions('auth@change_password')
   @ApiOperation({
     summary: 'Update user password',
     description: 'Update user password with some data.',
@@ -642,8 +651,9 @@ export class AuthController {
   }
 
   @Post('2fa/generate')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleAuthGuard, RBAcGuard)
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  @RBAcPermissions('auth@enable_2fa')
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Generate 2FA QR Code',
@@ -681,8 +691,9 @@ export class AuthController {
   }
 
   @Post('2fa/verify')
-  @UseGuards(JwtAuthGuard, RoleAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleAuthGuard, RBAcGuard)
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  @RBAcAnyPermissions(['auth@enable_2fa'], ['auth@disable_2fa'])
   @ApiBearerAuth()
   @ResponseMessage('2FA verified successfully.')
   @ApiOperation({
@@ -778,5 +789,62 @@ export class AuthController {
   })
   async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
     return this.authService.handleVerifyOtp(verifyOtpDto);
+  }
+
+  @Post('assign-roles')
+  @UseGuards(JwtAuthGuard, RoleAuthGuard, RBAcGuard)
+  @Roles(Role.ADMIN, Role.SUPERADMIN)
+  @RBAcPermissions('admin@assign_roles')
+  @ApiOperation({
+    summary: 'Assign role to users (user -> adminss)',
+    description:
+      'This endpoint allows to assign role to users. (user -> admin)',
+  })
+  @ApiBody({
+    type: AssignRolesDto,
+    description: 'Data need to sent to assign roles for user.',
+  })
+  @ApiResponse({
+    status: 201,
+    schema: {
+      example: {
+        success: true,
+        message: 'Assign role to users successfully.',
+      },
+    },
+  })
+  @UseGuards(JwtAuthGuard, RoleAuthGuard, RBAcGuard)
+  @RBAcPermissions('admin@assign-role')
+  @Roles(Role.ADMIN, Role.SUPERADMIN)
+  @ApiBearerAuth()
+  async assignRoleToUsers(@Body() assignRolesDto: AssignRolesDto) {
+    return this.authService.handleAssignRolesToUser(assignRolesDto);
+  }
+
+  @Post('revoke-roles')
+  @ApiOperation({
+    summary: 'Revoke role of users (admin -> user)',
+    description:
+      'This endpoint allows to revoke role of ssusers. (admin -> user)',
+  })
+  @UseGuards(JwtAuthGuard, RoleAuthGuard, RBAcGuard)
+  @Roles(Role.SUPERADMIN)
+  @RBAcPermissions('superadmin@revoke_roles')
+  @ApiBearerAuth()
+  @ApiBody({
+    type: RevokeRolesDto,
+    description: 'Data need to sent to revoke role of users.',
+  })
+  @ApiResponse({
+    status: 201,
+    schema: {
+      example: {
+        success: true,
+        message: 'Revok role of users successfully.',
+      },
+    },
+  })
+  async revokeRoleOfUsers(@Body() revokeRolesDto: RevokeRolesDto) {
+    return this.authService.handleRevokeRoleOfUsers(revokeRolesDto);
   }
 }

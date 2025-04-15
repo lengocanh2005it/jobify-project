@@ -1,10 +1,4 @@
-import {
-  Cache,
-  CACHE_MANAGER,
-  CacheInterceptor,
-  CacheKey,
-  CacheTTL,
-} from '@nestjs/cache-manager';
+import { Cache, CACHE_MANAGER, CacheInterceptor } from '@nestjs/cache-manager';
 import {
   Body,
   Controller,
@@ -28,10 +22,8 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
-  ApiForbiddenResponse,
   ApiOperation,
   ApiParam,
-  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -51,10 +43,11 @@ import {
   generateRpcExceptionResponse,
   UpdateApplication,
 } from 'libs/common/utils';
+import { RBAcGuard, RBAcPermissions } from 'nestjs-rbac';
 
 @Controller('applications')
 @ApiTags(API_TAGS.APPLICATIONS)
-@UseGuards(JwtAuthGuard, RoleAuthGuard)
+@UseGuards(JwtAuthGuard, RoleAuthGuard, RBAcGuard)
 @ApiBearerAuth()
 export class ApplicationsController {
   constructor(
@@ -64,6 +57,7 @@ export class ApplicationsController {
 
   @Post()
   @Roles(Role.CANDIDATE)
+  @RBAcPermissions('application@create')
   @ResponseMessage('New application created successfully!')
   @UseInterceptors(AnyFilesInterceptor())
   @ApiOperation({
@@ -97,8 +91,44 @@ export class ApplicationsController {
       },
     },
   })
-  @ApiForbiddenResponse({
-    description: 'Only CANDIDATE can have permission to access this route.',
+  @ApiResponse({
+    status: 201,
+    schema: {
+      example: {
+        id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+        resume_link: 'https://example.com/resume.pdf',
+        cover_letter_link: 'https://example.com/cover_letter.pdf',
+        status: 'pending',
+        applied_at: '2024-03-22T12:00:00Z',
+        candidate: {
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          email: 'john.doe@example.com',
+          full_name: 'John Doe',
+          bio: 'Software engineer with 5 years of experience in web development.',
+          phone_number: '+1 234 567 890',
+          address: '123 Main St, City, Country',
+          certifications: ['AWS Certified Developer', 'Google Cloud Associate'],
+        },
+        job: {
+          id: '0969eecd-0920-49b8-8c6d-f2ae22cabb1c',
+          title: 'Frontend Developer',
+          description: 'Seeking a skilled frontend developer to join our team.',
+          salary_min: 1200.2,
+          salary_max: 1500.67,
+          job_type: 'full_time',
+          status: 'open',
+          posted_at: '2024-03-15T08:30:00Z',
+        },
+        recruiter: {
+          id: '330e8400-e29b-41d4-a716-446655440333',
+          email: 'recruiter@example.com',
+          full_name: 'Jane Smith',
+          bio: 'HR Manager with expertise in IT recruitment.',
+          phone_number: '+1 987 654 321',
+          address: '789 HR Ave, City, Country',
+        },
+      },
+    },
   })
   async createApplication(
     @Body() createApplicationDto: CreateApplicationDto,
@@ -134,6 +164,7 @@ export class ApplicationsController {
   @Get()
   @ResponseMessage('Applications fetched successfully!')
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  @RBAcPermissions('application@read')
   @UseInterceptors(CacheInterceptor)
   @ApiOperation({
     summary: 'Get job applications',
@@ -224,10 +255,6 @@ export class ApplicationsController {
       ],
     },
   })
-  @ApiForbiddenResponse({
-    description:
-      'Only ADMIN, RECRUITER and CANDIDATE can have permission to access this route.',
-  })
   async getApplications(
     @Req() request: Request,
     @Query() searchApplicationsDto: SearchApplicationsDto,
@@ -243,6 +270,7 @@ export class ApplicationsController {
   @Get(':id')
   @ResponseMessage('Application fetched successfully!')
   @Roles(Role.RECRUITER, Role.ADMIN, Role.CANDIDATE)
+  @RBAcPermissions('application@read')
   @ApiOperation({
     summary: 'Get application details',
     description:
@@ -287,14 +315,6 @@ export class ApplicationsController {
       },
     },
   })
-  @ApiResponse({
-    status: 404,
-    description: 'Application not found or access denied.',
-  })
-  @ApiForbiddenResponse({
-    description:
-      'Only recruiters, admins, and the candidate who submitted the application have access to this information.',
-  })
   async getApplication(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: Request,
@@ -317,6 +337,7 @@ export class ApplicationsController {
   @Delete(':id')
   @ResponseMessage('Application deleted successfully!')
   @Roles(Role.ADMIN, Role.RECRUITER, Role.CANDIDATE)
+  @RBAcPermissions('application@delete')
   @ApiOperation({
     summary: 'Delete a job application',
     description:
@@ -336,15 +357,6 @@ export class ApplicationsController {
       },
     },
   })
-  @ApiResponse({
-    status: 403,
-    description:
-      'Forbidden: User is not authorized to delete this application.',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Application not found.',
-  })
   async deleteApplication(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() request: Request,
@@ -358,6 +370,7 @@ export class ApplicationsController {
   @ResponseMessage('Application updated successfully!')
   @UseInterceptors(AnyFilesInterceptor())
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  @RBAcPermissions('application@update')
   @ApiOperation({
     summary: 'Update a job application',
     description:
@@ -422,19 +435,6 @@ export class ApplicationsController {
       },
     },
   })
-  @ApiResponse({
-    status: 400,
-    description: 'Bad Request: Invalid file format or missing required fields.',
-  })
-  @ApiResponse({
-    status: 403,
-    description:
-      'Forbidden: User is not authorized to update this application.',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Application not found.',
-  })
   async updateApplication(
     @Param('id', ParseUUIDPipe) id: string,
     @UploadedFiles() files: Array<Express.Multer.File>,
@@ -462,6 +462,7 @@ export class ApplicationsController {
   @Patch('recruiters/process')
   @ResponseMessage('Processed applications successfully!')
   @Roles(Role.RECRUITER, Role.ADMIN)
+  @RBAcPermissions('application@reject', 'application@accept')
   @ApiOperation({
     summary: 'Process multiple job applications',
     description:
@@ -541,18 +542,6 @@ export class ApplicationsController {
         },
       },
     },
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Bad Request: Invalid input data.',
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Forbidden: User is not authorized to process applications.',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'One or more applications not found.',
   })
   async processApplications(
     @Body() processApplicationsDto: ProcessApplicationsDto,

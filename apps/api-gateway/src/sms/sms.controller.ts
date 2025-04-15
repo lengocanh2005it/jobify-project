@@ -20,10 +20,12 @@ import { Role } from 'libs/common/constants';
 import { ResponseMessage, Roles } from 'libs/common/decorators';
 import { SendSmsDto } from 'libs/common/dtos';
 import { JwtAuthGuard, RoleAuthGuard } from 'libs/common/guards';
+import { RBAcGuard, RBAcPermissions } from 'nestjs-rbac';
 
 @Controller('sms')
-@UseGuards(JwtAuthGuard, RoleAuthGuard)
+@UseGuards(JwtAuthGuard, RoleAuthGuard, RBAcGuard)
 @Roles(Role.ADMIN)
+@RBAcPermissions('admin@send_message')
 @ApiBearerAuth()
 export class SmsController {
   constructor(private readonly smsService: SmsService) {}
@@ -61,9 +63,6 @@ export class SmsController {
         },
       },
     },
-  })
-  @ApiBadRequestResponse({
-    description: 'User phone number not found or invalid request format.',
   })
   @ResponseMessage('Sent message to phone number successfully.')
   async sendSms(@Body() { to, message }: SendSmsDto, @Req() request: Request) {

@@ -29,6 +29,7 @@ export class RoleAuthGuard implements CanActivate {
     const role = request.user?.role.name as string;
 
     if (!role) throw new UnauthorizedException('User Not Authenticated.');
+    request.user.getRoles = () => [role];
 
     const isHasRole = requiredRoles.includes(role);
 
@@ -36,6 +37,10 @@ export class RoleAuthGuard implements CanActivate {
       throw new ForbiddenException(
         "You don't have permission to access this route.",
       );
+
+    if (request.user?.role) {
+      request.user.role = request.user?.role.name;
+    }
 
     return true;
   }

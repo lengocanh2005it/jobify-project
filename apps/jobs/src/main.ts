@@ -1,14 +1,22 @@
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
-import { JobsModule } from './jobs.module';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
+import { JobsModule } from './jobs.module';
 
 async function bootstrap() {
+  const appContext = await NestFactory.createApplicationContext(JobsModule);
+
+  const configService = appContext.get(ConfigService);
+
+  const rabbitmqUrl =
+    configService.get<string>('rabbitmq.url') || 'amqp://localhost:5672';
+
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
     JobsModule,
     {
       transport: Transport.RMQ,
       options: {
-        urls: ['amqp://localhost:5672'],
+        urls: [rabbitmqUrl],
         queue: 'jobs_queue',
         queueOptions: {
           durable: false,
