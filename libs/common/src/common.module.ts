@@ -39,10 +39,10 @@ import {
 } from 'libs/common/providers';
 import * as multer from 'multer';
 import { LoggerModule } from 'nestjs-pino';
+import { RBAcModule } from 'nestjs-rbac';
 import { TwilioModule } from 'nestjs-twilio';
 import { join } from 'path';
 import { CommonService } from './common.service';
-import { RBAcModule } from 'nestjs-rbac';
 
 @Global()
 @Module({
@@ -99,6 +99,9 @@ import { RBAcModule } from 'nestjs-rbac';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         node: configService.get<string>('elasticsearch.url', ''),
+        auth: {
+          apiKey: configService.get<string>('elasticsearch.api_key', ''),
+        },
       }),
     }),
     HttpModule.register({

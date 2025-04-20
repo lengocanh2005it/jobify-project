@@ -17,10 +17,8 @@ import {
   DEFAULT_TTL_OTP_EXPIRED,
   EmailTemplateNameEnum,
   Provider,
-  Role,
 } from 'libs/common/constants';
 import {
-  AssignRolesDto,
   CreateDeviceDto,
   LoginDto,
   UpdatePasswordDto,
@@ -90,7 +88,7 @@ export class AuthService {
         };
       }
 
-      if (user.role.name !== 'admin') {
+      if (user.role.name !== 'admin' && user.role.name !== 'superadmin') {
         const { forwardedFor, ip, userAgent } = requestMetadata;
 
         const ipAddress = forwardedFor || ip || 'Unknown IP address';

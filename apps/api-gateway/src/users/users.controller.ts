@@ -54,7 +54,7 @@ export class UsersController {
 
   @Get()
   @ResponseMessage('All users fetched successfully.')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPERADMIN)
   @RBAcPermissions('admin@manage_users')
   @UseInterceptors(CacheInterceptor)
   @ApiOperation({

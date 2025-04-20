@@ -14,15 +14,12 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import {
-  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
-  ApiForbiddenResponse,
   ApiOperation,
   ApiResponse,
   ApiTags,
-  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { AuthService } from 'apps/api-gateway/src/auth/auth.service';
 import { User } from 'apps/users/src/entities';
@@ -81,10 +78,6 @@ export class AuthController {
         refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
       },
     },
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Invalid email or password.',
   })
   async handleLogin(@Body() loginDto: LoginDto, @Req() request: Request) {
     const requestMetadata: RequestMetadata = {
@@ -227,10 +220,6 @@ export class AuthController {
       },
     },
   })
-  @ApiResponse({
-    status: 400,
-    description: 'Invalid input data.',
-  })
   async handleSignup(
     @Body() createUserDto: CreateUserDto,
     @Req() request: Request,
@@ -249,6 +238,7 @@ export class AuthController {
   @ResponseMessage('Signed out successfully.')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  @RBAcPermissions('auth@logout')
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'User sign-out',
@@ -268,6 +258,7 @@ export class AuthController {
   @ResponseMessage('Company created successfully.')
   @UseGuards(JwtAuthGuard, RoleAuthGuard)
   @Roles(Role.RECRUITER, Role.ADMIN)
+  @RBAcPermissions('company@create')
   @ApiBearerAuth()
   @ApiBody({
     type: CreateCompanyDto,
@@ -289,7 +280,7 @@ export class AuthController {
 
   @Get('profile')
   @UseGuards(JwtAuthGuard, RoleAuthGuard, RBAcGuard)
-  @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER)
+  @Roles(Role.ADMIN, Role.CANDIDATE, Role.RECRUITER, Role.SUPERADMIN)
   @RBAcAnyPermissions(
     ['user@read'],
     ['user@create'],
@@ -719,15 +710,6 @@ export class AuthController {
     status: 200,
     description: '2FA verified successfully.',
   })
-  @ApiBadRequestResponse({
-    description: 'Invalid OTP format or incorrect OTP.',
-  })
-  @ApiUnauthorizedResponse({
-    description: 'User is not authenticated.',
-  })
-  @ApiForbiddenResponse({
-    description: 'User does not have the required role.',
-  })
   async verify2FA(@Body() verify2FaDto: Verify2FaDto, @Req() request: Request) {
     const userId = (request.user as User).id;
 
@@ -755,12 +737,6 @@ export class AuthController {
     status: 200,
     description: 'Logged in via 2FA successfully.',
   })
-  @ApiBadRequestResponse({
-    description: 'Invalid OTP or email format.',
-  })
-  @ApiUnauthorizedResponse({
-    description: 'Invalid credentials or 2FA verification failed.',
-  })
   async handleLogin2Fa(@Body() login2FaDto: Login2FaDto) {
     return this.authService.handleLogin2Fa(login2FaDto);
   }
@@ -774,18 +750,6 @@ export class AuthController {
   @ApiResponse({
     status: 201,
     description: 'Email verified successfully.',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Invalid OTP or OTP has expired.',
-  })
-  @ApiResponse({
-    status: 429,
-    description: 'Too many incorrect attempts. Please request a new OTP.',
-  })
-  @ApiResponse({
-    status: 500,
-    description: 'Internal server error.',
   })
   async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
     return this.authService.handleVerifyOtp(verifyOtpDto);

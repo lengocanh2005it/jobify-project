@@ -48,6 +48,7 @@ export default () => ({
   },
   elasticsearch: {
     url: process.env.ELASTICSEARCH_URL,
+    api_key: process.env.ELASTICSEARCH_API_KEY,
   },
   rabbitmq: {
     url: process.env.RABBITMQ_URL,

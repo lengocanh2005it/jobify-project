@@ -346,6 +346,12 @@ export class UsersService implements OnModuleInit {
 
       await this.cacheManager.set(`${email}:otp`, otp, DEFAULT_TTL_OTP_EXPIRED);
 
+      this.rabbitMqRedisClient.emit('set-key', {
+        key: `${email}:otp`,
+        data: otp,
+        ttl: DEFAULT_TTL_OTP_EXPIRED,
+      });
+
       this.rabbitMqEmailClient.emit('send-email', {
         email,
         templateName: EmailTemplateNameEnum.EMAIL_OTP_VERIFICATION,

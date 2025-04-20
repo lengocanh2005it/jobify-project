@@ -19,6 +19,11 @@ export const adminPermissions = [
     description: 'Allow admin to manage users.',
     module: 'admin',
   },
+  {
+    name: 'admin@assign_roles',
+    description: 'Allow admin to assign role to users.',
+    module: 'admin',
+  },
 ];
 
 export const superAdminPermissions = [
